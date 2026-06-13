@@ -6,23 +6,49 @@ Format inspired by [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.1.0] — 2026
+
+### Added
+- **Persian (Jalali) date picker** — custom zero-dependency Jalali calendar
+  component for survey start/end date selection, replacing the browser's
+  native `datetime-local` input
+- **Survey expiry status** — surveys with a past `ends_at` date and
+  `published` status now automatically display «مهلت نظرسنجی به پایان رسیده»
+  (deadline passed) as an orange badge/banner across all views (admin list,
+  admin detail, employee list, employee detail); this is distinct from the
+  manual «بسته شده» (closed) status triggered by the close button
+- **Rating description (توضیحات)** — optional per-person description field
+  displayed inside the rating modal below the person's role/department
+
+### Changed
+- `StatusBadge` component now accepts an optional `expired` prop to render
+  the expiry state without altering the underlying `status` field
+- `isSurveyExpired()` helper added to `utils/helpers.ts` for consistent
+  expiry checks across all pages
+- Employee survey detail: rating button is disabled and shows «نظرسنجی به
+  پایان رسیده» when the survey has expired
+- Employee survey list: expired surveys show an orange badge instead of «جدید»
+  or «ناقص»
+
+---
+
 ## [1.0.0] — 2026
 
 ### Added
 - Initial public GitHub release of InsightFlow
-- Django + Django REST Framework backend
-- React + TypeScript + Tailwind CSS frontend
-- PostgreSQL database support
-- Docker Compose deployment with Nginx and Gunicorn
-- JWT authentication with role-based access
-- Admin dashboard for creating, editing, publishing, closing, and reviewing surveys
-- Employee survey flow with 1–10 person-based rating
-- Anonymous result model that does not expose voter identity in result pages
-- Duplicate vote prevention
-- Persian RTL user interface
-- Persian/Jalali date picker support
-- Survey expiry status for surveys past their deadline
-- Optional rating descriptions
-- CSV and Excel export for survey results
-- LAN-ready deployment structure
-- GitHub-ready documentation, issue templates, PR template, and CI workflow
+- Django 4.2 + DRF backend with JWT authentication
+- React 18 + TypeScript + Tailwind CSS frontend
+- PostgreSQL database
+- Docker Compose deployment with Nginx reverse proxy
+- Admin panel: create, edit, publish, close surveys; manage people; view results
+- Employee view: rate people 1–10 per survey with duplicate-vote prevention
+- Anonymous results: voter identity never exposed
+- CSV and Excel export of survey results
+- Persian RTL interface
+- LAN-ready deployment
+
+## Docker migration hotfix
+
+- Restored initial Django migrations for `accounts` and `surveys` apps.
+- Removed the obsolete `version` key from `docker-compose.yml` to avoid Docker Compose warnings.
+- This fixes backend startup failure: `ValueError: Dependency on app with no migrations: accounts`.

@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     # Admin dashboard
     path('admin/dashboard/', views.AdminDashboardView.as_view(), name='admin-dashboard'),
+    path('admin/delete-all-data/', views.AdminDeleteAllDataView.as_view(), name='admin-delete-all-data'),
 
     # Admin survey CRUD
     path('admin/surveys/', views.AdminSurveyListCreateView.as_view(), name='admin-survey-list'),

@@ -10,6 +10,7 @@ urlpatterns = [
 
     # Admin user management
     path('admin/users/', views.UserListCreateView.as_view(), name='user-list-create'),
+    path('admin/users/bulk-import/', views.UserBulkImportView.as_view(), name='user-bulk-import'),
     path('admin/users/<int:pk>/', views.UserDetailView.as_view(), name='user-detail'),
     path('admin/users/<int:pk>/reset-password/', views.UserResetPasswordView.as_view(), name='user-reset-password'),
     path('admin/users/<int:pk>/activate/', views.UserActivateView.as_view(), name='user-activate'),

@@ -233,6 +233,7 @@ export default function EmployeeSurveyDetail() {
   const ratedCount = survey.people.filter(p => p.has_rated).length;
   const totalCount = survey.people.length;
   const expired = isSurveyExpired({ status: survey.status, ends_at: survey.ends_at });
+  const surveyStarted = (survey as any).survey_started !== false;
 
   return (
     <div>
@@ -242,6 +243,16 @@ export default function EmployeeSurveyDetail() {
         <span>/</span>
         <span className="text-gray-700">{survey.title}</span>
       </div>
+
+      {/* Not started yet banner */}
+      {!surveyStarted && (
+        <div className="mb-5 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-5 py-3">
+          <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-sm font-medium text-blue-700">این نظرسنجی هنوز شروع نشده است — افراد پس از شروع نمایش داده می‌شوند</p>
+        </div>
+      )}
 
       {/* Expired banner */}
       {expired && (

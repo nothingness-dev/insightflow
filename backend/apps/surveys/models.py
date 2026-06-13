@@ -25,12 +25,10 @@ class Survey(models.Model):
 
     VISIBILITY_ADMIN_ONLY = 'admin_only'
     VISIBILITY_EMPLOYEES_AFTER_CLOSE = 'employees_after_close'
-    VISIBILITY_PUBLIC_AFTER_CLOSE = 'public_after_close'
 
     VISIBILITY_CHOICES = [
         (VISIBILITY_ADMIN_ONLY, 'فقط مدیر'),
         (VISIBILITY_EMPLOYEES_AFTER_CLOSE, 'کارکنان پس از بسته شدن'),
-        (VISIBILITY_PUBLIC_AFTER_CLOSE, 'عمومی پس از بسته شدن'),
     ]
 
     title = models.CharField(max_length=300, verbose_name='عنوان')

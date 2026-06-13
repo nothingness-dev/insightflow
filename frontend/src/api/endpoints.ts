@@ -69,11 +69,20 @@ export const adminUserApi = {
     api.post(`/admin/users/${id}/activate/`),
   deactivate: (id: number) =>
     api.post(`/admin/users/${id}/deactivate/`),
+  bulkImport: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/admin/users/bulk-import/', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 // Admin Dashboard
 export const dashboardApi = {
   stats: () => api.get<DashboardStats>('/admin/dashboard/'),
+  deleteAllData: () =>
+    api.delete('/admin/delete-all-data/', { data: { confirm: 'DELETE_ALL' } }),
 };
 
 // Employee

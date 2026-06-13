@@ -10,7 +10,6 @@ import toast from 'react-hot-toast';
 const visibilityOptions = [
   { value: 'admin_only', label: 'فقط مدیر' },
   { value: 'employees_after_close', label: 'کارکنان پس از بستن' },
-  { value: 'public_after_close', label: 'عمومی پس از بستن' },
 ];
 
 export default function SurveyForm() {

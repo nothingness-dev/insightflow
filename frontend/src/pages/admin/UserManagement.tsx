@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, FormEvent } from 'react';
-import { adminUserApi } from '../../api/endpoints';
+import { useEffect, useState, useCallback, FormEvent, useRef } from 'react';
+import { adminUserApi, dashboardApi } from '../../api/endpoints';
 import { User } from '../../types';
 import { PageHeader, SearchInput, EmptyState, PageLoader, ConfirmModal, Modal } from '../../components/common/index';
 import { formatDate, getErrorMessage } from '../../utils/helpers';
@@ -14,8 +14,16 @@ function RoleBadge({ role }: { role: string }) {
 interface UserFormData {
   username: string; full_name: string; role: string; password: string; password_confirm: string; is_active: boolean;
 }
-
 const emptyForm: UserFormData = { username: '', full_name: '', role: 'employee', password: '', password_confirm: '', is_active: true };
+
+interface ImportResult {
+  created_count: number;
+  skipped_count: number;
+  error_count: number;
+  created: { username: string; full_name: string; role: string }[];
+  skipped: { line: number; username: string; reason: string }[];
+  errors: { line: number; content: string; error: string }[];
+}
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
@@ -31,6 +39,18 @@ export default function UserManagement() {
   const [resetId, setResetId] = useState<number | null>(null);
   const [newPass, setNewPass] = useState('');
   const [resetting, setResetting] = useState(false);
+
+  // Bulk import state
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete all data state
+  const [deleteAllModal, setDeleteAllModal] = useState(false);
+  const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('');
+  const [deletingAll, setDeletingAll] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -108,6 +128,34 @@ export default function UserManagement() {
     finally { setResetting(false); }
   };
 
+  const handleImport = async () => {
+    if (!importFile) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const r = await adminUserApi.bulkImport(importFile);
+      setImportResult(r.data as ImportResult);
+      if ((r.data as ImportResult).created_count > 0) {
+        toast.success(`${(r.data as ImportResult).created_count} کاربر ایجاد شد`);
+        load();
+      }
+    } catch (err) { toast.error(getErrorMessage(err)); }
+    finally { setImporting(false); }
+  };
+
+  const handleDeleteAll = async () => {
+    if (deleteAllConfirmText !== 'حذف همه') return;
+    setDeletingAll(true);
+    try {
+      const r = await dashboardApi.deleteAllData();
+      const d = (r.data as any).deleted;
+      toast.success(`${d.surveys} نظرسنجی، ${d.people} فرد و ${d.ratings} امتیاز حذف شدند`);
+      setDeleteAllModal(false);
+      setDeleteAllConfirmText('');
+    } catch (err) { toast.error(getErrorMessage(err)); }
+    finally { setDeletingAll(false); }
+  };
+
   const set = (field: keyof UserFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm(f => ({ ...f, [field]: e.target.value }));
     if (errors[field]) setErrors(er => ({ ...er, [field]: '' }));
@@ -118,7 +166,23 @@ export default function UserManagement() {
       <PageHeader
         title="مدیریت کارکنان"
         subtitle="ایجاد و مدیریت حساب‌های کاربری سازمان"
-        action={<button onClick={openCreate} className="btn-primary flex items-center gap-2"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>کاربر جدید</button>}
+        action={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setImportModalOpen(true); setImportResult(null); setImportFile(null); }}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              آپلود فایل
+            </button>
+            <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+              کاربر جدید
+            </button>
+          </div>
+        }
       />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
@@ -185,6 +249,22 @@ export default function UserManagement() {
           </div>
         </div>
       )}
+
+      {/* Danger zone */}
+      <div className="mt-10 border border-red-200 rounded-xl p-5 bg-red-50">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-red-700 text-sm">ناحیه خطر</p>
+            <p className="text-xs text-red-500 mt-0.5">حذف تمام نظرسنجی‌ها، افراد و امتیازها — غیرقابل بازگشت</p>
+          </div>
+          <button
+            onClick={() => { setDeleteAllModal(true); setDeleteAllConfirmText(''); }}
+            className="px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-100 transition-colors"
+          >
+            حذف تمام داده‌ها
+          </button>
+        </div>
+      </div>
 
       {/* Create/Edit Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? 'ویرایش کاربر' : 'کاربر جدید'} size="md">
@@ -253,6 +333,142 @@ export default function UserManagement() {
               تغییر رمز
             </button>
             <button onClick={() => setResetId(null)} className="btn-secondary">انصراف</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bulk Import Modal */}
+      <Modal open={importModalOpen} onClose={() => { setImportModalOpen(false); setImportResult(null); }} title="آپلود کاربران از فایل" size="lg">
+        <div className="p-6 space-y-5">
+          {/* Format guide */}
+          <div className="bg-gray-50 rounded-xl p-4 text-xs font-mono text-gray-600 leading-relaxed border border-gray-100">
+            <p className="text-gray-400 mb-2 font-sans font-medium text-xs">فرمت فایل CSV یا TXT (هر خط یک کاربر):</p>
+            <p>username,نام کامل,رمز عبور,نقش</p>
+            <p className="text-gray-400 mt-1"># نقش اختیاری است: employee (پیش‌فرض) یا admin</p>
+            <p className="text-gray-400"># خطوط شروع‌شده با # نادیده گرفته می‌شوند</p>
+            <div className="border-t border-gray-200 mt-2 pt-2 space-y-0.5">
+              <p>ali_ahmadi,علی احمدی,Pass@1234,employee</p>
+              <p>sara.mohammadi,سارا محمدی,MyPass!99</p>
+              <p>manager1,مدیر اول,Admin@2024,admin</p>
+            </div>
+          </div>
+
+          {/* File drop zone */}
+          <div
+            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors
+              ${importFile ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.txt"
+              className="hidden"
+              onChange={e => { setImportFile(e.target.files?.[0] || null); setImportResult(null); }}
+            />
+            {importFile ? (
+              <div className="flex items-center justify-center gap-3">
+                <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div className="text-right">
+                  <p className="font-medium text-slate-700">{importFile.name}</p>
+                  <p className="text-xs text-gray-400">{(importFile.size / 1024).toFixed(1)} KB — کلیک کنید تا تغییر دهید</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p className="text-sm text-gray-500">فایل CSV یا TXT را اینجا رها کنید یا کلیک کنید</p>
+              </>
+            )}
+          </div>
+
+          {/* Import result */}
+          {importResult && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-bold text-emerald-700">{importResult.created_count}</p>
+                  <p className="text-xs text-emerald-600 mt-0.5">ایجاد شد</p>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-bold text-amber-700">{importResult.skipped_count}</p>
+                  <p className="text-xs text-amber-600 mt-0.5">نادیده گرفته شد</p>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-bold text-red-700">{importResult.error_count}</p>
+                  <p className="text-xs text-red-600 mt-0.5">خطا</p>
+                </div>
+              </div>
+
+              {importResult.skipped.length > 0 && (
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                  <p className="text-xs font-semibold text-amber-700 mb-1.5">نادیده گرفته‌شده‌ها:</p>
+                  {importResult.skipped.map((s, i) => (
+                    <p key={i} className="text-xs text-amber-700">خط {s.line}: {s.username} — {s.reason}</p>
+                  ))}
+                </div>
+              )}
+
+              {importResult.errors.length > 0 && (
+                <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+                  <p className="text-xs font-semibold text-red-700 mb-1.5">خطاها:</p>
+                  {importResult.errors.map((e, i) => (
+                    <p key={i} className="text-xs text-red-700">خط {e.line}: {e.error}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleImport}
+              disabled={!importFile || importing}
+              className="btn-primary flex items-center gap-2"
+            >
+              {importing && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              {importing ? 'در حال پردازش...' : 'آپلود و ایجاد کاربران'}
+            </button>
+            <button onClick={() => { setImportModalOpen(false); setImportResult(null); }} className="btn-secondary">بستن</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete All Data Modal */}
+      <Modal open={deleteAllModal} onClose={() => setDeleteAllModal(false)} title="حذف تمام داده‌ها" size="sm">
+        <div className="p-6 space-y-4">
+          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5C2.962 18.333 3.924 20 5.464 20z" />
+            </svg>
+            <div>
+              <p className="text-sm font-semibold text-red-700">این عملیات غیرقابل بازگشت است</p>
+              <p className="text-xs text-red-600 mt-1">تمام نظرسنجی‌ها، افراد و امتیازها برای همیشه حذف می‌شوند. حساب‌های کاربری دست نخورده باقی می‌مانند.</p>
+            </div>
+          </div>
+          <div>
+            <label className="label">برای تأیید، عبارت «حذف همه» را تایپ کنید</label>
+            <input
+              value={deleteAllConfirmText}
+              onChange={e => setDeleteAllConfirmText(e.target.value)}
+              className="input-field"
+              placeholder="حذف همه"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleDeleteAll}
+              disabled={deleteAllConfirmText !== 'حذف همه' || deletingAll}
+              className="flex-1 py-2.5 text-sm font-medium rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors flex items-center justify-center gap-2"
+            >
+              {deletingAll && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              حذف تمام داده‌ها
+            </button>
+            <button onClick={() => setDeleteAllModal(false)} className="btn-secondary">انصراف</button>
           </div>
         </div>
       </Modal>

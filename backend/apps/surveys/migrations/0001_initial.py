@@ -1,4 +1,4 @@
-# Generated for initial public release.
+# Generated for InsightFlow initial schema.
 
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
                 ('question', models.TextField(verbose_name='سوال اصلی')),
                 ('description', models.TextField(blank=True, verbose_name='توضیحات')),
                 ('status', models.CharField(choices=[('draft', 'پیش‌نویس'), ('published', 'منتشر شده'), ('closed', 'بسته شده')], default='draft', max_length=20, verbose_name='وضعیت')),
-                ('results_visibility', models.CharField(choices=[('admin_only', 'فقط مدیر'), ('employees_after_close', 'کارکنان پس از بسته شدن'), ('public_after_close', 'عمومی پس از بسته شدن')], default='admin_only', max_length=30, verbose_name='نمایش نتایج')),
+                ('results_visibility', models.CharField(choices=[('admin_only', 'فقط مدیر'), ('employees_after_close', 'کارکنان پس از بسته شدن')], default='admin_only', max_length=30, verbose_name='نمایش نتایج')),
                 ('starts_at', models.DateTimeField(blank=True, null=True, verbose_name='تاریخ شروع')),
                 ('ends_at', models.DateTimeField(blank=True, null=True, verbose_name='تاریخ پایان')),
                 ('created_at', models.DateTimeField(default=django.utils.timezone.now, verbose_name='تاریخ ایجاد')),

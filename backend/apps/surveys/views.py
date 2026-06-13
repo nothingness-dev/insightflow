@@ -279,13 +279,21 @@ class EmployeeSurveyDetailView(APIView):
         serializer = SurveyPublicSerializer(survey, context={'request': request})
         data = serializer.data
 
-        # Add my rating status per person (only boolean, no score exposed)
-        my_ratings = set(
-            Rating.objects.filter(survey=survey, voter=request.user).values_list('person_id', flat=True)
-        )
-        for person in data['people']:
-            person['has_rated'] = person['id'] in my_ratings
+        now = timezone.now()
+        survey_started = not survey.starts_at or now >= survey.starts_at
 
+        if survey_started:
+            # Add my rating status per person (only boolean, no score exposed)
+            my_ratings = set(
+                Rating.objects.filter(survey=survey, voter=request.user).values_list('person_id', flat=True)
+            )
+            for person in data['people']:
+                person['has_rated'] = person['id'] in my_ratings
+        else:
+            # Survey hasn't started yet — hide all people
+            data['people'] = []
+
+        data['survey_started'] = survey_started
         return Response(data)
 
 
@@ -371,10 +379,7 @@ class EmployeeSurveyResultsView(APIView):
 
         can_view = False
         if survey.status == Survey.STATUS_CLOSED:
-            if survey.results_visibility in [
-                Survey.VISIBILITY_EMPLOYEES_AFTER_CLOSE,
-                Survey.VISIBILITY_PUBLIC_AFTER_CLOSE
-            ]:
+            if survey.results_visibility == Survey.VISIBILITY_EMPLOYEES_AFTER_CLOSE:
                 can_view = True
 
         if not can_view:
@@ -422,4 +427,43 @@ class AdminDashboardView(APIView):
                 'total_employees': total_employees,
             },
             'recent_surveys': recent_data,
+        })
+
+
+class AdminDeleteAllDataView(APIView):
+    """حذف تمام داده‌ها — فقط مدیر، غیرقابل بازگشت"""
+    permission_classes = [IsAdminUser]
+
+    def delete(self, request):
+        from apps.accounts.models import User
+
+        # Verify confirmation token sent in body
+        confirm = request.data.get('confirm')
+        if confirm != 'DELETE_ALL':
+            return Response(
+                {'detail': 'برای تأیید، مقدار "DELETE_ALL" را ارسال کنید.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Delete all ratings, people, and surveys; keep users intact
+        ratings_count = Rating.objects.count()
+        people_count = SurveyPerson.objects.count()
+        surveys_count = Survey.objects.count()
+
+        Rating.objects.all().delete()
+        SurveyPerson.objects.all().delete()
+        Survey.objects.all().delete()
+
+        logger.warning(
+            f"Admin {request.user.username} deleted ALL data: "
+            f"{surveys_count} surveys, {people_count} people, {ratings_count} ratings"
+        )
+
+        return Response({
+            'detail': 'تمام داده‌ها با موفقیت حذف شدند.',
+            'deleted': {
+                'surveys': surveys_count,
+                'people': people_count,
+                'ratings': ratings_count,
+            }
         })

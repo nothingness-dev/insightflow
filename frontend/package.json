@@ -1,5 +1,5 @@
 {
-  "name": "insightflow",
+  "name": "survey-frontend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -25,6 +25,5 @@
     "tailwindcss": "^3.4.4",
     "typescript": "^5.2.2",
     "vite": "^5.3.1"
-  },
-  "author": "Roham <https://github.com/nothingness-dev>"
+  }
 }

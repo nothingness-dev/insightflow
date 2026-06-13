@@ -1,0 +1,9 @@
+.git
+.env
+node_modules
+npm-debug.log
+dist
+build
+.vite
+coverage
+.DS_Store

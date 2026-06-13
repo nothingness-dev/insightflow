@@ -68,7 +68,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </svg>
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-800">InsightFlow</p>
+            <p className="text-sm font-bold text-slate-800">سامانه نظرسنجی</p>
             <p className="text-xs text-gray-400">پنل مدیریت</p>
           </div>
         </div>
@@ -149,7 +149,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <MenuIcon />
           </button>
           <div className="text-sm text-gray-400 hidden md:block">
-            InsightFlow — سامانه ارزیابی سازمانی
+            سامانه نظرسنجی سازمانی
           </div>
         </header>
 

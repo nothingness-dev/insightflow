@@ -10,7 +10,7 @@ class Command(BaseCommand):
         from apps.accounts.models import User
 
         admin_username = config('ADMIN_USERNAME', default='admin')
-        admin_password = config('ADMIN_PASSWORD', default='admin12345')
+        admin_password = config('ADMIN_PASSWORD', default='Admin@1234')
         admin_full_name = config('ADMIN_FULL_NAME', default='مدیر سیستم')
 
         if not User.objects.filter(username=admin_username).exists():

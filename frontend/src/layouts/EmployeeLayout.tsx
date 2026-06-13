@@ -24,7 +24,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
               </svg>
             </div>
             <NavLink to="/surveys" className="text-sm font-bold text-slate-800">
-              InsightFlow
+              سامانه نظرسنجی
             </NavLink>
           </div>
           <div className="flex items-center gap-4">
