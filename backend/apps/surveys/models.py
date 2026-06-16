@@ -24,11 +24,9 @@ class Survey(models.Model):
     ]
 
     VISIBILITY_ADMIN_ONLY = 'admin_only'
-    VISIBILITY_EMPLOYEES_AFTER_CLOSE = 'employees_after_close'
 
     VISIBILITY_CHOICES = [
         (VISIBILITY_ADMIN_ONLY, 'فقط مدیر'),
-        (VISIBILITY_EMPLOYEES_AFTER_CLOSE, 'کارکنان پس از بسته شدن'),
     ]
 
     title = models.CharField(max_length=300, verbose_name='عنوان')
@@ -39,8 +37,6 @@ class Survey(models.Model):
         max_length=30, choices=VISIBILITY_CHOICES,
         default=VISIBILITY_ADMIN_ONLY, verbose_name='نمایش نتایج'
     )
-    starts_at = models.DateTimeField(null=True, blank=True, verbose_name='تاریخ شروع')
-    ends_at = models.DateTimeField(null=True, blank=True, verbose_name='تاریخ پایان')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
         related_name='created_surveys', verbose_name='ایجادکننده'
@@ -60,14 +56,7 @@ class Survey(models.Model):
 
     @property
     def is_active(self):
-        now = timezone.now()
-        if self.status != self.STATUS_PUBLISHED:
-            return False
-        if self.starts_at and now < self.starts_at:
-            return False
-        if self.ends_at and now > self.ends_at:
-            return False
-        return True
+        return self.status == self.STATUS_PUBLISHED
 
     def can_vote(self):
         return self.is_active
@@ -104,6 +93,10 @@ class Rating(models.Model):
     score = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(10)],
         verbose_name='امتیاز'
+    )
+    comment = models.TextField(
+        blank=True, null=True,
+        verbose_name='توضیحات'
     )
     ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name='آدرس IP')
     user_agent = models.TextField(null=True, blank=True, verbose_name='مرورگر')

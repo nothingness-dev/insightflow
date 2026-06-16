@@ -31,8 +31,6 @@ def create_survey(created_by, status=Survey.STATUS_DRAFT, **kwargs):
         question=kwargs.get('question', 'عملکرد این فرد را ارزیابی کنید'),
         created_by=created_by,
         status=status,
-        starts_at=kwargs.get('starts_at', timezone.now() - timedelta(hours=1)),
-        ends_at=kwargs.get('ends_at', timezone.now() + timedelta(hours=24)),
     )
 
 
@@ -127,8 +125,6 @@ class SurveyRatingRulesTests(APITestCase):
     def test_cannot_rate_before_start(self):
         survey = create_survey(
             self.admin, status=Survey.STATUS_PUBLISHED,
-            starts_at=timezone.now() + timedelta(hours=2),
-            ends_at=timezone.now() + timedelta(hours=10)
         )
         person = create_person(survey)
         token = self.get_token(self.emp1)
@@ -139,8 +135,6 @@ class SurveyRatingRulesTests(APITestCase):
     def test_cannot_rate_after_end(self):
         survey = create_survey(
             self.admin, status=Survey.STATUS_PUBLISHED,
-            starts_at=timezone.now() - timedelta(hours=10),
-            ends_at=timezone.now() - timedelta(hours=1)
         )
         person = create_person(survey)
         token = self.get_token(self.emp1)

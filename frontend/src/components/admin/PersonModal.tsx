@@ -101,7 +101,7 @@ export default function PersonModal({ open, onClose, onSaved, surveyId, person }
         {/* Photo upload */}
         <div className="flex items-center gap-4">
           <div
-            className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center cursor-pointer border-2 border-dashed border-gray-200 hover:border-blue-400 transition-colors flex-shrink-0"
+            className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center cursor-pointer border-2 border-dashed border-gray-200 hover:border-[color:var(--c-400)] transition-colors flex-shrink-0"
             onClick={() => fileRef.current?.click()}
           >
             {preview ? (
@@ -155,7 +155,7 @@ export default function PersonModal({ open, onClose, onSaved, surveyId, person }
                 type="checkbox"
                 checked={form.is_active}
                 onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))}
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="w-4 h-4 rounded border-gray-300 text-[color:var(--c-600)] focus:ring-[color:var(--c-500)]"
               />
               <span className="text-sm text-gray-700">فعال</span>
             </label>

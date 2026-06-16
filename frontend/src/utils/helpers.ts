@@ -21,12 +21,6 @@ export function formatDateTime(dateStr: string | null | undefined): string {
   }
 }
 
-export function isSurveyExpired(survey: { status: string; ends_at: string | null }): boolean {
-  if (survey.status !== 'published') return false;
-  if (!survey.ends_at) return false;
-  return new Date(survey.ends_at) < new Date();
-}
-
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

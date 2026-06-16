@@ -93,6 +93,18 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         kwargs['partial'] = True
         return super().update(request, *args, **kwargs)
 
+    def delete(self, request, pk):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({'detail': 'کاربر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
+        if user == request.user:
+            return Response({'detail': 'نمی‌توانید حساب خود را حذف کنید.'}, status=status.HTTP_400_BAD_REQUEST)
+        username = user.username
+        user.delete()
+        logger.info(f"Admin {request.user.username} deleted user: {username}")
+        return Response({'detail': 'کاربر با موفقیت حذف شد.'}, status=status.HTTP_200_OK)
+
 
 class UserResetPasswordView(APIView):
     permission_classes = [IsAdminUser]

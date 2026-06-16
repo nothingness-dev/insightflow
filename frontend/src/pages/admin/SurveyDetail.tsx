@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { adminSurveyApi, adminPersonApi } from '../../api/endpoints';
 import { Survey, SurveyPerson } from '../../types';
 import { StatusBadge, PageLoader, ConfirmModal } from '../../components/common/index';
-import { formatDateTime, getErrorMessage, isSurveyExpired } from '../../utils/helpers';
+import { formatDateTime, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import PersonModal from '../../components/admin/PersonModal';
 
@@ -91,7 +91,7 @@ export default function SurveyDetail() {
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2">
-              <StatusBadge status={survey.status} expired={isSurveyExpired(survey)} />
+              <StatusBadge status={survey.status} />
               <span className="text-xs text-gray-400">{formatDateTime(survey.created_at)}</span>
             </div>
             <h1 className="text-xl font-bold text-slate-800 mb-1">{survey.title}</h1>
@@ -110,14 +110,6 @@ export default function SurveyDetail() {
           <div>
             <p className="text-xs text-gray-400">پاسخ‌ها</p>
             <p className="text-lg font-semibold text-slate-700">{survey.total_responses}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">شروع</p>
-            <p className="text-sm text-slate-700">{formatDateTime(survey.starts_at)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">پایان</p>
-            <p className="text-sm text-slate-700">{formatDateTime(survey.ends_at)}</p>
           </div>
         </div>
 

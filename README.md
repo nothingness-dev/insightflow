@@ -159,8 +159,9 @@ CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1
 
 ---
 
-## ساختار پروژه
 <div dir="ltr">
+
+## ساختار پروژه
 
 ```text
 insightflow/
@@ -196,9 +197,10 @@ insightflow/
 ├── LICENSE
 └── README.md
 ```
-</div>
 
 ---
+
+</div>
 
 ## API Endpoints
 

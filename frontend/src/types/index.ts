@@ -13,9 +13,7 @@ export interface Survey {
   question: string;
   description: string;
   status: 'draft' | 'published' | 'closed';
-  results_visibility: 'admin_only' | 'employees_after_close' | 'public_after_close';
-  starts_at: string | null;
-  ends_at: string | null;
+  results_visibility: 'admin_only';
   created_by: number | null;
   created_by_name: string | null;
   people_count: number;
@@ -54,6 +52,7 @@ export interface PersonResult {
   average_score: number | null;
   total_score: number;
   votes_count: number;
+  comments: string[];
 }
 
 export interface SurveyResults {

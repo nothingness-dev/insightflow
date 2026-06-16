@@ -75,13 +75,13 @@ export function ConfirmModal({ open, onClose, onConfirm, title, message, confirm
   return (
     <Modal open={open} onClose={onClose} size="sm">
       <div className="p-6">
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmVariant === 'danger' ? 'bg-red-50' : 'bg-blue-50'}`}>
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmVariant === 'danger' ? 'bg-red-50' : 'var(--c-50)'}`}>
           {confirmVariant === 'danger' ? (
             <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           ) : (
-            <svg className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-6 h-6 text-[color:var(--c-500)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           )}
@@ -96,7 +96,7 @@ export function ConfirmModal({ open, onClose, onConfirm, title, message, confirm
             className={`flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
               confirmVariant === 'danger'
                 ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] text-white'
             }`}
           >
             {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
@@ -184,7 +184,7 @@ export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
 // ─── Spinner ──────────────────────────────────────────────
 export function Spinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const s = { sm: 'w-4 h-4', md: 'w-6 h-6', lg: 'w-8 h-8' }[size];
-  return <div className={`${s} border-2 border-blue-600 border-t-transparent rounded-full animate-spin`} />;
+  return <div className={`${s} border-2 border-[color:var(--c-600)] border-t-transparent rounded-full animate-spin`} />;
 }
 
 export function PageLoader() {

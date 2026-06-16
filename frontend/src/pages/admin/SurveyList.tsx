@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { adminSurveyApi } from '../../api/endpoints';
 import { Survey } from '../../types';
 import { StatusBadge, PageHeader, EmptyState, PageLoader, SearchInput, ConfirmModal } from '../../components/common/index';
-import { formatDate, getErrorMessage, isSurveyExpired } from '../../utils/helpers';
+import { formatDate, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
 export default function AdminSurveyList() {
@@ -132,10 +132,10 @@ export default function AdminSurveyList() {
                       <div>
                         <p className="font-medium text-slate-800">{survey.title}</p>
                         <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{survey.question}</p>
-                        <div className="md:hidden mt-1"><StatusBadge status={survey.status} expired={isSurveyExpired(survey)} /></div>
+                        <div className="md:hidden mt-1"><StatusBadge status={survey.status} /></div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 hidden md:table-cell"><StatusBadge status={survey.status} expired={isSurveyExpired(survey)} /></td>
+                    <td className="px-4 py-4 hidden md:table-cell"><StatusBadge status={survey.status} /></td>
                     <td className="px-4 py-4 hidden lg:table-cell text-gray-600">{survey.people_count}</td>
                     <td className="px-4 py-4 hidden lg:table-cell text-gray-600">{survey.total_responses}</td>
                     <td className="px-4 py-4 hidden md:table-cell text-gray-500 text-xs">{formatDate(survey.created_at)}</td>
@@ -143,7 +143,7 @@ export default function AdminSurveyList() {
                       <div className="flex items-center gap-1 justify-end flex-wrap">
                         <Link
                           to={`/admin/surveys/${survey.id}`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[color:var(--c-600)] hover:bg-[color:var(--c-50)] rounded-lg transition-colors"
                         >
                           جزئیات
                         </Link>

@@ -254,7 +254,7 @@ class EmployeeSurveyListView(generics.ListAPIView):
     serializer_class = SurveySerializer
 
     def get_queryset(self):
-        return Survey.objects.filter(status=Survey.STATUS_PUBLISHED)
+        return Survey.objects.filter(status__in=[Survey.STATUS_PUBLISHED, Survey.STATUS_CLOSED])
 
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset()
@@ -272,28 +272,20 @@ class EmployeeSurveyDetailView(APIView):
 
     def get(self, request, pk):
         try:
-            survey = Survey.objects.get(pk=pk, status=Survey.STATUS_PUBLISHED)
+            survey = Survey.objects.get(pk=pk, status__in=[Survey.STATUS_PUBLISHED, Survey.STATUS_CLOSED])
         except Survey.DoesNotExist:
             return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = SurveyPublicSerializer(survey, context={'request': request})
         data = serializer.data
 
-        now = timezone.now()
-        survey_started = not survey.starts_at or now >= survey.starts_at
+        # Add my rating status per person (only boolean, no score exposed)
+        my_ratings = set(
+            Rating.objects.filter(survey=survey, voter=request.user).values_list('person_id', flat=True)
+        )
+        for person in data['people']:
+            person['has_rated'] = person['id'] in my_ratings
 
-        if survey_started:
-            # Add my rating status per person (only boolean, no score exposed)
-            my_ratings = set(
-                Rating.objects.filter(survey=survey, voter=request.user).values_list('person_id', flat=True)
-            )
-            for person in data['people']:
-                person['has_rated'] = person['id'] in my_ratings
-        else:
-            # Survey hasn't started yet — hide all people
-            data['people'] = []
-
-        data['survey_started'] = survey_started
         return Response(data)
 
 
@@ -312,19 +304,13 @@ class EmployeeRatePersonView(APIView):
         if survey.status == Survey.STATUS_CLOSED:
             return Response({'detail': 'این نظرسنجی بسته شده است.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        now = timezone.now()
-        if survey.starts_at and now < survey.starts_at:
-            return Response({'detail': 'این نظرسنجی هنوز شروع نشده است.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if survey.ends_at and now > survey.ends_at:
-            return Response({'detail': 'مهلت این نظرسنجی به پایان رسیده است.'}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
             person = SurveyPerson.objects.get(pk=person_id, survey=survey, is_active=True)
         except SurveyPerson.DoesNotExist:
             return Response({'detail': 'فرد مورد نظر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
         if Rating.objects.filter(survey=survey, person=person, voter=request.user).exists():
+            return Response({'detail': 'شما قبلاً برای این فرد امتیاز ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
             return Response({'detail': 'شما قبلاً برای این فرد امتیاز ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = RatingCreateSerializer(data=request.data)
@@ -336,6 +322,7 @@ class EmployeeRatePersonView(APIView):
                 person=person,
                 voter=request.user,
                 score=serializer.validated_data['score'],
+                comment=serializer.validated_data.get('comment') or None,
                 ip_address=get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
             )
@@ -378,10 +365,8 @@ class EmployeeSurveyResultsView(APIView):
             return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
         can_view = False
-        if survey.status == Survey.STATUS_CLOSED:
-            if survey.results_visibility == Survey.VISIBILITY_EMPLOYEES_AFTER_CLOSE:
-                can_view = True
-
+        # Results are only visible if explicitly set to allow employees (currently admin_only is the only option)
+        # So employees never see results — always forbidden
         if not can_view:
             return Response({'detail': 'نتایج این نظرسنجی در دسترس نیست.'}, status=status.HTTP_403_FORBIDDEN)
 

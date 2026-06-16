@@ -1,54 +1,72 @@
 # Changelog
 
-All notable changes to InsightFlow are documented here.
+## [1.4.0] — 2026
 
-Format inspired by [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-
----
-
-## [1.1.0] — 2026
-
-### Added
-- **Persian (Jalali) date picker** — custom zero-dependency Jalali calendar
-  component for survey start/end date selection, replacing the browser's
-  native `datetime-local` input
-- **Survey expiry status** — surveys with a past `ends_at` date and
-  `published` status now automatically display «مهلت نظرسنجی به پایان رسیده»
-  (deadline passed) as an orange badge/banner across all views (admin list,
-  admin detail, employee list, employee detail); this is distinct from the
-  manual «بسته شده» (closed) status triggered by the close button
-- **Rating description (توضیحات)** — optional per-person description field
-  displayed inside the rating modal below the person's role/department
+### Fixed
+- **Theme switcher now works everywhere** — Login page header, person card photo placeholder, Dashboard stat cards, all admin and employee pages now use CSS custom properties (`var(--c-600)` etc.) instead of hardcoded Tailwind purple classes. Switching theme updates all UI instantly.
+- **«انتشار نظرسنجی» hover restored** — `btn-success` class was missing from globals.css and has been re-added.
 
 ### Changed
-- `StatusBadge` component now accepts an optional `expired` prop to render
-  the expiry state without altering the underlying `status` field
-- `isSurveyExpired()` helper added to `utils/helpers.ts` for consistent
-  expiry checks across all pages
-- Employee survey detail: rating button is disabled and shows «نظرسنجی به
-  پایان رسیده» when the survey has expired
-- Employee survey list: expired surveys show an orange badge instead of «جدید»
-  or «ناقص»
+- **Removed «نمایش نتایج» field** — only `admin_only` remains; the dropdown is removed from the survey creation form. Migration `0004` updates existing rows.
+- **All-or-nothing voting enforced** — employees must rate every person in a survey; partial completion badge (ناقص) is removed. A notice on the survey detail page explains this requirement.
 
 ---
 
-## [1.0.0] — 2026
+## [1.3.0] — 2026
 
 ### Added
-- Initial public GitHub release of InsightFlow
-- Django 4.2 + DRF backend with JWT authentication
-- React 18 + TypeScript + Tailwind CSS frontend
-- PostgreSQL database
-- Docker Compose deployment with Nginx reverse proxy
-- Admin panel: create, edit, publish, close surveys; manage people; view results
-- Employee view: rate people 1–10 per survey with duplicate-vote prevention
-- Anonymous results: voter identity never exposed
-- CSV and Excel export of survey results
-- Persian RTL interface
-- LAN-ready deployment
+- **Theme switcher** — button in the header (both admin and employee views) lets users pick from four color themes: بنفش (purple), آبی (blue), سبز (green), قرمز (red). Choice is saved in `localStorage` and applied instantly via CSS custom properties — no page reload needed.
+- **Rating comment field** — employees can now optionally write a text note (up to 1000 characters) when submitting a score. Stored in the database; visible to admins via Django admin panel.
 
-## Docker migration hotfix
+### Changed
+- **Removed `تاریخ شروع` and `تاریخ پایان`** from surveys entirely. Admins open surveys with the «انتشار» button and close them with the «بستن» button — no automatic scheduling. Removed from model, serializers, form UI, and all display components.
+- Employee survey list now has three tabs: **فعال / بسته‌شده / تکمیل‌شده** (no more "expired" state).
+- All hardcoded `purple-*` Tailwind classes replaced with CSS custom properties (`var(--c-600)` etc.) so the theme switcher works globally.
 
-- Restored initial Django migrations for `accounts` and `surveys` apps.
-- Removed the obsolete `version` key from `docker-compose.yml` to avoid Docker Compose warnings.
-- This fixes backend startup failure: `ValueError: Dependency on app with no migrations: accounts`.
+### Removed
+- `PersianDatePicker` component (no longer needed)
+- `isSurveyExpired` helper function
+- `starts_at` / `ends_at` fields from `Survey` model (migration `0003_remove_survey_dates`)
+
+---
+
+## [1.2.0] — 2026
+
+### Added
+- **Rating comment** — optional توضیحات textarea under the score buttons in the rating modal (added in this session, finalized in 1.3.0).
+- **Back button** on employee survey detail page (top and bottom).
+- **Tabs** on employee survey list: فعال / پایان‌یافته / تکمیل‌شده.
+- **Closed surveys visible to employees** — backend now returns both `published` and `closed` surveys.
+
+### Fixed
+- **PersianDatePicker bugs** — stale closure causing time changes to be lost; clicking a day now always selects the clicked day; timezone handled as local Tehran time (no UTC offset in emitted ISO string).
+- Theme changed from blue to **purple** across all components.
+
+---
+
+## [1.1.0] — 2025
+
+### Added
+- Persian (Jalali) date picker for survey start/end dates.
+- Survey expiry status (`مهلت نظرسنجی به پایان رسیده`) shown as a distinct orange badge.
+- Optional per-person description shown in the rating modal.
+- Bulk user import via CSV/TXT file upload.
+- Delete-all-data button (admin only, requires typing confirmation).
+- GitHub-ready project structure: `.gitignore`, bilingual README, CHANGELOG, CONTRIBUTING, CI workflow, issue templates.
+
+### Changed
+- Removed `عمومی` visibility option (only `فقط مدیر` and `کارکنان پس از بستن` remain).
+- People hidden from employees before survey `starts_at`.
+
+---
+
+## [1.0.0] — 2025
+
+### Added
+- Initial release: Django 4.2 + DRF backend, React 18 + TypeScript + Tailwind frontend.
+- PostgreSQL database, JWT auth, Docker Compose deployment with Nginx.
+- Admin panel: create/edit/publish/close surveys, manage people, view results.
+- Employee view: rate people 1–10, duplicate-vote prevention, anonymous results.
+- CSV and Excel export.
+
+

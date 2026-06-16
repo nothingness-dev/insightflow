@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 function RoleBadge({ role }: { role: string }) {
   return role === 'admin'
     ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">مدیر</span>
-    : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">کارمند</span>;
+    : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[color:var(--c-50)] text-[color:var(--c-700)] border border-[color:var(--c-200)]">کارمند</span>;
 }
 
 interface UserFormData {
@@ -45,12 +45,15 @@ export default function UserManagement() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Delete all data state
   const [deleteAllModal, setDeleteAllModal] = useState(false);
   const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('');
   const [deletingAll, setDeletingAll] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -126,6 +129,18 @@ export default function UserManagement() {
       setNewPass('');
     } catch (err) { toast.error(getErrorMessage(err)); }
     finally { setResetting(false); }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteUserId) return;
+    setDeletingUser(true);
+    try {
+      await adminUserApi.delete(deleteUserId);
+      setUsers(u => u.filter(x => x.id !== deleteUserId));
+      toast.success('کاربر حذف شد');
+      setDeleteUserId(null);
+    } catch (err) { toast.error(getErrorMessage(err)); }
+    finally { setDeletingUser(false); }
   };
 
   const handleImport = async () => {
@@ -214,7 +229,7 @@ export default function UserManagement() {
                   <tr key={user.id} className="table-row">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-sm font-bold flex-shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-[color:var(--c-100)] flex items-center justify-center text-[color:var(--c-700)] text-sm font-bold flex-shrink-0">
                           {user.full_name[0]}
                         </div>
                         <div>
@@ -236,9 +251,15 @@ export default function UserManagement() {
                         <button onClick={() => { setResetId(user.id); setNewPass(''); }} className="px-3 py-1.5 text-xs text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">رمز عبور</button>
                         <button
                           onClick={() => handleToggleActive(user)}
-                          className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${user.is_active ? 'text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
+                          className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${user.is_active ? 'text-orange-600 hover:bg-orange-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
                         >
                           {user.is_active ? 'غیرفعال' : 'فعال'}
+                        </button>
+                        <button
+                          onClick={() => setDeleteUserId(user.id)}
+                          className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          حذف
                         </button>
                       </div>
                     </td>
@@ -276,9 +297,21 @@ export default function UserManagement() {
               {errors.full_name && <p className="text-xs text-red-500 mt-1">{errors.full_name}</p>}
             </div>
             <div>
-              <label className="label">نام کاربری <span className="text-red-500">*</span></label>
-              <input value={form.username} onChange={set('username')} className={`input-field ${errors.username ? 'border-red-400' : ''}`} placeholder="username" disabled={!!editUser} />
-              {errors.username && <p className="text-xs text-red-500 mt-1">{errors.username}</p>}
+              <label className="label">نام کاربری {!editUser && <span className="text-red-500">*</span>}</label>
+              {editUser ? (
+                <div className="input-field bg-gray-50 text-gray-500 cursor-default flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                  </svg>
+                  <span className="font-mono text-sm">{form.username}</span>
+                  <span className="text-xs text-gray-400 mr-auto">نام کاربری قابل تغییر نیست</span>
+                </div>
+              ) : (
+                <>
+                  <input value={form.username} onChange={set('username')} className={`input-field ${errors.username ? 'border-red-400' : ''}`} placeholder="username" />
+                  {errors.username && <p className="text-xs text-red-500 mt-1">{errors.username}</p>}
+                </>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -291,7 +324,7 @@ export default function UserManagement() {
             </div>
             <div className="flex items-end pb-0.5">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} className="w-4 h-4 rounded border-gray-300 text-blue-600" />
+                <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} className="w-4 h-4 rounded border-gray-300 text-[color:var(--c-600)]" />
                 <span className="text-sm text-gray-700">حساب فعال</span>
               </label>
             </div>
@@ -338,7 +371,7 @@ export default function UserManagement() {
       </Modal>
 
       {/* Bulk Import Modal */}
-      <Modal open={importModalOpen} onClose={() => { setImportModalOpen(false); setImportResult(null); }} title="آپلود کاربران از فایل" size="lg">
+      <Modal open={importModalOpen} onClose={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }} title="آپلود کاربران از فایل" size="lg">
         <div className="p-6 space-y-5">
           {/* Format guide */}
           <div className="bg-gray-50 rounded-xl p-4 text-xs font-mono text-gray-600 leading-relaxed border border-gray-100">
@@ -356,8 +389,27 @@ export default function UserManagement() {
           {/* File drop zone */}
           <div
             className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors
-              ${importFile ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
+              ${isDragging ? 'border-[color:var(--c-400)] bg-[color:var(--c-50)] scale-[1.01]' :
+                importFile ? 'border-[color:var(--c-300)] bg-[color:var(--c-50)]' :
+                'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
             onClick={() => fileInputRef.current?.click()}
+            onDragOver={e => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+            onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+            onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
+            onDrop={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragging(false);
+              const file = e.dataTransfer.files?.[0];
+              if (!file) return;
+              const ext = file.name.split('.').pop()?.toLowerCase();
+              if (ext !== 'csv' && ext !== 'txt') {
+                toast.error('فقط فایل‌های CSV و TXT مجاز هستند');
+                return;
+              }
+              setImportFile(file);
+              setImportResult(null);
+            }}
           >
             <input
               ref={fileInputRef}
@@ -368,7 +420,7 @@ export default function UserManagement() {
             />
             {importFile ? (
               <div className="flex items-center justify-center gap-3">
-                <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <svg className="w-8 h-8 text-[color:var(--c-500)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <div className="text-right">
@@ -378,10 +430,12 @@ export default function UserManagement() {
               </div>
             ) : (
               <>
-                <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <svg className={`w-10 h-10 mx-auto mb-2 transition-colors ${isDragging ? 'text-[color:var(--c-400)]' : 'text-gray-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
-                <p className="text-sm text-gray-500">فایل CSV یا TXT را اینجا رها کنید یا کلیک کنید</p>
+                <p className={`text-sm transition-colors ${isDragging ? 'text-[color:var(--c-600)] font-medium' : 'text-gray-500'}`}>
+                  {isDragging ? 'رها کنید...' : 'فایل CSV یا TXT را اینجا رها کنید یا کلیک کنید'}
+                </p>
               </>
             )}
           </div>
@@ -433,7 +487,7 @@ export default function UserManagement() {
               {importing && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               {importing ? 'در حال پردازش...' : 'آپلود و ایجاد کاربران'}
             </button>
-            <button onClick={() => { setImportModalOpen(false); setImportResult(null); }} className="btn-secondary">بستن</button>
+            <button onClick={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }} className="btn-secondary">بستن</button>
           </div>
         </div>
       </Modal>
@@ -469,6 +523,33 @@ export default function UserManagement() {
               حذف تمام داده‌ها
             </button>
             <button onClick={() => setDeleteAllModal(false)} className="btn-secondary">انصراف</button>
+          </div>
+        </div>
+      </Modal>
+      {/* Delete User Confirmation Modal */}
+      <Modal open={!!deleteUserId} onClose={() => setDeleteUserId(null)} title="حذف کاربر" size="sm">
+        <div className="p-6 space-y-4">
+          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
+            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5C2.962 18.333 3.924 20 5.464 20z"/>
+            </svg>
+            <div>
+              <p className="text-sm font-semibold text-red-700">آیا مطمئن هستید؟</p>
+              <p className="text-xs text-red-600 mt-1">
+                حساب کاربری <strong>{users.find(u => u.id === deleteUserId)?.full_name}</strong> برای همیشه حذف می‌شود.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleDeleteUser}
+              disabled={deletingUser}
+              className="btn-danger flex items-center gap-2"
+            >
+              {deletingUser && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}
+              بله، حذف شود
+            </button>
+            <button onClick={() => setDeleteUserId(null)} className="btn-secondary">انصراف</button>
           </div>
         </div>
       </Modal>

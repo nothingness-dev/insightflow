@@ -69,6 +69,8 @@ export const adminUserApi = {
     api.post(`/admin/users/${id}/activate/`),
   deactivate: (id: number) =>
     api.post(`/admin/users/${id}/deactivate/`),
+  delete: (id: number) =>
+    api.delete(`/admin/users/${id}/`),
   bulkImport: (file: File) => {
     const fd = new FormData();
     fd.append('file', file);
@@ -91,8 +93,8 @@ export const employeeApi = {
     api.get<Survey[]>('/surveys/'),
   survey: (id: number) =>
     api.get(`/surveys/${id}/`),
-  rate: (surveyId: number, personId: number, score: number) =>
-    api.post(`/surveys/${surveyId}/people/${personId}/rate/`, { score }),
+  rate: (surveyId: number, personId: number, score: number, comment?: string) =>
+    api.post(`/surveys/${surveyId}/people/${personId}/rate/`, { score, comment: comment || undefined }),
   myRatings: (surveyId: number) =>
     api.get<MyRatings>(`/surveys/${surveyId}/my-ratings/`),
   results: (surveyId: number) =>

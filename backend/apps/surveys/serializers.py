@@ -70,7 +70,7 @@ class SurveySerializer(serializers.ModelSerializer):
         model = Survey
         fields = [
             'id', 'title', 'question', 'description', 'status',
-            'results_visibility', 'starts_at', 'ends_at',
+            'results_visibility',
             'created_by', 'created_by_name', 'people_count', 'total_responses',
             'created_at', 'updated_at', 'published_at', 'closed_at'
         ]
@@ -91,19 +91,12 @@ class SurveyCreateUpdateSerializer(serializers.ModelSerializer):
         model = Survey
         fields = [
             'title', 'question', 'description', 'results_visibility',
-            'starts_at', 'ends_at'
         ]
-
-    def validate(self, data):
-        starts_at = data.get('starts_at')
-        ends_at = data.get('ends_at')
-        if starts_at and ends_at and starts_at >= ends_at:
-            raise serializers.ValidationError({'ends_at': 'تاریخ پایان باید بعد از تاریخ شروع باشد.'})
-        return data
 
 
 class RatingCreateSerializer(serializers.Serializer):
     score = serializers.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(10)])
+    comment = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=1000)
 
 
 class PersonResultSerializer(serializers.Serializer):
@@ -128,7 +121,7 @@ class SurveyPublicSerializer(serializers.ModelSerializer):
         model = Survey
         fields = [
             'id', 'title', 'question', 'description', 'status',
-            'starts_at', 'ends_at', 'is_active', 'people'
+            'is_active', 'people'
         ]
 
     def get_people(self, obj):

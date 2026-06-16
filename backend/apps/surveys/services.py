@@ -21,6 +21,14 @@ def calculate_survey_results(survey, request=None):
             else:
                 photo_url = person.photo.url
 
+        # Collect non-empty comments (anonymous — no voter info attached)
+        comments = list(
+            person_ratings
+            .exclude(comment__isnull=True)
+            .exclude(comment__exact='')
+            .values_list('comment', flat=True)
+        )
+
         results.append({
             'person_id': person.id,
             'full_name': person.full_name,
@@ -30,6 +38,7 @@ def calculate_survey_results(survey, request=None):
             'average_score': round(agg['avg'], 2) if agg['avg'] else None,
             'total_score': agg['total'] or 0,
             'votes_count': agg['count'] or 0,
+            'comments': comments,
             'display_order': person.display_order,
         })
 
