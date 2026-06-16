@@ -55,8 +55,6 @@
 - امتیازدهی ۱ تا ۱۰ برای هر فرد در نظرسنجی
 - ثبت ارزیابی به صورت ناشناس
 - جلوگیری از رأی تکراری برای هر کاربر
-- تقویم شمسی/جلالی اختصاصی برای تاریخ شروع و پایان نظرسنجی
-- تشخیص خودکار پایان مهلت نظرسنجی، جدا از وضعیت «بسته شده»
 - امکان افزودن توضیحات برای هر فرد داخل نظرسنجی
 - پنل مدیریت برای ایجاد، ویرایش، انتشار، بستن و مشاهده نتایج
 - مدیریت کاربران، فعال/غیرفعال کردن حساب‌ها و ریست رمز عبور
@@ -393,8 +391,6 @@ Many organizations still rely on spreadsheets, paper forms or disconnected tools
 - Anonymous employee evaluations
 - 1–10 rating system
 - Duplicate vote prevention
-- Custom Persian/Jalali date picker
-- Automatic survey expiry status separate from manual close status
 - Optional rating/person descriptions
 - Admin dashboard for creating, editing, publishing, closing and reviewing surveys
 - User management, activation/deactivation and password reset
