@@ -1,6 +1,6 @@
 # InsightFlow
 
-![Version](https://img.shields.io/badge/version-1.4.0-blue)
+![Version](https://img.shields.io/badge/version-1.5.0-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-success)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Backend](https://img.shields.io/badge/backend-Django%20REST%20Framework-092E20)
@@ -11,8 +11,6 @@
 ## سامانه مدرن نظرسنجی و ارزیابی سازمانی
 
 **InsightFlow** یک پلتفرم داخلی برای مدیریت نظرسنجی‌ها، ارزیابی کارکنان و جمع‌آوری بازخورد سازمانی است.
-
-این نسخه بر پایه نسخه به‌روزشده پروژه ساخته شده و تغییرات جدید مثل **تقویم شمسی اختصاصی**، **وضعیت انقضای نظرسنجی**، **توضیحات برای افراد داخل نظرسنجی**، **مدیریت کاربران** و **داشبورد کامل‌تر** را حفظ می‌کند؛ در عین حال با ساختار، برندینگ، Docker، README و اسکرین‌شات‌های نسخه سفارشی قبلی هماهنگ شده است.
 
 [English version below ↓](#english)
 
@@ -29,39 +27,38 @@
 > این تصاویر برای README و ارائه پروژه آماده شده‌اند. پس از اجرای پروژه می‌توانید آن‌ها را با اسکرین‌شات‌های واقعی نسخه نهایی خود جایگزین کنید.
 
 ### صفحه ورود
-
 ![Login](screenshots/login.png)
 
 ### داشبورد مدیریت
-
 ![Dashboard](screenshots/dashboard.png)
 
-### ایجاد نظرسنجی
-
+### ایجاد نظرسنجی با سوالات چندگانه
 ![Survey Creation](screenshots/create-survey.png)
 
-### ثبت ارزیابی توسط کارمند
-
+### ثبت ارزیابی توسط کارمند (گام‌به‌گام)
 ![Voting](screenshots/voting.png)
 
 ### نتایج و رتبه‌بندی
-
 ![Results](screenshots/results.png)
 
 ---
 
 ## ویژگی‌های اصلی
 
-- امتیازدهی ۱ تا ۱۰ برای هر فرد در نظرسنجی
-- ثبت ارزیابی به صورت ناشناس
-- جلوگیری از رأی تکراری برای هر کاربر
-- امکان افزودن توضیحات برای هر فرد داخل نظرسنجی
-- پنل مدیریت برای ایجاد، ویرایش، انتشار، بستن و مشاهده نتایج
-- مدیریت کاربران، فعال/غیرفعال کردن حساب‌ها و ریست رمز عبور
-- خروجی CSV و Excel از نتایج نهایی
-- نمایش نتایج بر اساس میانگین، تعداد رأی، مجموع امتیاز و رتبه
-- رابط کاربری فارسی و راست‌به‌چپ
-- آماده برای استقرار در شبکه داخلی سازمان با Docker
+- **نظرسنجی با سوالات چندگانه** — هر نظرسنجی می‌تواند چند سوال داشته باشد
+- **تنظیم نوع ورودی هر سوال** — امتیاز کمی (۱–۱۰)، توضیحات متنی، یا هر دو
+- **اجباری یا اختیاری بودن** — برای هر سوال، امتیاز و توضیحات می‌توانند مستقل از هم اجباری باشند
+- **ثبت ارزیابی گام‌به‌گام** — کارمندان سوال به سوال پاسخ می‌دهند و قبل از ارسال بین سوالات جابه‌جا می‌شوند
+- **ارزیابی ناشناس** — هویت رأی‌دهنده در نتایج نمایش داده نمی‌شود
+- **جلوگیری از رأی تکراری** — هر کاربر فقط یک بار می‌تواند به هر فرد در نظرسنجی پاسخ دهد
+- **امتیازدهی اجباری به همه افراد** — کارمند باید به تمام افراد نظرسنجی پاسخ دهد
+- **پنل مدیریت کامل** — ایجاد، ویرایش، انتشار، بستن و مشاهده نتایج
+- **نتایج به تفکیک سوال** — رتبه‌بندی کلی و نتایج مجزا برای هر سوال
+- **مدیریت کاربران** — فعال/غیرفعال کردن، ریست رمز، حذف، و آپلود دسته‌ای از CSV
+- **خروجی CSV و Excel** — ستون‌های مجزا برای هر سوال
+- **تغییر تم رنگی** — چهار تم بنفش، آبی، سبز، قرمز با یک کلیک
+- **رابط کاربری فارسی و راست‌به‌چپ**
+- **آماده برای استقرار در شبکه داخلی با Docker**
 
 ---
 
@@ -119,6 +116,11 @@ docker compose logs backend
 docker compose logs nginx
 ```
 
+> **پس از هر بار به‌روزرسانی که migration جدید داشته باشد:**
+> ```bash
+> docker compose exec backend python manage.py migrate
+> ```
+
 ---
 
 ## تنظیمات فایل `.env`
@@ -142,7 +144,7 @@ MAX_UPLOAD_SIZE=2097152
 CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1
 ```
 
-> برای استفاده در شبکه داخلی، IP سرور را به `ALLOWED_HOSTS` و در صورت نیاز به `CORS_ALLOWED_ORIGINS` اضافه کنید.
+> برای استفاده در شبکه داخلی، IP سرور را به `ALLOWED_HOSTS` و `CORS_ALLOWED_ORIGINS` اضافه کنید.
 
 ---
 
@@ -153,7 +155,7 @@ CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1
 | نام کاربری | `admin` |
 | رمز عبور | مقدار `ADMIN_PASSWORD` در فایل `.env` |
 
-> پس از اولین ورود، رمز عبور مدیر را تغییر دهید و از رمزهای ساده یا نمونه استفاده نکنید.
+> پس از اولین ورود، رمز عبور مدیر را تغییر دهید.
 
 ---
 
@@ -165,8 +167,8 @@ CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1
 insightflow/
 ├── backend/
 │   ├── apps/
-│   │   ├── accounts/        # کاربران، نقش‌ها، JWT و مدیریت حساب‌ها
-│   │   └── surveys/         # نظرسنجی‌ها، افراد، امتیازدهی و نتایج
+│   │   ├── accounts/        # کاربران، نقش‌ها، JWT
+│   │   └── surveys/         # نظرسنجی‌ها، سوالات، افراد، پاسخ‌ها، نتایج
 │   ├── config/
 │   │   └── settings/        # base/dev/prod settings
 │   ├── Dockerfile
@@ -174,9 +176,9 @@ insightflow/
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── api/             # axios client و endpointها
+│   │   ├── api/             # axios client و endpoints
 │   │   ├── components/      # کامپوننت‌های عمومی و مدیریت
-│   │   ├── contexts/        # AuthContext
+│   │   ├── contexts/        # AuthContext، ThemeContext
 │   │   ├── layouts/         # AdminLayout و EmployeeLayout
 │   │   ├── pages/           # صفحات admin و employee
 │   │   ├── routes/          # Route guards
@@ -192,6 +194,7 @@ insightflow/
 ├── .env.example
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
+├── DEPLOYMENT.md
 ├── LICENSE
 └── README.md
 ```
@@ -227,12 +230,12 @@ insightflow/
 | متد | مسیر | توضیح |
 |---|---|---|
 | GET | `/api/admin/dashboard/` | آمار داشبورد مدیریت |
-| POST | `/api/admin/delete-all-data/` | حذف داده‌های پروژه برای ریست کامل |
+| DELETE | `/api/admin/delete-all-data/` | حذف تمام داده‌ها |
 | GET, POST | `/api/admin/surveys/` | لیست / ایجاد نظرسنجی |
 | GET, PATCH, DELETE | `/api/admin/surveys/:id/` | جزئیات / ویرایش / حذف |
 | POST | `/api/admin/surveys/:id/publish/` | انتشار نظرسنجی |
 | POST | `/api/admin/surveys/:id/close/` | بستن نظرسنجی |
-| GET | `/api/admin/surveys/:id/results/` | نتایج ناشناس |
+| GET | `/api/admin/surveys/:id/results/` | نتایج ناشناس + سوالات |
 | GET | `/api/admin/surveys/:id/export/csv/` | خروجی CSV |
 | GET | `/api/admin/surveys/:id/export/excel/` | خروجی Excel |
 | GET, POST | `/api/admin/surveys/:id/people/` | لیست / افزودن فرد |
@@ -242,11 +245,10 @@ insightflow/
 
 | متد | مسیر | توضیح |
 |---|---|---|
-| GET | `/api/surveys/` | نظرسنجی‌های فعال/قابل مشاهده |
-| GET | `/api/surveys/:id/` | جزئیات نظرسنجی و افراد |
-| POST | `/api/surveys/:id/people/:pid/rate/` | ثبت امتیاز |
-| GET | `/api/surveys/:id/my-ratings/` | وضعیت امتیازدهی کاربر |
-| GET | `/api/surveys/:id/results/` | مشاهده نتایج مجاز برای کارمند |
+| GET | `/api/surveys/` | نظرسنجی‌های فعال/بسته |
+| GET | `/api/surveys/:id/` | جزئیات نظرسنجی + سوالات + افراد |
+| POST | `/api/surveys/:id/people/:pid/submit/` | ارسال پاسخ‌های همه سوالات برای یک فرد |
+| GET | `/api/surveys/:id/my-ratings/` | وضعیت پاسخ‌دهی کاربر |
 
 ---
 
@@ -255,10 +257,10 @@ insightflow/
 این سامانه از مدل «ورود اجباری با نتایج ناشناس» استفاده می‌کند:
 
 - ورود کاربران برای جلوگیری از رأی تکراری ضروری است
-- هر کاربر فقط یک بار می‌تواند به هر فرد در هر نظرسنجی امتیاز دهد
-- نتایج شامل میانگین امتیاز، مجموع امتیاز، تعداد رأی و رتبه‌بندی هستند
-- هویت رأی‌دهنده در نتایج نمایش داده نمی‌شود
-- API نتایج نباید نام کاربری، شناسه رأی‌دهنده یا IP رأی‌دهنده را برگرداند
+- هر کاربر فقط یک بار می‌تواند به هر فرد در هر نظرسنجی پاسخ دهد
+- نتایج شامل میانگین امتیاز، مجموع، تعداد رأی و رتبه‌بندی هستند
+- هویت رأی‌دهنده در هیچ بخشی از نتایج نمایش داده نمی‌شود
+- توضیحات متنی بدون اطلاعات هویتی ذخیره و نمایش داده می‌شوند
 
 ---
 
@@ -294,8 +296,6 @@ cd frontend
 npm install
 npm run dev
 ```
-
-> پوشه `node_modules` نباید روی GitHub آپلود شود. فقط `package.json` و در صورت وجود `package-lock.json` داخل مخزن قرار می‌گیرند.
 
 ---
 
@@ -337,6 +337,7 @@ docker compose cp backend:/app/media ./media_backup
 | پورت ۸۰ اشغال است | در `docker-compose.yml` پورت را به `8080:80` تغییر دهید |
 | دسترسی از شبکه داخلی کار نمی‌کند | IP سرور را به `ALLOWED_HOSTS` اضافه کنید و فایروال را بررسی کنید |
 | فایل‌های static نمایش داده نمی‌شوند | `docker compose exec backend python manage.py collectstatic --noinput` |
+| خطای 500 هنگام ایجاد نظرسنجی | مطمئن شوید migration `0005` اجرا شده: `docker compose exec backend python manage.py migrate` |
 
 </div>
 
@@ -348,9 +349,7 @@ docker compose cp backend:/app/media ./media_backup
 
 ## Modern Organizational Survey & Employee Evaluation Platform
 
-**InsightFlow** is a modern internal survey and employee evaluation platform for organizations that need a secure, anonymous and self-hosted way to collect feedback, run assessments and generate ranked results.
-
-This package keeps the updated application code and new functionality while aligning the repository branding, Docker documentation, README and screenshots with the previously customized InsightFlow version.
+**InsightFlow** is a modern internal survey and employee evaluation platform for organizations that need a secure, anonymous and self-hosted way to collect feedback, run multi-question assessments and generate ranked results.
 
 ---
 
@@ -362,43 +361,41 @@ Many organizations still rely on spreadsheets, paper forms or disconnected tools
 
 ## Screenshots
 
-> These screenshots are included for README and presentation purposes. Replace them with real screenshots after running your final deployment.
+> Replace these with real screenshots after running your final deployment.
 
 ### Login Page
-
 ![Login](screenshots/login.png)
 
 ### Admin Dashboard
-
 ![Dashboard](screenshots/dashboard.png)
 
-### Survey Creation
-
+### Survey Creation (Multi-Question Builder)
 ![Survey Creation](screenshots/create-survey.png)
 
-### Employee Evaluation
-
+### Employee Evaluation (Step-by-Step)
 ![Voting](screenshots/voting.png)
 
 ### Results & Rankings
-
 ![Results](screenshots/results.png)
 
 ---
 
 ## Features
 
-- Anonymous employee evaluations
-- 1–10 rating system
-- Duplicate vote prevention
-- Optional rating/person descriptions
-- Admin dashboard for creating, editing, publishing, closing and reviewing surveys
-- User management, activation/deactivation and password reset
-- CSV and Excel exports
-- Ranking based on average score, vote count, total score and display order
-- Persian RTL user interface
-- Docker-based deployment
-- LAN-ready architecture
+- **Multi-question surveys** — each survey can have multiple questions
+- **Per-question input types** — numeric score (1–10), free-text comment, or both
+- **Required / optional per input** — score and comment can be independently required or optional per question
+- **Step-by-step voting** — employees answer one question at a time, navigating forward/back before final submission
+- **Anonymous evaluations** — voter identity never exposed in results
+- **Duplicate vote prevention** — each user can submit responses for each person only once
+- **All-or-nothing participation** — employees must respond to all people in a survey
+- **Full admin panel** — create, edit, publish, close and review surveys
+- **Results by question** — overall ranking tab + per-question breakdown tab
+- **User management** — activate/deactivate, password reset, delete, bulk CSV import
+- **CSV and Excel exports** — separate columns per question
+- **Four color themes** — purple, blue, green, red; saved in localStorage
+- **Persian RTL UI**
+- **Docker-based LAN deployment**
 
 ---
 
@@ -435,18 +432,10 @@ Or from your LAN:
 http://<server-ip>
 ```
 
-Check running services:
-
-```bash
-docker compose ps
-```
-
-View logs:
-
-```bash
-docker compose logs backend
-docker compose logs nginx
-```
+> **After any update that includes new migrations:**
+> ```bash
+> docker compose exec backend python manage.py migrate
+> ```
 
 ---
 
@@ -457,7 +446,7 @@ docker compose logs nginx
 | Username | `admin` |
 | Password | value of `ADMIN_PASSWORD` in `.env` |
 
-> Change the administrator password after the first login and avoid weak/example passwords in real deployments.
+> Change the administrator password after the first login.
 
 ---
 
@@ -474,6 +463,7 @@ insightflow/
 ├── README.md
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
+├── DEPLOYMENT.md
 └── LICENSE
 ```
 
@@ -495,7 +485,7 @@ insightflow/
 | Method | Path | Description |
 |---|---|---|
 | GET, POST | `/api/admin/users/` | List / create users |
-| POST | `/api/admin/users/bulk-import/` | Bulk import users |
+| POST | `/api/admin/users/bulk-import/` | Bulk import users from CSV/TXT |
 | GET, PATCH, DELETE | `/api/admin/users/:id/` | Detail / edit / delete user |
 | POST | `/api/admin/users/:id/reset-password/` | Reset password |
 | POST | `/api/admin/users/:id/activate/` | Activate user |
@@ -506,14 +496,14 @@ insightflow/
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/admin/dashboard/` | Admin dashboard statistics |
-| POST | `/api/admin/delete-all-data/` | Reset project data |
+| DELETE | `/api/admin/delete-all-data/` | Reset all survey data |
 | GET, POST | `/api/admin/surveys/` | List / create surveys |
-| GET, PATCH, DELETE | `/api/admin/surveys/:id/` | Detail / edit / delete |
+| GET, PATCH, DELETE | `/api/admin/surveys/:id/` | Detail / edit / delete (includes questions) |
 | POST | `/api/admin/surveys/:id/publish/` | Publish |
 | POST | `/api/admin/surveys/:id/close/` | Close |
-| GET | `/api/admin/surveys/:id/results/` | Anonymous results |
-| GET | `/api/admin/surveys/:id/export/csv/` | CSV export |
-| GET | `/api/admin/surveys/:id/export/excel/` | Excel export |
+| GET | `/api/admin/surveys/:id/results/` | Anonymous results with per-question breakdown |
+| GET | `/api/admin/surveys/:id/export/csv/` | CSV export (one column set per question) |
+| GET | `/api/admin/surveys/:id/export/excel/` | Excel export (one column set per question) |
 | GET, POST | `/api/admin/surveys/:id/people/` | List / add person |
 | PATCH, DELETE | `/api/admin/people/:id/` | Edit / delete person |
 
@@ -521,11 +511,10 @@ insightflow/
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/surveys/` | Visible/active surveys |
-| GET | `/api/surveys/:id/` | Survey detail with people |
-| POST | `/api/surveys/:id/people/:pid/rate/` | Submit rating |
-| GET | `/api/surveys/:id/my-ratings/` | User rating progress |
-| GET | `/api/surveys/:id/results/` | Employee-visible results |
+| GET | `/api/surveys/` | Active and closed surveys |
+| GET | `/api/surveys/:id/` | Survey detail with questions and people |
+| POST | `/api/surveys/:id/people/:pid/submit/` | Submit all question responses for one person |
+| GET | `/api/surveys/:id/my-ratings/` | User response progress |
 
 ---
 
@@ -533,11 +522,11 @@ insightflow/
 
 InsightFlow uses a mandatory-login but anonymous-results model:
 
-- Login is required to prevent duplicate votes
-- Each user can rate each person once per survey
-- Results expose aggregate data such as average score, vote count, total score and ranking
-- Voter identity is not shown in result pages
-- Result APIs should not expose voter username, voter ID or voter IP
+- Login is required to prevent duplicate responses
+- Each user can submit responses for each person once per survey
+- Results expose only aggregate data: average score, vote count, total score, ranking
+- Voter identity is never shown in results or exports
+- Text comments are stored and displayed without any voter information
 
 ---
 
@@ -599,8 +588,8 @@ docker compose cp backend:/app/media ./media_backup
 - Use `DEBUG=False` in production
 - Passwords are hashed by Django
 - JWT is used for authentication
-- Restrict uploaded image types and size
-- A database-level unique constraint prevents duplicate votes
+- Uploaded image types and size are restricted
+- A database-level unique constraint prevents duplicate responses
 - Configure CORS and `ALLOWED_HOSTS` for your actual domain or server IP
 
 ---
@@ -611,16 +600,17 @@ docker compose cp backend:/app/media ./media_backup
 |---|---|
 | Services do not start | `docker compose logs backend` |
 | Database is not ready | `docker compose restart backend` |
-| Port 80 is already in use | Change the port mapping to `8080:80` in `docker-compose.yml` |
-| LAN access does not work | Add the server IP to `ALLOWED_HOSTS` and check firewall settings |
-| Static files are missing | Run `docker compose exec backend python manage.py collectstatic --noinput` |
+| Port 80 is already in use | Change mapping to `8080:80` in `docker-compose.yml` |
+| LAN access does not work | Add server IP to `ALLOWED_HOSTS` and check firewall |
+| Static files are missing | `docker compose exec backend python manage.py collectstatic --noinput` |
+| 500 error on survey create | Run migrations: `docker compose exec backend python manage.py migrate` |
 
 ---
 
 ## Author
 
-Roham  
-Computer Engineering Student @ IUST  
+Roham
+Computer Engineering Student @ IUST
 GitHub: https://github.com/nothingness-dev
 
 ---
