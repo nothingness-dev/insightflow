@@ -1,5 +1,5 @@
 import api from './client';
-import { Survey, SurveyPerson, User, DashboardStats, SurveyResults, MyRatings } from '../types';
+import { BulkImportResult, DashboardStats, MyRatings, PaginatedResponse, Survey, SurveyPerson, SurveyProgressDashboard, SurveyQuestionInput, SurveyResults, User } from '../types';
 
 // Auth
 export const authApi = {
@@ -14,11 +14,11 @@ export const authApi = {
 export const adminSurveyApi = {
   list: (params?: Record<string, string>) =>
     api.get<Survey[]>('/admin/surveys/', { params }),
-  create: (data: Partial<Survey>) =>
+  create: (data: { title: string; description: string; results_visibility: 'admin_only'; questions: SurveyQuestionInput[] }) =>
     api.post<Survey>('/admin/surveys/', data),
   get: (id: number) =>
     api.get<Survey>(`/admin/surveys/${id}/`),
-  update: (id: number, data: Partial<Survey>) =>
+  update: (id: number, data: { title: string; description: string; results_visibility: 'admin_only'; questions: SurveyQuestionInput[] }) =>
     api.patch<Survey>(`/admin/surveys/${id}/`, data),
   delete: (id: number) =>
     api.delete(`/admin/surveys/${id}/`),
@@ -55,7 +55,7 @@ export const adminPersonApi = {
 // Admin Users
 export const adminUserApi = {
   list: (params?: Record<string, string>) =>
-    api.get<User[]>('/admin/users/', { params }),
+    api.get<PaginatedResponse<User>>('/admin/users/', { params }),
   create: (data: Partial<User> & { password: string; password_confirm: string }) =>
     api.post<User>('/admin/users/', data),
   get: (id: number) =>
@@ -76,7 +76,7 @@ export const adminUserApi = {
   bulkImport: (file: File) => {
     const fd = new FormData();
     fd.append('file', file);
-    return api.post('/admin/users/bulk-import/', fd, {
+    return api.post<BulkImportResult>('/admin/users/bulk-import/', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
@@ -85,6 +85,7 @@ export const adminUserApi = {
 // Admin Dashboard
 export const dashboardApi = {
   stats: () => api.get<DashboardStats>('/admin/dashboard/'),
+  surveyProgress: () => api.get<SurveyProgressDashboard>('/admin/surveys/progress/'),
   deleteAllData: () =>
     api.delete('/admin/delete-all-data/', { data: { confirm: 'DELETE_ALL' } }),
 };
@@ -95,8 +96,8 @@ export const employeeApi = {
     api.get<Survey[]>('/surveys/'),
   survey: (id: number) =>
     api.get(`/surveys/${id}/`),
-  rate: (surveyId: number, personId: number, score: number, comment?: string) =>
-    api.post(`/surveys/${surveyId}/people/${personId}/rate/`, { score, comment: comment || undefined }),
+  rate: (surveyId: number, personId: number, answers: { question_id: number; score?: number | null; comment?: string | null }[]) =>
+    api.post(`/surveys/${surveyId}/people/${personId}/rate/`, { answers }),
   myRatings: (surveyId: number) =>
     api.get<MyRatings>(`/surveys/${surveyId}/my-ratings/`),
   results: (surveyId: number) =>

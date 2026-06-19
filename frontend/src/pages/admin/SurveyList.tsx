@@ -150,7 +150,7 @@ export default function AdminSurveyList() {
                     <td className="px-6 py-4">
                       <div>
                         <p className="font-medium text-slate-800">{survey.title}</p>
-                        <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{survey.question}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{survey.questions_count || survey.questions?.length || 0} سوال — {survey.questions?.[0]?.text || survey.question || 'بدون سوال'}</p>
                         <div className="md:hidden mt-1"><StatusBadge status={survey.status} /></div>
                       </div>
                     </td>

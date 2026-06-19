@@ -8,6 +8,7 @@ urlpatterns = [
 
     # Admin survey CRUD
     path('admin/surveys/', views.AdminSurveyListCreateView.as_view(), name='admin-survey-list'),
+    path('admin/surveys/progress/', views.AdminSurveyProgressView.as_view(), name='admin-survey-progress'),
     path('admin/surveys/<int:pk>/', views.AdminSurveyDetailView.as_view(), name='admin-survey-detail'),
     path('admin/surveys/<int:pk>/duplicate/', views.AdminSurveyDuplicateView.as_view(), name='admin-survey-duplicate'),
     path('admin/surveys/<int:pk>/publish/', views.AdminSurveyPublishView.as_view(), name='admin-survey-publish'),

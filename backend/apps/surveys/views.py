@@ -2,19 +2,21 @@ import csv
 import io
 from django.http import HttpResponse
 from django.utils import timezone
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
+from django.db.models import Count
 from rest_framework import status, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from apps.accounts.permissions import IsAdminUser, IsEmployeeUser
 
-from .models import Survey, SurveyPerson, Rating
+from .models import Survey, SurveyQuestion, SurveyPerson, Rating
 from .serializers import (
     SurveySerializer, SurveyCreateUpdateSerializer, SurveyPersonSerializer,
-    SurveyPersonPublicSerializer, SurveyPublicSerializer, RatingCreateSerializer
+    SurveyPersonPublicSerializer, SurveyPublicSerializer, RatingCreateSerializer,
+    SurveyProgressDashboardSerializer
 )
-from .services import calculate_survey_results, duplicate_survey
+from .services import calculate_survey_results, duplicate_survey, calculate_survey_progress, validate_question_answers
 import logging
 
 logger = logging.getLogger('apps')
@@ -50,7 +52,7 @@ class AdminSurveyListCreateView(generics.ListCreateAPIView):
         qs = super().get_queryset()
         search = self.request.query_params.get('search')
         if search:
-            qs = qs.filter(title__icontains=search) | qs.filter(question__icontains=search)
+            qs = (qs.filter(title__icontains=search) | qs.filter(question__icontains=search) | qs.filter(questions__text__icontains=search)).distinct()
         status_filter = self.request.query_params.get('status')
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -84,6 +86,16 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         logger.info(f"Admin {request.user.username} deleted survey: {instance.title}")
         return super().destroy(request, *args, **kwargs)
+
+
+class AdminSurveyProgressView(APIView):
+    """Return participation progress for all surveys using bounded aggregate queries."""
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        progress_data = calculate_survey_progress()
+        serializer = SurveyProgressDashboardSerializer(progress_data)
+        return Response(serializer.data)
 
 
 class AdminSurveyDuplicateView(APIView):
@@ -121,8 +133,11 @@ class AdminSurveyPublishView(APIView):
         if survey.status != Survey.STATUS_DRAFT:
             return Response({'detail': 'فقط نظرسنجی‌های پیش‌نویس قابل انتشار هستند.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not survey.title or not survey.question:
-            return Response({'detail': 'عنوان و سوال اصلی الزامی هستند.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not survey.title:
+            return Response({'detail': 'عنوان نظرسنجی الزامی است.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not survey.questions.filter(is_active=True).exists():
+            return Response({'detail': 'حداقل یک سوال فعال باید به نظرسنجی اضافه شود.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not survey.people.filter(is_active=True).exists():
             return Response({'detail': 'حداقل یک فرد فعال باید به نظرسنجی اضافه شود.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -185,13 +200,30 @@ class AdminSurveyExportCSVView(APIView):
         response.write('\ufeff')  # BOM for Excel Persian support
 
         writer = csv.writer(response)
-        writer.writerow(['رتبه', 'نام و نام خانوادگی', 'واحد سازمانی', 'سمت', 'میانگین امتیاز', 'مجموع امتیاز', 'تعداد رأی'])
+        questions = list(survey.questions.filter(is_active=True).order_by('display_order', 'created_at'))
+        headers = ['رتبه', 'نام و نام خانوادگی', 'واحد سازمانی', 'سمت', 'میانگین کلی', 'مجموع امتیاز', 'تعداد رأی‌دهنده']
+        for question in questions:
+            headers.extend([
+                f'میانگین - {question.text}',
+                f'تعداد پاسخ امتیازی - {question.text}',
+                f'توضیحات - {question.text}',
+            ])
+        writer.writerow(headers)
 
         for r in results:
-            writer.writerow([
+            row = [
                 r['rank'], r['full_name'], r['department'], r['role_title'],
                 r['average_score'] or '-', r['total_score'], r['votes_count']
-            ])
+            ]
+            by_question = {item['question_id']: item for item in r.get('question_results', [])}
+            for question in questions:
+                q = by_question.get(question.id, {})
+                row.extend([
+                    q.get('average_score') or '-',
+                    q.get('responses_count') or 0,
+                    ' | '.join(q.get('comments') or []),
+                ])
+            writer.writerow(row)
 
         return response
 
@@ -215,14 +247,30 @@ class AdminSurveyExportExcelView(APIView):
         ws.title = 'نتایج نظرسنجی'
         ws.sheet_view.rightToLeft = True
 
-        headers = ['رتبه', 'نام و نام خانوادگی', 'واحد سازمانی', 'سمت', 'میانگین امتیاز', 'مجموع امتیاز', 'تعداد رأی']
+        questions = list(survey.questions.filter(is_active=True).order_by('display_order', 'created_at'))
+        headers = ['رتبه', 'نام و نام خانوادگی', 'واحد سازمانی', 'سمت', 'میانگین کلی', 'مجموع امتیاز', 'تعداد رأی‌دهنده']
+        for question in questions:
+            headers.extend([
+                f'میانگین - {question.text}',
+                f'تعداد پاسخ امتیازی - {question.text}',
+                f'توضیحات - {question.text}',
+            ])
         ws.append(headers)
 
         for r in results:
-            ws.append([
+            row = [
                 r['rank'], r['full_name'], r['department'], r['role_title'],
                 r['average_score'] or 0, r['total_score'], r['votes_count']
-            ])
+            ]
+            by_question = {item['question_id']: item for item in r.get('question_results', [])}
+            for question in questions:
+                q = by_question.get(question.id, {})
+                row.extend([
+                    q.get('average_score') or 0,
+                    q.get('responses_count') or 0,
+                    ' | '.join(q.get('comments') or []),
+                ])
+            ws.append(row)
 
         output = io.BytesIO()
         wb.save(output)
@@ -275,17 +323,49 @@ class AdminPersonDetailView(generics.RetrieveUpdateDestroyAPIView):
 class EmployeeSurveyListView(generics.ListAPIView):
     permission_classes = [IsEmployeeUser]
     serializer_class = SurveySerializer
+    # This endpoint returns one explicit list payload for the employee app;
+    # never let the global admin-table pagination reshape it.
+    pagination_class = None
 
     def get_queryset(self):
-        return Survey.objects.filter(status__in=[Survey.STATUS_PUBLISHED, Survey.STATUS_CLOSED])
+        return (
+            Survey.objects
+            .filter(status__in=[Survey.STATUS_PUBLISHED, Survey.STATUS_CLOSED])
+            .order_by('-published_at', '-created_at')
+        )
 
     def list(self, request, *args, **kwargs):
-        qs = self.get_queryset()
+        qs = self.get_queryset().prefetch_related('people', 'questions')
         data = []
         for survey in qs:
             s = SurveySerializer(survey, context={'request': request}).data
-            s['my_votes_count'] = Rating.objects.filter(survey=survey, voter=request.user).count()
-            s['total_people'] = survey.people.filter(is_active=True).count()
+            active_people_count = survey.people.filter(is_active=True).count()
+            active_questions_count = survey.questions.filter(is_active=True).count()
+            required_answers_per_person = active_questions_count
+
+            completed_person_ids = set()
+            if required_answers_per_person > 0:
+                rows = (
+                    Rating.objects
+                    .filter(
+                        survey=survey,
+                        voter=request.user,
+                        person__is_active=True,
+                        question__is_active=True,
+                        question__survey=survey,
+                    )
+                    .values('person_id')
+                    .annotate(answered_count=Count('question_id', distinct=True))
+                )
+                completed_person_ids = {
+                    row['person_id']
+                    for row in rows
+                    if row['answered_count'] == required_answers_per_person
+                }
+
+            s['my_votes_count'] = len(completed_person_ids)
+            s['total_people'] = active_people_count
+            s['total_questions'] = active_questions_count
             data.append(s)
         return Response(data)
 
@@ -302,12 +382,29 @@ class EmployeeSurveyDetailView(APIView):
         serializer = SurveyPublicSerializer(survey, context={'request': request})
         data = serializer.data
 
-        # Add my rating status per person (only boolean, no score exposed)
-        my_ratings = set(
-            Rating.objects.filter(survey=survey, voter=request.user).values_list('person_id', flat=True)
-        )
+        active_questions_count = survey.questions.filter(is_active=True).count()
+        completed_person_ids = set()
+        if active_questions_count > 0:
+            rows = (
+                Rating.objects
+                .filter(
+                    survey=survey,
+                    voter=request.user,
+                    person__is_active=True,
+                    question__is_active=True,
+                    question__survey=survey,
+                )
+                .values('person_id')
+                .annotate(answered_count=Count('question_id', distinct=True))
+            )
+            completed_person_ids = {
+                row['person_id']
+                for row in rows
+                if row['answered_count'] == active_questions_count
+            }
+
         for person in data['people']:
-            person['has_rated'] = person['id'] in my_ratings
+            person['has_rated'] = person['id'] in completed_person_ids
 
         return Response(data)
 
@@ -333,26 +430,62 @@ class EmployeeRatePersonView(APIView):
             return Response({'detail': 'فرد مورد نظر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
         if Rating.objects.filter(survey=survey, person=person, voter=request.user).exists():
-            return Response({'detail': 'شما قبلاً برای این فرد امتیاز ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
-            return Response({'detail': 'شما قبلاً برای این فرد امتیاز ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'شما قبلاً برای این فرد پاسخ ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        questions = list(survey.questions.filter(is_active=True).order_by('display_order', 'created_at'))
+        if not questions and survey.question:
+            questions = [SurveyQuestion.objects.create(
+                survey=survey,
+                text=survey.question,
+                has_score=True,
+                score_required=True,
+                has_comment=True,
+                comment_required=False,
+                display_order=0,
+                is_active=True,
+            )]
+        if not questions:
+            return Response({'detail': 'این نظرسنجی هنوز سوال فعالی ندارد.'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = RatingCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        try:
-            Rating.objects.create(
-                survey=survey,
-                person=person,
-                voter=request.user,
-                score=serializer.validated_data['score'],
-                comment=serializer.validated_data.get('comment') or None,
-                ip_address=get_client_ip(request),
-                user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
-            )
-        except IntegrityError:
-            return Response({'detail': 'شما قبلاً برای این فرد امتیاز ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
+        submitted_answers = serializer.validated_data.get('answers')
+        if submitted_answers is None:
+            # Backward-compatible single-score payload. It is valid only for
+            # surveys with one active question.
+            if len(questions) != 1:
+                return Response({'detail': 'برای این نظرسنجی باید پاسخ همه سوال‌ها ارسال شود.'}, status=status.HTTP_400_BAD_REQUEST)
+            submitted_answers = [{
+                'question_id': questions[0].id,
+                'score': serializer.validated_data.get('score'),
+                'comment': serializer.validated_data.get('comment'),
+            }]
 
-        return Response({'detail': 'امتیاز شما با موفقیت ثبت شد.'}, status=status.HTTP_201_CREATED)
+        try:
+            validated_answers = validate_question_answers(questions, submitted_answers)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                Rating.objects.bulk_create([
+                    Rating(
+                        survey=survey,
+                        person=person,
+                        question=item['question'],
+                        voter=request.user,
+                        score=item['score'],
+                        comment=item['comment'],
+                        ip_address=get_client_ip(request),
+                        user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                    )
+                    for item in validated_answers
+                ])
+        except IntegrityError:
+            return Response({'detail': 'شما قبلاً برای این فرد پاسخ ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'detail': 'پاسخ‌های شما با موفقیت ثبت شد.'}, status=status.HTTP_201_CREATED)
 
 
 class EmployeeMyRatingsView(APIView):
@@ -364,17 +497,37 @@ class EmployeeMyRatingsView(APIView):
         except Survey.DoesNotExist:
             return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
-        rated_person_ids = list(
-            Rating.objects.filter(survey=survey, voter=request.user).values_list('person_id', flat=True)
-        )
         total_active_people = survey.people.filter(is_active=True).count()
+        active_questions_count = survey.questions.filter(is_active=True).count()
+        completed_person_ids = []
+
+        if active_questions_count > 0:
+            rows = (
+                Rating.objects
+                .filter(
+                    survey=survey,
+                    voter=request.user,
+                    person__is_active=True,
+                    question__is_active=True,
+                    question__survey=survey,
+                )
+                .values('person_id')
+                .annotate(answered_count=Count('question_id', distinct=True))
+            )
+            completed_person_ids = [
+                row['person_id']
+                for row in rows
+                if row['answered_count'] == active_questions_count
+            ]
 
         return Response({
             'survey_id': survey.id,
-            'rated_person_ids': rated_person_ids,
-            'rated_count': len(rated_person_ids),
+            'rated_person_ids': completed_person_ids,
+            'rated_count': len(completed_person_ids),
             'total_people': total_active_people,
-            'is_complete': len(rated_person_ids) == total_active_people and total_active_people > 0,
+            'total_questions': active_questions_count,
+            'required_answers_count': total_active_people * active_questions_count,
+            'is_complete': len(completed_person_ids) == total_active_people and total_active_people > 0 and active_questions_count > 0,
         })
 
 
@@ -419,7 +572,23 @@ class AdminDashboardView(APIView):
         draft_surveys = Survey.objects.filter(status=Survey.STATUS_DRAFT).count()
         published_surveys = Survey.objects.filter(status=Survey.STATUS_PUBLISHED).count()
         closed_surveys = Survey.objects.filter(status=Survey.STATUS_CLOSED).count()
-        total_responses = Rating.objects.count()
+        # Count voters who fully completed at least one survey
+        from django.db.models import Count as DCount, F as DF, Q as DQ
+        total_responses = 0
+        for survey in Survey.objects.prefetch_related('people', 'questions'):
+            active_people = survey.people.filter(is_active=True).count()
+            active_questions = survey.questions.filter(is_active=True).count()
+            required = active_people * active_questions
+            if not required:
+                continue
+            total_responses += (
+                Rating.objects
+                .filter(survey=survey, person__is_active=True, question__is_active=True)
+                .values('voter_id')
+                .annotate(answered_count=DCount('id', distinct=True))
+                .filter(answered_count=required)
+                .count()
+            )
         total_employees = User.objects.filter(role='employee').count()
 
         recent_surveys = Survey.objects.order_by('-created_at')[:5]
@@ -453,18 +622,21 @@ class AdminDeleteAllDataView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Delete all ratings, people, and surveys; keep users intact
+        # Delete all ratings, survey people, surveys, and employee users
         ratings_count = Rating.objects.count()
         people_count = SurveyPerson.objects.count()
         surveys_count = Survey.objects.count()
+        employees_count = User.objects.filter(role='employee').count()
 
         Rating.objects.all().delete()
         SurveyPerson.objects.all().delete()
         Survey.objects.all().delete()
+        User.objects.filter(role='employee').delete()
 
         logger.warning(
             f"Admin {request.user.username} deleted ALL data: "
-            f"{surveys_count} surveys, {people_count} people, {ratings_count} ratings"
+            f"{surveys_count} surveys, {people_count} survey-people, "
+            f"{ratings_count} ratings, {employees_count} employees"
         )
 
         return Response({
@@ -473,5 +645,6 @@ class AdminDeleteAllDataView(APIView):
                 'surveys': surveys_count,
                 'people': people_count,
                 'ratings': ratings_count,
+                'employees': employees_count,
             }
         })

@@ -42,9 +42,14 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="page-title">داشبورد مدیریت</h1>
-        <p className="text-sm text-gray-500 mt-1">خلاصه وضعیت سامانه نظرسنجی</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="page-title">داشبورد مدیریت</h1>
+          <p className="text-sm text-gray-500 mt-1">خلاصه وضعیت سامانه نظرسنجی</p>
+        </div>
+        <Link to="/admin/survey-progress" className="btn-secondary self-start">
+          پیگیری پیشرفت نظرسنجی‌ها
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">

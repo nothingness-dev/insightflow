@@ -13,6 +13,7 @@ import SurveyForm from './pages/admin/SurveyForm';
 import SurveyDetail from './pages/admin/SurveyDetail';
 import SurveyResults from './pages/admin/SurveyResults';
 import UserManagement from './pages/admin/UserManagement';
+import SurveyProgressPage from './pages/admin/SurveyProgress';
 import EmployeeSurveyList from './pages/employee/SurveyList';
 import EmployeeSurveyDetail from './pages/employee/SurveyDetail';
 
@@ -43,6 +44,7 @@ export default function App() {
           {/* Admin */}
           <Route path="/admin" element={<AdminWrapper><AdminDashboard /></AdminWrapper>} />
           <Route path="/admin/surveys" element={<AdminWrapper><AdminSurveyList /></AdminWrapper>} />
+          <Route path="/admin/survey-progress" element={<AdminWrapper><SurveyProgressPage /></AdminWrapper>} />
           <Route path="/admin/surveys/new" element={<AdminWrapper><SurveyForm /></AdminWrapper>} />
           <Route path="/admin/surveys/:id" element={<AdminWrapper><SurveyDetail /></AdminWrapper>} />
           <Route path="/admin/surveys/:id/edit" element={<AdminWrapper><SurveyForm /></AdminWrapper>} />

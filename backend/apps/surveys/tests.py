@@ -4,7 +4,8 @@ from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from datetime import timedelta
 from apps.accounts.models import User
-from apps.surveys.models import Survey, SurveyPerson, Rating
+from apps.surveys.models import Survey, SurveyQuestion, SurveyPerson, Rating
+from apps.surveys.services import calculate_survey_progress
 
 
 def create_admin(**kwargs):
@@ -122,7 +123,7 @@ class SurveyRatingRulesTests(APITestCase):
         res = self.client.post(f'/api/surveys/{survey.id}/people/{person.id}/rate/', {'score': 5})
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_cannot_rate_before_start(self):
+    def test_can_rate_published_survey_without_start_window(self):
         survey = create_survey(
             self.admin, status=Survey.STATUS_PUBLISHED,
         )
@@ -130,9 +131,9 @@ class SurveyRatingRulesTests(APITestCase):
         token = self.get_token(self.emp1)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
         res = self.client.post(f'/api/surveys/{survey.id}/people/{person.id}/rate/', {'score': 5})
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
-    def test_cannot_rate_after_end(self):
+    def test_can_rate_published_survey_without_end_window(self):
         survey = create_survey(
             self.admin, status=Survey.STATUS_PUBLISHED,
         )
@@ -140,7 +141,7 @@ class SurveyRatingRulesTests(APITestCase):
         token = self.get_token(self.emp1)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
         res = self.client.post(f'/api/surveys/{survey.id}/people/{person.id}/rate/', {'score': 5})
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
     def test_cannot_rate_inactive_person(self):
         survey = create_survey(self.admin, status=Survey.STATUS_PUBLISHED)
@@ -315,4 +316,260 @@ class SurveyDuplicateTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(Survey.objects.count(), 1)
+
+
+
+class SurveyProgressTests(APITestCase):
+    def setUp(self):
+        self.admin = create_admin(username='admin_progress')
+        self.completed_employee = create_employee(
+            username='progress_complete',
+            full_name='کارمند کامل',
+        )
+        self.partial_employee = create_employee(
+            username='progress_partial',
+            full_name='کارمند نیمه‌کاره',
+        )
+        self.pending_employee = create_employee(
+            username='progress_pending',
+            full_name='کارمند در انتظار',
+        )
+        self.inactive_employee = create_employee(
+            username='progress_inactive',
+            full_name='کارمند غیرفعال',
+        )
+        self.inactive_employee.is_active = False
+        self.inactive_employee.save(update_fields=['is_active'])
+
+        self.published_survey = create_survey(
+            self.admin,
+            status=Survey.STATUS_PUBLISHED,
+            title='نظرسنجی پیشرفت',
+        )
+        self.first_person = create_person(
+            self.published_survey,
+            full_name='فرد اول',
+        )
+        self.second_person = create_person(
+            self.published_survey,
+            full_name='فرد دوم',
+        )
+
+        self.draft_survey = create_survey(
+            self.admin,
+            status=Survey.STATUS_DRAFT,
+            title='نظرسنجی پیش‌نویس',
+        )
+        create_person(self.draft_survey, full_name='فرد پیش‌نویس')
+
+        Rating.objects.create(
+            survey=self.published_survey,
+            person=self.first_person,
+            voter=self.completed_employee,
+            score=8,
+        )
+        Rating.objects.create(
+            survey=self.published_survey,
+            person=self.second_person,
+            voter=self.completed_employee,
+            score=9,
+        )
+        Rating.objects.create(
+            survey=self.published_survey,
+            person=self.first_person,
+            voter=self.partial_employee,
+            score=7,
+        )
+
+    def authenticate(self, user, password):
+        response = self.client.post(
+            '/api/auth/login/',
+            {'username': user.username, 'password': password},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
+
+    def test_admin_progress_counts_only_fully_completed_active_employee_responses(self):
+        self.authenticate(self.admin, 'AdminPass@1')
+
+        response = self.client.get('/api/admin/surveys/progress/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        progress_by_survey = {item['survey_id']: item for item in response.data['surveys']}
+        published_progress = progress_by_survey[self.published_survey.id]
+        draft_progress = progress_by_survey[self.draft_survey.id]
+
+        self.assertEqual(published_progress['assigned_employees'], 3)
+        self.assertEqual(published_progress['completed_employees'], 1)
+        self.assertEqual(published_progress['pending_employees'], 2)
+        self.assertEqual(published_progress['completion_percentage'], 33.3)
+        self.assertTrue(published_progress['tracking_enabled'])
+        self.assertEqual(
+            {user['username'] for user in published_progress['pending_users']},
+            {'progress_partial', 'progress_pending'},
+        )
+
+        self.assertFalse(draft_progress['tracking_enabled'])
+        self.assertEqual(draft_progress['assigned_employees'], 0)
+        self.assertEqual(draft_progress['completed_employees'], 0)
+        self.assertEqual(draft_progress['pending_employees'], 0)
+        self.assertEqual(draft_progress['pending_users'], [])
+
+        self.assertEqual(response.data['summary']['total_surveys'], 2)
+        self.assertEqual(response.data['summary']['total_assigned_responses'], 3)
+        self.assertEqual(response.data['summary']['total_completed_responses'], 1)
+        self.assertEqual(response.data['summary']['total_pending_responses'], 2)
+        self.assertEqual(response.data['summary']['overall_completion_percentage'], 33.3)
+
+    def test_employee_cannot_view_survey_progress(self):
+        self.authenticate(self.completed_employee, 'EmpPass@1')
+
+        response = self.client.get('/api/admin/surveys/progress/')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_progress_calculation_uses_a_bounded_query_count(self):
+        with self.assertNumQueries(3):
+            calculate_survey_progress()
+
+
+class MultiQuestionSurveyTests(APITestCase):
+    def setUp(self):
+        self.admin = create_admin(username='admin_multi')
+        self.employee = create_employee(username='employee_multi')
+        self.survey = Survey.objects.create(
+            title='نظرسنجی چند سوالی',
+            description='تست چند سوال',
+            status=Survey.STATUS_PUBLISHED,
+            created_by=self.admin,
+        )
+        self.person = create_person(self.survey, full_name='فرد چند سوالی')
+        self.score_question = SurveyQuestion.objects.create(
+            survey=self.survey,
+            text='کیفیت همکاری؟',
+            has_score=True,
+            score_required=True,
+            has_comment=False,
+            comment_required=False,
+            display_order=0,
+        )
+        self.comment_question = SurveyQuestion.objects.create(
+            survey=self.survey,
+            text='توضیح تکمیلی؟',
+            has_score=False,
+            score_required=False,
+            has_comment=True,
+            comment_required=True,
+            display_order=1,
+        )
+
+    def authenticate(self, user, password='EmpPass@1'):
+        response = self.client.post('/api/auth/login/', {'username': user.username, 'password': password})
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
+
+    def test_employee_must_answer_every_question_for_person(self):
+        self.authenticate(self.employee)
+        response = self.client.post(
+            f'/api/surveys/{self.survey.id}/people/{self.person.id}/rate/',
+            {
+                'answers': [
+                    {'question_id': self.score_question.id, 'score': 8},
+                ]
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Rating.objects.count(), 0)
+
+    def test_employee_can_submit_all_question_answers_for_person(self):
+        self.authenticate(self.employee)
+        response = self.client.post(
+            f'/api/surveys/{self.survey.id}/people/{self.person.id}/rate/',
+            {
+                'answers': [
+                    {'question_id': self.score_question.id, 'score': 9},
+                    {'question_id': self.comment_question.id, 'comment': 'همکاری خوبی دارد'},
+                ]
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Rating.objects.count(), 2)
+        self.assertTrue(Rating.objects.filter(question=self.score_question, score=9).exists())
+        self.assertTrue(Rating.objects.filter(question=self.comment_question, comment='همکاری خوبی دارد').exists())
+
+    def test_results_include_question_breakdown(self):
+        Rating.objects.create(
+            survey=self.survey,
+            person=self.person,
+            question=self.score_question,
+            voter=self.employee,
+            score=9,
+        )
+        Rating.objects.create(
+            survey=self.survey,
+            person=self.person,
+            question=self.comment_question,
+            voter=self.employee,
+            comment='نظر ناشناس',
+        )
+
+        self.authenticate(self.admin, 'AdminPass@1')
+        response = self.client.get(f'/api/admin/surveys/{self.survey.id}/results/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result = response.data['results'][0]
+        self.assertEqual(result['average_score'], 9.0)
+        self.assertEqual(len(result['question_results']), 2)
+        self.assertEqual(result['question_results'][0]['question_text'], 'کیفیت همکاری؟')
+        self.assertEqual(result['question_results'][1]['comments'], ['نظر ناشناس'])
+
+class EmployeeSurveyListTests(APITestCase):
+    def setUp(self):
+        self.admin = create_admin(username='admin_employee_list')
+        self.employee = create_employee(username='employee_list')
+
+        self.published = create_survey(
+            self.admin,
+            status=Survey.STATUS_PUBLISHED,
+            title='نظرسنجی قابل مشاهده',
+        )
+        self.closed = create_survey(
+            self.admin,
+            status=Survey.STATUS_CLOSED,
+            title='نظرسنجی بسته قابل مشاهده',
+        )
+        self.draft = create_survey(
+            self.admin,
+            status=Survey.STATUS_DRAFT,
+            title='پیش‌نویس مخفی',
+        )
+
+        for survey in (self.published, self.closed, self.draft):
+            create_person(survey, full_name=f'فرد {survey.id}')
+            SurveyQuestion.objects.create(
+                survey=survey,
+                text='کیفیت همکاری را ارزیابی کنید',
+                has_score=True,
+                score_required=True,
+                display_order=0,
+            )
+
+    def test_employee_list_returns_published_and_closed_surveys(self):
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': self.employee.username, 'password': 'EmpPass@1'},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+        response = self.client.get('/api/surveys/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(response.data, list)
+        returned_ids = {item['id'] for item in response.data}
+        self.assertEqual(returned_ids, {self.published.id, self.closed.id})
+        self.assertNotIn(self.draft.id, returned_ids)
+        published_item = next(item for item in response.data if item['id'] == self.published.id)
+        self.assertEqual(published_item['total_people'], 1)
+        self.assertEqual(published_item['total_questions'], 1)
+        self.assertEqual(published_item['my_votes_count'], 0)
 

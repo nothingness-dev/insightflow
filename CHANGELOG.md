@@ -3,27 +3,25 @@
 ## [1.6.0] — 2026
 
 ### Added
-- **Survey duplication** — admins can create a new draft from any existing survey directly from the survey list. The clone keeps the survey configuration, visibility setting, and all people (including their existing photo references, display order, and active state).
-- **Response-safe cloning** — ratings, anonymous comments, voter information, IP/user-agent metadata, and publish/close timestamps are never copied to the new survey.
-- **Admin duplicate endpoint** — added `POST /api/admin/surveys/:id/duplicate/`; access is restricted to admin users.
+- **Multi-question survey builder** — admins can define multiple active questions instead of one fixed main question.
+- **Per-question answer controls** — every question can enable numeric score (1–10), text comment, or both.
+- **Required/optional input rules** — score and comment can be independently required or optional per question.
+- **Full multi-question voting** — employees must answer every active question for every surveyed person; no question can be submitted empty.
+- **Per-question result breakdown** — admin results now include overall ranking plus expandable question-level averages, counts, and anonymous comments.
+- **Multi-question CSV/Excel exports** — exports now include dynamic columns for each question.
+
+### Changed
+- `Survey.question` is kept only as a legacy fallback; new behavior uses the `SurveyQuestion` relation.
+- `Rating` now stores one answer per `(survey, person, voter, question)` and supports score-only, comment-only, or combined answers.
+- Survey progress now counts completion by active people × active questions.
+- Duplicate Survey now copies questions as well as people/settings, but still never copies responses.
+
+### Fixed
+- Updated backend tests to match the current publish/close lifecycle after start/end dates were removed.
 
 ---
 
 ## [1.5.0] — 2026
-
-### Added
-- **Multi-question surveys** — admins can now add multiple questions to a single survey instead of one fixed question. Each question is independently configured.
-- **Per-question input types** — for each question, the admin chooses:
-  - **امتیاز کمی (۱–۱۰)** — numeric 1-to-10 score
-  - **توضیحات متنی** — free-text comment box
-  - Both together, or either alone
-- **Required/optional per input** — each score and comment field can be marked as اجباری (required) or optional independently per question.
-- **Step-by-step voting modal** — employees answer one question at a time with a progress indicator, navigating forward/backward between questions before final submission.
-- **Results by question** — the admin results page now has two tabs:
-  - **رتبه‌بندی کلی** — overall ranking with per-question breakdown inside each card
-  - **نتایج به تفکیک سوال** — dedicated view per question with its own ranking
-- **CSV/Excel exports updated** — export files now contain columns per question (average, total, count for scored questions; joined comments for text questions).
-- **Question ordering** — questions can be reordered with up/down arrows in the form builder.
 
 ### Changed
 - `Survey.question` (single text field) removed from the model and replaced by the `SurveyQuestion` relation. Migration `0005_survey_questions` handles this.

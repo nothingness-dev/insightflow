@@ -24,8 +24,6 @@
 
 ## تصاویر پروژه
 
-> این تصاویر برای README و ارائه پروژه آماده شده‌اند. پس از اجرای پروژه می‌توانید آن‌ها را با اسکرین‌شات‌های واقعی نسخه نهایی خود جایگزین کنید.
-
 ### صفحه ورود
 ![Login](screenshots/login.png)
 
@@ -35,8 +33,11 @@
 ### ایجاد نظرسنجی با سوالات چندگانه
 ![Survey Creation](screenshots/create-survey.png)
 
-### ثبت ارزیابی توسط کارمند (گام‌به‌گام)
+### ثبت ارزیابی چندسوالی توسط کارمند
 ![Voting](screenshots/voting.png)
+
+### داشبورد پیشرفت نظرسنجی
+![Progress Dashboard](screenshots/progress-dashboard.png)
 
 ### نتایج و رتبه‌بندی
 ![Results](screenshots/results.png)
@@ -48,18 +49,32 @@
 - **نظرسنجی با سوالات چندگانه** — هر نظرسنجی می‌تواند چند سوال داشته باشد
 - **تنظیم نوع ورودی هر سوال** — امتیاز کمی (۱–۱۰)، توضیحات متنی، یا هر دو
 - **اجباری یا اختیاری بودن** — برای هر سوال، امتیاز و توضیحات می‌توانند مستقل از هم اجباری باشند
-- **ثبت ارزیابی گام‌به‌گام** — کارمندان سوال به سوال پاسخ می‌دهند و قبل از ارسال بین سوالات جابه‌جا می‌شوند
+- **ثبت ارزیابی چندسوالی** — کارمندان برای هر فرد به همه سوال‌های فعال پاسخ می‌دهند
 - **ارزیابی ناشناس** — هویت رأی‌دهنده در نتایج نمایش داده نمی‌شود
 - **جلوگیری از رأی تکراری** — هر کاربر فقط یک بار می‌تواند به هر فرد در نظرسنجی پاسخ دهد
 - **امتیازدهی اجباری به همه افراد** — کارمند باید به تمام افراد نظرسنجی پاسخ دهد
 - **پنل مدیریت کامل** — ایجاد، ویرایش، انتشار، بستن و مشاهده نتایج
-- **کپی نظرسنجی** — مدیر می‌تواند یک نظرسنجی را با تنظیمات و افراد آن به‌صورت پیش‌نویس کپی کند؛ امتیازها و توضیحات قبلی منتقل نمی‌شوند
-- **نتایج به تفکیک سوال** — رتبه‌بندی کلی و نتایج مجزا برای هر سوال
+- **نتایج به تفکیک سوال** — رتبه‌بندی کلی همراه با تحلیل سوال‌به‌سوال برای هر فرد
+- **داشبورد پیشرفت نظرسنجی** — نمایش درصد مشارکت، تعداد پاسخ‌داده‌ها، افراد باقی‌مانده و نمودار مقایسه پیشرفت نظرسنجی‌ها
 - **مدیریت کاربران** — فعال/غیرفعال کردن، ریست رمز، حذف، و آپلود دسته‌ای از CSV
 - **خروجی CSV و Excel** — ستون‌های مجزا برای هر سوال
 - **تغییر تم رنگی** — چهار تم بنفش، آبی، سبز، قرمز با یک کلیک
 - **رابط کاربری فارسی و راست‌به‌چپ**
 - **آماده برای استقرار در شبکه داخلی با Docker**
+
+---
+
+## داشبورد پیشرفت نظرسنجی
+
+مدیران می‌توانند از بخش **پیشرفت نظرسنجی‌ها** وضعیت مشارکت را به‌صورت یک‌جا مشاهده کنند:
+
+- تعداد کارکنان واجد شرایط برای هر نظرسنجی
+- تعداد کاربران تکمیل‌کننده و کاربران باقی‌مانده
+- درصد تکمیل نظرسنجی با نوار پیشرفت رنگی
+- فهرست بازشونده افراد پاسخ‌نداده
+- آمار کلی مشارکت و نمودار مقایسه درصد تکمیل نظرسنجی‌ها
+
+> یک کاربر تنها زمانی «تکمیل‌کننده» محسوب می‌شود که به تمام سوال‌های فعال برای تمام افراد نظرسنجی پاسخ داده باشد.
 
 ---
 
@@ -231,10 +246,10 @@ insightflow/
 | متد | مسیر | توضیح |
 |---|---|---|
 | GET | `/api/admin/dashboard/` | آمار داشبورد مدیریت |
+| GET | `/api/admin/surveys/progress/` | آمار و پیشرفت مشارکت نظرسنجی‌ها |
 | DELETE | `/api/admin/delete-all-data/` | حذف تمام داده‌ها |
 | GET, POST | `/api/admin/surveys/` | لیست / ایجاد نظرسنجی |
 | GET, PATCH, DELETE | `/api/admin/surveys/:id/` | جزئیات / ویرایش / حذف |
-| POST | `/api/admin/surveys/:id/duplicate/` | ایجاد یک کپی پیش‌نویس همراه با افراد، بدون انتقال امتیازها و توضیحات |
 | POST | `/api/admin/surveys/:id/publish/` | انتشار نظرسنجی |
 | POST | `/api/admin/surveys/:id/close/` | بستن نظرسنجی |
 | GET | `/api/admin/surveys/:id/results/` | نتایج ناشناس + سوالات |
@@ -363,8 +378,6 @@ Many organizations still rely on spreadsheets, paper forms or disconnected tools
 
 ## Screenshots
 
-> Replace these with real screenshots after running your final deployment.
-
 ### Login Page
 ![Login](screenshots/login.png)
 
@@ -374,8 +387,11 @@ Many organizations still rely on spreadsheets, paper forms or disconnected tools
 ### Survey Creation (Multi-Question Builder)
 ![Survey Creation](screenshots/create-survey.png)
 
-### Employee Evaluation (Step-by-Step)
+### Employee Evaluation (Multi-Question)
 ![Voting](screenshots/voting.png)
+
+### Survey Progress Dashboard
+![Progress Dashboard](screenshots/progress-dashboard.png)
 
 ### Results & Rankings
 ![Results](screenshots/results.png)
@@ -387,18 +403,32 @@ Many organizations still rely on spreadsheets, paper forms or disconnected tools
 - **Multi-question surveys** — each survey can have multiple questions
 - **Per-question input types** — numeric score (1–10), free-text comment, or both
 - **Required / optional per input** — score and comment can be independently required or optional per question
-- **Step-by-step voting** — employees answer one question at a time, navigating forward/back before final submission
+- **Multi-question voting** — employees answer every active question for each surveyed person before submission
 - **Anonymous evaluations** — voter identity never exposed in results
 - **Duplicate vote prevention** — each user can submit responses for each person only once
 - **All-or-nothing participation** — employees must respond to all people in a survey
 - **Full admin panel** — create, edit, publish, close and review surveys
-- **Survey duplication** — admins can clone a survey’s configuration and people into a new draft without copying ratings or comments
-- **Results by question** — overall ranking tab + per-question breakdown tab
+- **Results by question** — overall ranking with expandable per-question breakdown
+- **Survey Progress Dashboard** — participation totals, completion rates, pending employees and a survey comparison chart
 - **User management** — activate/deactivate, password reset, delete, bulk CSV import
 - **CSV and Excel exports** — separate columns per question
 - **Four color themes** — purple, blue, green, red; saved in localStorage
 - **Persian RTL UI**
 - **Docker-based LAN deployment**
+
+---
+
+## Survey Progress Dashboard
+
+Admins can monitor participation across all surveys from a dedicated progress dashboard:
+
+- Eligible employee, completed employee and pending employee totals per survey
+- Color-coded completion progress bars
+- Expandable pending-employee lists
+- Overall participation summary cards
+- A responsive chart comparing survey completion rates
+
+> An employee is counted as complete only after answering every active question for every surveyed person.
 
 ---
 
@@ -499,10 +529,10 @@ insightflow/
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/admin/dashboard/` | Admin dashboard statistics |
+| GET | `/api/admin/surveys/progress/` | Survey participation and completion progress |
 | DELETE | `/api/admin/delete-all-data/` | Reset all survey data |
 | GET, POST | `/api/admin/surveys/` | List / create surveys |
 | GET, PATCH, DELETE | `/api/admin/surveys/:id/` | Detail / edit / delete (includes questions) |
-| POST | `/api/admin/surveys/:id/duplicate/` | Create a draft copy with people; ratings and comments are excluded |
 | POST | `/api/admin/surveys/:id/publish/` | Publish |
 | POST | `/api/admin/surveys/:id/close/` | Close |
 | GET | `/api/admin/surveys/:id/results/` | Anonymous results with per-question breakdown |
@@ -517,7 +547,7 @@ insightflow/
 |---|---|---|
 | GET | `/api/surveys/` | Active and closed surveys |
 | GET | `/api/surveys/:id/` | Survey detail with questions and people |
-| POST | `/api/surveys/:id/people/:pid/submit/` | Submit all question responses for one person |
+| POST | `/api/surveys/:id/people/:pid/rate/` | Submit all question answers for one person |
 | GET | `/api/surveys/:id/my-ratings/` | User response progress |
 
 ---

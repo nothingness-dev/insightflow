@@ -30,7 +30,9 @@ class Survey(models.Model):
     ]
 
     title = models.CharField(max_length=300, verbose_name='عنوان')
-    question = models.TextField(verbose_name='سوال اصلی')
+    # Legacy fallback kept for existing data/backward compatibility. New surveys
+    # use SurveyQuestion rows instead of this single-question field.
+    question = models.TextField(blank=True, default='', verbose_name='سوال اصلی قدیمی')
     description = models.TextField(blank=True, verbose_name='توضیحات')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, verbose_name='وضعیت')
     results_visibility = models.CharField(
@@ -62,6 +64,28 @@ class Survey(models.Model):
         return self.is_active
 
 
+class SurveyQuestion(models.Model):
+    survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='questions', verbose_name='نظرسنجی')
+    text = models.TextField(verbose_name='متن سوال')
+    help_text = models.TextField(blank=True, verbose_name='راهنمای سوال')
+    has_score = models.BooleanField(default=True, verbose_name='دارای امتیاز عددی')
+    score_required = models.BooleanField(default=True, verbose_name='امتیاز عددی الزامی است')
+    has_comment = models.BooleanField(default=False, verbose_name='دارای توضیح متنی')
+    comment_required = models.BooleanField(default=False, verbose_name='توضیح متنی الزامی است')
+    display_order = models.PositiveIntegerField(default=0, verbose_name='ترتیب نمایش')
+    is_active = models.BooleanField(default=True, verbose_name='فعال')
+    created_at = models.DateTimeField(default=timezone.now, verbose_name='تاریخ ایجاد')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='تاریخ به‌روزرسانی')
+
+    class Meta:
+        verbose_name = 'سوال نظرسنجی'
+        verbose_name_plural = 'سوال‌های نظرسنجی'
+        ordering = ['display_order', 'created_at']
+
+    def __str__(self):
+        return f'{self.text[:60]} - {self.survey.title}'
+
+
 class SurveyPerson(models.Model):
     survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='people', verbose_name='نظرسنجی')
     full_name = models.CharField(max_length=200, verbose_name='نام و نام خانوادگی')
@@ -86,11 +110,16 @@ class SurveyPerson(models.Model):
 class Rating(models.Model):
     survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='ratings', verbose_name='نظرسنجی')
     person = models.ForeignKey(SurveyPerson, on_delete=models.CASCADE, related_name='ratings', verbose_name='شخص')
+    question = models.ForeignKey(
+        SurveyQuestion, on_delete=models.CASCADE,
+        related_name='ratings', verbose_name='سوال'
+    )
     voter = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name='ratings', verbose_name='رأی‌دهنده'
     )
     score = models.PositiveSmallIntegerField(
+        null=True, blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(10)],
         verbose_name='امتیاز'
     )
@@ -103,9 +132,33 @@ class Rating(models.Model):
     created_at = models.DateTimeField(default=timezone.now, verbose_name='تاریخ ثبت')
 
     class Meta:
-        verbose_name = 'امتیاز'
-        verbose_name_plural = 'امتیازها'
-        unique_together = [('survey', 'person', 'voter')]
+        verbose_name = 'پاسخ'
+        verbose_name_plural = 'پاسخ‌ها'
+        unique_together = [('survey', 'person', 'question', 'voter')]
+
+    def save(self, *args, **kwargs):
+        # Backward compatibility for old tests/fixtures that created one rating
+        # per person before questions existed. New application code always sets
+        # question explicitly.
+        if not self.question_id and self.survey_id:
+            question = (
+                SurveyQuestion.objects
+                .filter(survey_id=self.survey_id, is_active=True)
+                .order_by('display_order', 'created_at')
+                .first()
+            )
+            if question is None:
+                question = SurveyQuestion.objects.create(
+                    survey_id=self.survey_id,
+                    text='سوال اصلی',
+                    has_score=True,
+                    score_required=True,
+                    has_comment=True,
+                    comment_required=False,
+                )
+            self.question = question
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"امتیاز {self.score} برای {self.person.full_name}"
+        value = self.score if self.score is not None else 'متنی'
+        return f"پاسخ {value} برای {self.person.full_name}"

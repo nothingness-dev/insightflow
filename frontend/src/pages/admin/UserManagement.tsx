@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, FormEvent, useRef } from 'react';
 import { adminUserApi, dashboardApi } from '../../api/endpoints';
-import { User } from '../../types';
+import { BulkImportResult, PaginatedResponse, User } from '../../types';
 import { PageHeader, SearchInput, EmptyState, PageLoader, ConfirmModal, Modal } from '../../components/common/index';
 import { formatDate, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
@@ -15,21 +15,17 @@ interface UserFormData {
   username: string; full_name: string; role: string; password: string; password_confirm: string; is_active: boolean;
 }
 const emptyForm: UserFormData = { username: '', full_name: '', role: 'employee', password: '', password_confirm: '', is_active: true };
+const USERS_PER_PAGE = 50;
 
-interface ImportResult {
-  created_count: number;
-  skipped_count: number;
-  error_count: number;
-  created: { username: string; full_name: string; role: string }[];
-  skipped: { line: number; username: string; reason: string }[];
-  errors: { line: number; content: string; error: string }[];
-}
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
   const [form, setForm] = useState<UserFormData>(emptyForm);
@@ -44,7 +40,7 @@ export default function UserManagement() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importResult, setImportResult] = useState<BulkImportResult | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,17 +51,52 @@ export default function UserManagement() {
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
   const [deletingUser, setDeletingUser] = useState(false);
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     setLoading(true);
-    const params: Record<string, string> = {};
-    if (search) params.search = search;
-    if (roleFilter) params.role = roleFilter;
-    adminUserApi.list(params)
-      .then(r => setUsers(Array.isArray(r.data) ? r.data : (r.data as any).results || []))
-      .finally(() => setLoading(false));
-  }, [search, roleFilter]);
+    setLoadError('');
 
-  useEffect(() => { load(); }, [load]);
+    const params: Record<string, string> = {
+      page: String(page),
+      page_size: String(USERS_PER_PAGE),
+    };
+    if (search.trim()) params.search = search.trim();
+    if (roleFilter) params.role = roleFilter;
+
+    try {
+      const response = await adminUserApi.list(params);
+      const payload = response.data as PaginatedResponse<User>;
+      setUsers(payload.results || []);
+      setTotalUsers(payload.count || 0);
+    } catch (error) {
+      setUsers([]);
+      setTotalUsers(0);
+      setLoadError(getErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, roleFilter]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const refreshFirstPage = () => {
+    if (page === 1) {
+      void load();
+    } else {
+      setPage(1);
+    }
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const handleRoleChange = (value: string) => {
+    setRoleFilter(value);
+    setPage(1);
+  };
 
   const openCreate = () => { setEditUser(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
   const openEdit = (u: User) => {
@@ -96,8 +127,8 @@ export default function UserManagement() {
         toast.success('اطلاعات کاربر ذخیره شد');
       } else {
         const r = await adminUserApi.create({ username: form.username, full_name: form.full_name, role: form.role as 'admin' | 'employee', password: form.password, password_confirm: form.password_confirm, is_active: form.is_active });
-        setUsers(u => [r.data, ...u]);
         toast.success('کاربر ایجاد شد');
+        refreshFirstPage();
       }
       setModalOpen(false);
     } catch (err) { toast.error(getErrorMessage(err)); }
@@ -136,9 +167,13 @@ export default function UserManagement() {
     setDeletingUser(true);
     try {
       await adminUserApi.delete(deleteUserId);
-      setUsers(u => u.filter(x => x.id !== deleteUserId));
       toast.success('کاربر حذف شد');
       setDeleteUserId(null);
+      if (users.length === 1 && page > 1) {
+        setPage(page - 1);
+      } else {
+        void load();
+      }
     } catch (err) { toast.error(getErrorMessage(err)); }
     finally { setDeletingUser(false); }
   };
@@ -149,10 +184,10 @@ export default function UserManagement() {
     setImportResult(null);
     try {
       const r = await adminUserApi.bulkImport(importFile);
-      setImportResult(r.data as ImportResult);
-      if ((r.data as ImportResult).created_count > 0) {
-        toast.success(`${(r.data as ImportResult).created_count} کاربر ایجاد شد`);
-        load();
+      setImportResult(r.data);
+      if (r.data.created_count > 0) {
+        toast.success(`${r.data.created_count} کاربر ایجاد شد`);
+        refreshFirstPage();
       }
     } catch (err) { toast.error(getErrorMessage(err)); }
     finally { setImporting(false); }
@@ -164,9 +199,10 @@ export default function UserManagement() {
     try {
       const r = await dashboardApi.deleteAllData();
       const d = (r.data as any).deleted;
-      toast.success(`${d.surveys} نظرسنجی، ${d.people} فرد و ${d.ratings} امتیاز حذف شدند`);
+      toast.success(`${d.employees} کارمند، ${d.surveys} نظرسنجی، ${d.people} فرد و ${d.ratings} امتیاز حذف شدند`);
       setDeleteAllModal(false);
       setDeleteAllConfirmText('');
+      refreshFirstPage();
     } catch (err) { toast.error(getErrorMessage(err)); }
     finally { setDeletingAll(false); }
   };
@@ -201,15 +237,23 @@ export default function UserManagement() {
       />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
-        <div className="flex-1"><SearchInput value={search} onChange={setSearch} placeholder="جستجو بر اساس نام یا نام کاربری..." /></div>
-        <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="input-field sm:w-36">
+        <div className="flex-1"><SearchInput value={search} onChange={handleSearchChange} placeholder="جستجو بر اساس نام یا نام کاربری..." /></div>
+        <select value={roleFilter} onChange={e => handleRoleChange(e.target.value)} className="input-field sm:w-36">
           <option value="">همه نقش‌ها</option>
           <option value="admin">مدیر</option>
           <option value="employee">کارمند</option>
         </select>
       </div>
 
-      {loading ? <PageLoader /> : users.length === 0 ? (
+      {loading ? <PageLoader /> : loadError ? (
+        <div className="card">
+          <EmptyState
+            title="دریافت کارکنان ناموفق بود"
+            description={loadError}
+            action={<button onClick={() => void load()} className="btn-primary">تلاش دوباره</button>}
+          />
+        </div>
+      ) : users.length === 0 ? (
         <div className="card"><EmptyState title="کاربری یافت نشد" description="اولین کاربر را ایجاد کنید" action={<button onClick={openCreate} className="btn-primary">ایجاد کاربر</button>} /></div>
       ) : (
         <div className="card overflow-hidden">
@@ -268,6 +312,34 @@ export default function UserManagement() {
               </tbody>
             </table>
           </div>
+          {totalUsers > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50/60">
+              <p className="text-xs text-gray-500">
+                نمایش {((page - 1) * USERS_PER_PAGE) + 1} تا {Math.min(page * USERS_PER_PAGE, totalUsers)} از {totalUsers} کاربر
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage(current => Math.max(1, current - 1))}
+                  disabled={page === 1}
+                  className="btn-secondary !px-3 !py-1.5 disabled:opacity-40"
+                >
+                  قبلی
+                </button>
+                <span className="min-w-20 text-center text-xs font-semibold text-gray-600">
+                  صفحه {page} از {Math.max(1, Math.ceil(totalUsers / USERS_PER_PAGE))}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPage(current => Math.min(Math.max(1, Math.ceil(totalUsers / USERS_PER_PAGE)), current + 1))}
+                  disabled={page >= Math.ceil(totalUsers / USERS_PER_PAGE)}
+                  className="btn-secondary !px-3 !py-1.5 disabled:opacity-40"
+                >
+                  بعدی
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -379,6 +451,7 @@ export default function UserManagement() {
             <p>username,نام کامل,رمز عبور,نقش</p>
             <p className="text-gray-400 mt-1"># نقش اختیاری است: employee (پیش‌فرض) یا admin</p>
             <p className="text-gray-400"># خطوط شروع‌شده با # نادیده گرفته می‌شوند</p>
+            <p className="text-gray-400"># فایل‌های بزرگ به‌صورت دسته‌ای پردازش می‌شوند؛ نتیجه فقط موارد ضروری را نمایش می‌دهد.</p>
             <div className="border-t border-gray-200 mt-2 pt-2 space-y-0.5">
               <p>ali_ahmadi,علی احمدی,Pass@1234,employee</p>
               <p>sara.mohammadi,سارا محمدی,MyPass!99</p>
@@ -461,19 +534,33 @@ export default function UserManagement() {
               {importResult.skipped.length > 0 && (
                 <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
                   <p className="text-xs font-semibold text-amber-700 mb-1.5">نادیده گرفته‌شده‌ها:</p>
-                  {importResult.skipped.map((s, i) => (
-                    <p key={i} className="text-xs text-amber-700">خط {s.line}: {s.username} — {s.reason}</p>
-                  ))}
+                  <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                    {importResult.skipped.map((s, i) => (
+                      <p key={`${s.line}-${s.username}-${i}`} className="text-xs text-amber-700">خط {s.line}: {s.username} — {s.reason}</p>
+                    ))}
+                  </div>
+                  {importResult.skipped_details_omitted > 0 && (
+                    <p className="text-xs text-amber-700 mt-2">و {importResult.skipped_details_omitted} مورد دیگر نمایش داده نمی‌شود.</p>
+                  )}
                 </div>
               )}
 
               {importResult.errors.length > 0 && (
                 <div className="bg-red-50 border border-red-100 rounded-xl p-3">
                   <p className="text-xs font-semibold text-red-700 mb-1.5">خطاها:</p>
-                  {importResult.errors.map((e, i) => (
-                    <p key={i} className="text-xs text-red-700">خط {e.line}: {e.error}</p>
-                  ))}
+                  <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                    {importResult.errors.map((e, i) => (
+                      <p key={`${e.line}-${i}`} className="text-xs text-red-700">خط {e.line}: {e.error}</p>
+                    ))}
+                  </div>
+                  {importResult.error_details_omitted > 0 && (
+                    <p className="text-xs text-red-700 mt-2">و {importResult.error_details_omitted} مورد دیگر نمایش داده نمی‌شود.</p>
+                  )}
                 </div>
+              )}
+
+              {importResult.created_details_omitted > 0 && (
+                <p className="text-xs text-gray-500">جزئیات {importResult.created_details_omitted} کاربر ایجادشده برای حفظ سرعت نمایش داده نمی‌شود.</p>
               )}
             </div>
           )}
@@ -485,7 +572,7 @@ export default function UserManagement() {
               className="btn-primary flex items-center gap-2"
             >
               {importing && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              {importing ? 'در حال پردازش...' : 'آپلود و ایجاد کاربران'}
+              {importing ? 'در حال ساخت حساب‌ها...' : 'آپلود و ایجاد کاربران'}
             </button>
             <button onClick={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }} className="btn-secondary">بستن</button>
           </div>

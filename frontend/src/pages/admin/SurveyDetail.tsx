@@ -95,7 +95,9 @@ export default function SurveyDetail() {
               <span className="text-xs text-gray-400">{formatDateTime(survey.created_at)}</span>
             </div>
             <h1 className="text-xl font-bold text-slate-800 mb-1">{survey.title}</h1>
-            <p className="text-gray-600 text-sm leading-relaxed">{survey.question}</p>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              {survey.questions_count || survey.questions?.length || 0} سوال برای هر فرد در این نظرسنجی تعریف شده است.
+            </p>
             {survey.description && (
               <p className="text-gray-400 text-xs mt-2 leading-relaxed">{survey.description}</p>
             )}
@@ -106,6 +108,10 @@ export default function SurveyDetail() {
           <div>
             <p className="text-xs text-gray-400">افراد</p>
             <p className="text-lg font-semibold text-slate-700">{survey.people_count}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">سوال‌ها</p>
+            <p className="text-lg font-semibold text-slate-700">{survey.questions_count || survey.questions?.length || 0}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400">پاسخ‌ها</p>
@@ -133,6 +139,44 @@ export default function SurveyDetail() {
             </Link>
           )}
         </div>
+      </div>
+
+      {/* Questions section */}
+      <div className="card p-6 mb-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-slate-800">سوال‌های نظرسنجی</h2>
+          {survey.status === 'draft' && (
+            <Link to={`/admin/surveys/${id}/edit`} className="text-sm text-[color:var(--c-600)] hover:underline">
+              ویرایش سوال‌ها
+            </Link>
+          )}
+        </div>
+        {survey.questions && survey.questions.length > 0 ? (
+          <div className="space-y-3">
+            {survey.questions.filter(q => q.is_active !== false).map((question, index) => (
+              <div key={question.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-sm font-semibold text-slate-800 leading-relaxed">
+                  {index + 1}. {question.text}
+                </p>
+                {question.help_text && <p className="text-xs text-gray-400 mt-1">{question.help_text}</p>}
+                <div className="flex flex-wrap gap-2 mt-3 text-[11px]">
+                  {question.has_score && (
+                    <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                      امتیاز ۱ تا ۱۰ {question.score_required ? 'الزامی' : 'اختیاری'}
+                    </span>
+                  )}
+                  {question.has_comment && (
+                    <span className="px-2 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-100">
+                      توضیح متنی {question.comment_required ? 'الزامی' : 'اختیاری'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">هنوز سوالی برای این نظرسنجی تعریف نشده است.</p>
+        )}
       </div>
 
       {/* People section */}

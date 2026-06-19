@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { employeeApi } from '../../api/endpoints';
 import { Survey } from '../../types';
 import { PageLoader, EmptyState } from '../../components/common/index';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
+import { getErrorMessage } from '../../utils/helpers';
 
 type Tab = 'active' | 'closed' | 'completed';
 
@@ -11,6 +13,8 @@ function SurveyCard({ survey }: { survey: Survey }) {
   const completed = (survey.my_votes_count || 0) === (survey.total_people || 0) && (survey.total_people || 0) > 0;
   const isClosed  = survey.status === 'closed';
   const pct       = survey.total_people ? Math.round(((survey.my_votes_count || 0) / survey.total_people) * 100) : 0;
+  const firstQuestion = survey.questions?.[0]?.text || survey.question || '';
+  const questionCount = survey.questions_count || survey.questions?.length || survey.total_questions || 0;
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
@@ -22,7 +26,7 @@ function SurveyCard({ survey }: { survey: Survey }) {
               <h3 className="font-bold text-slate-800 text-base leading-snug group-hover:text-[color:var(--c-700)] transition-colors">
                 {survey.title}
               </h3>
-              <p className="text-sm text-gray-500 mt-1 line-clamp-2 leading-relaxed">{survey.question}</p>
+              <p className="text-sm text-gray-500 mt-1 line-clamp-2 leading-relaxed">{questionCount} سوال برای هر فرد — {firstQuestion}</p>
             </div>
             <div className="flex-shrink-0">
               {completed ? (
@@ -52,7 +56,7 @@ function SurveyCard({ survey }: { survey: Survey }) {
                 />
               </div>
               <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>{survey.my_votes_count || 0} از {survey.total_people} امتیاز</span>
+                <span>{survey.my_votes_count || 0} از {survey.total_people} نفر تکمیل‌شده</span>
                 <span>{pct}٪</span>
               </div>
             </div>
@@ -63,6 +67,9 @@ function SurveyCard({ survey }: { survey: Survey }) {
             <span className="flex items-center gap-1">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               {survey.total_people || 0} نفر
+            </span>
+            <span className="flex items-center gap-1">
+              {questionCount} سوال
             </span>
           </div>
 
@@ -80,15 +87,47 @@ function SurveyCard({ survey }: { survey: Survey }) {
 export default function EmployeeSurveyList() {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState<Tab>('active');
 
-  useEffect(() => {
-    employeeApi.surveys()
-      .then(r => setSurveys(Array.isArray(r.data) ? r.data : []))
-      .finally(() => setLoading(false));
+  const loadSurveys = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+
+    try {
+      const response = await employeeApi.surveys();
+      const payload = response.data as Survey[] | { results?: Survey[]; surveys?: Survey[] };
+      const nextSurveys = Array.isArray(payload)
+        ? payload
+        : payload.results || payload.surveys || [];
+      setSurveys(nextSurveys);
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setLoadError(message);
+      setSurveys([]);
+      toast.error(message || 'دریافت نظرسنجی‌ها ناموفق بود');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    void loadSurveys();
+  }, [loadSurveys]);
+
   if (loading) return <PageLoader />;
+
+  if (loadError) {
+    return (
+      <div className="card p-8 text-center">
+        <h1 className="page-title mb-2">دریافت نظرسنجی‌ها ناموفق بود</h1>
+        <p className="text-sm text-gray-500 mb-5">{loadError}</p>
+        <button type="button" onClick={() => void loadSurveys()} className="btn-primary">
+          تلاش دوباره
+        </button>
+      </div>
+    );
+  }
 
   const active    = surveys.filter(s => s.status === 'published');
   const closed    = surveys.filter(s => s.status === 'closed');
