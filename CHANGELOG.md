@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.0] — 2026
+
+### Added
+- **Survey duplication** — admins can create a new draft from any existing survey directly from the survey list. The clone keeps the survey configuration, visibility setting, and all people (including their existing photo references, display order, and active state).
+- **Response-safe cloning** — ratings, anonymous comments, voter information, IP/user-agent metadata, and publish/close timestamps are never copied to the new survey.
+- **Admin duplicate endpoint** — added `POST /api/admin/surveys/:id/duplicate/`; access is restricted to admin users.
+
+---
+
 ## [1.5.0] — 2026
 
 ### Added

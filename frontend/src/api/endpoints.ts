@@ -22,6 +22,8 @@ export const adminSurveyApi = {
     api.patch<Survey>(`/admin/surveys/${id}/`, data),
   delete: (id: number) =>
     api.delete(`/admin/surveys/${id}/`),
+  duplicate: (id: number) =>
+    api.post<Survey>(`/admin/surveys/${id}/duplicate/`),
   publish: (id: number) =>
     api.post<Survey>(`/admin/surveys/${id}/publish/`),
   close: (id: number) =>

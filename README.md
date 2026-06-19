@@ -1,6 +1,6 @@
 # InsightFlow
 
-![Version](https://img.shields.io/badge/version-1.5.0-blue)
+![Version](https://img.shields.io/badge/version-1.6.0-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-success)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Backend](https://img.shields.io/badge/backend-Django%20REST%20Framework-092E20)
@@ -53,6 +53,7 @@
 - **جلوگیری از رأی تکراری** — هر کاربر فقط یک بار می‌تواند به هر فرد در نظرسنجی پاسخ دهد
 - **امتیازدهی اجباری به همه افراد** — کارمند باید به تمام افراد نظرسنجی پاسخ دهد
 - **پنل مدیریت کامل** — ایجاد، ویرایش، انتشار، بستن و مشاهده نتایج
+- **کپی نظرسنجی** — مدیر می‌تواند یک نظرسنجی را با تنظیمات و افراد آن به‌صورت پیش‌نویس کپی کند؛ امتیازها و توضیحات قبلی منتقل نمی‌شوند
 - **نتایج به تفکیک سوال** — رتبه‌بندی کلی و نتایج مجزا برای هر سوال
 - **مدیریت کاربران** — فعال/غیرفعال کردن، ریست رمز، حذف، و آپلود دسته‌ای از CSV
 - **خروجی CSV و Excel** — ستون‌های مجزا برای هر سوال
@@ -233,6 +234,7 @@ insightflow/
 | DELETE | `/api/admin/delete-all-data/` | حذف تمام داده‌ها |
 | GET, POST | `/api/admin/surveys/` | لیست / ایجاد نظرسنجی |
 | GET, PATCH, DELETE | `/api/admin/surveys/:id/` | جزئیات / ویرایش / حذف |
+| POST | `/api/admin/surveys/:id/duplicate/` | ایجاد یک کپی پیش‌نویس همراه با افراد، بدون انتقال امتیازها و توضیحات |
 | POST | `/api/admin/surveys/:id/publish/` | انتشار نظرسنجی |
 | POST | `/api/admin/surveys/:id/close/` | بستن نظرسنجی |
 | GET | `/api/admin/surveys/:id/results/` | نتایج ناشناس + سوالات |
@@ -390,6 +392,7 @@ Many organizations still rely on spreadsheets, paper forms or disconnected tools
 - **Duplicate vote prevention** — each user can submit responses for each person only once
 - **All-or-nothing participation** — employees must respond to all people in a survey
 - **Full admin panel** — create, edit, publish, close and review surveys
+- **Survey duplication** — admins can clone a survey’s configuration and people into a new draft without copying ratings or comments
 - **Results by question** — overall ranking tab + per-question breakdown tab
 - **User management** — activate/deactivate, password reset, delete, bulk CSV import
 - **CSV and Excel exports** — separate columns per question
@@ -499,6 +502,7 @@ insightflow/
 | DELETE | `/api/admin/delete-all-data/` | Reset all survey data |
 | GET, POST | `/api/admin/surveys/` | List / create surveys |
 | GET, PATCH, DELETE | `/api/admin/surveys/:id/` | Detail / edit / delete (includes questions) |
+| POST | `/api/admin/surveys/:id/duplicate/` | Create a draft copy with people; ratings and comments are excluded |
 | POST | `/api/admin/surveys/:id/publish/` | Publish |
 | POST | `/api/admin/surveys/:id/close/` | Close |
 | GET | `/api/admin/surveys/:id/results/` | Anonymous results with per-question breakdown |

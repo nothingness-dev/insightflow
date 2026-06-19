@@ -14,7 +14,7 @@ from .serializers import (
     SurveySerializer, SurveyCreateUpdateSerializer, SurveyPersonSerializer,
     SurveyPersonPublicSerializer, SurveyPublicSerializer, RatingCreateSerializer
 )
-from .services import calculate_survey_results
+from .services import calculate_survey_results, duplicate_survey
 import logging
 
 logger = logging.getLogger('apps')
@@ -84,6 +84,29 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         logger.info(f"Admin {request.user.username} deleted survey: {instance.title}")
         return super().destroy(request, *args, **kwargs)
+
+
+class AdminSurveyDuplicateView(APIView):
+    """Duplicate survey settings and people into a new draft without responses."""
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            source_survey = Survey.objects.get(pk=pk)
+        except Survey.DoesNotExist:
+            return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
+
+        duplicate = duplicate_survey(source_survey, request.user)
+        logger.info(
+            'Admin %s duplicated survey %s into survey %s',
+            request.user.username,
+            source_survey.id,
+            duplicate.id,
+        )
+        return Response(
+            SurveySerializer(duplicate, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class AdminSurveyPublishView(APIView):

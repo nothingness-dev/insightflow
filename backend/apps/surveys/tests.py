@@ -233,3 +233,86 @@ class ResultsTests(APITestCase):
         self.assertIn('total_score', r)
         self.assertIn('votes_count', r)
         self.assertIn('rank', r)
+
+class SurveyDuplicateTests(APITestCase):
+    def setUp(self):
+        self.admin = create_admin(username='admin_duplicate')
+        self.employee = create_employee(username='employee_duplicate')
+        self.survey = Survey.objects.create(
+            title='ارزیابی عملکرد بهار',
+            question='عملکرد این فرد را ارزیابی کنید',
+            description='توضیحات اصلی',
+            status=Survey.STATUS_CLOSED,
+            results_visibility=Survey.VISIBILITY_ADMIN_ONLY,
+            created_by=self.admin,
+            published_at=timezone.now(),
+            closed_at=timezone.now(),
+        )
+        self.active_person = SurveyPerson.objects.create(
+            survey=self.survey,
+            full_name='علی احمدی',
+            role_title='توسعه‌دهنده',
+            department='فناوری',
+            description='عضو تیم بک‌اند',
+            display_order=2,
+            is_active=True,
+        )
+        self.inactive_person = SurveyPerson.objects.create(
+            survey=self.survey,
+            full_name='سارا محمدی',
+            role_title='طراح',
+            department='محصول',
+            description='عضو سابق تیم',
+            display_order=3,
+            is_active=False,
+        )
+        Rating.objects.create(
+            survey=self.survey,
+            person=self.active_person,
+            voter=self.employee,
+            score=9,
+            comment='نظر خصوصی',
+        )
+
+    def authenticate(self, user, password):
+        response = self.client.post(
+            '/api/auth/login/',
+            {'username': user.username, 'password': password},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
+
+    def test_admin_can_duplicate_survey_without_copying_responses(self):
+        self.authenticate(self.admin, 'AdminPass@1')
+
+        response = self.client.post(f'/api/admin/surveys/{self.survey.id}/duplicate/')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        duplicate = Survey.objects.get(pk=response.data['id'])
+        self.assertNotEqual(duplicate.id, self.survey.id)
+        self.assertEqual(duplicate.title, 'کپی - ارزیابی عملکرد بهار')
+        self.assertEqual(duplicate.question, self.survey.question)
+        self.assertEqual(duplicate.description, self.survey.description)
+        self.assertEqual(duplicate.results_visibility, self.survey.results_visibility)
+        self.assertEqual(duplicate.created_by, self.admin)
+        self.assertEqual(duplicate.status, Survey.STATUS_DRAFT)
+        self.assertIsNone(duplicate.published_at)
+        self.assertIsNone(duplicate.closed_at)
+        self.assertEqual(duplicate.people.count(), 2)
+        self.assertEqual(duplicate.ratings.count(), 0)
+
+        copied_people = list(duplicate.people.order_by('display_order'))
+        self.assertEqual(copied_people[0].full_name, 'علی احمدی')
+        self.assertEqual(copied_people[0].role_title, 'توسعه‌دهنده')
+        self.assertEqual(copied_people[0].department, 'فناوری')
+        self.assertEqual(copied_people[0].description, 'عضو تیم بک‌اند')
+        self.assertTrue(copied_people[0].is_active)
+        self.assertFalse(copied_people[1].is_active)
+
+    def test_employee_cannot_duplicate_survey(self):
+        self.authenticate(self.employee, 'EmpPass@1')
+
+        response = self.client.post(f'/api/admin/surveys/{self.survey.id}/duplicate/')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Survey.objects.count(), 1)
+

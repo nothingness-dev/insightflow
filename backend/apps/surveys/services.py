@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Sum, Count, Avg
 from .models import Survey, SurveyPerson, Rating
 
@@ -56,3 +57,40 @@ def calculate_survey_results(survey, request=None):
         del r['display_order']
 
     return results
+
+def duplicate_survey(source_survey, created_by):
+    """Create a draft survey clone with copied people and no responses."""
+    title_prefix = 'کپی - '
+    cloned_title = f'{title_prefix}{source_survey.title}'
+    max_title_length = Survey._meta.get_field('title').max_length
+
+    if len(cloned_title) > max_title_length:
+        cloned_title = f'{title_prefix}{source_survey.title[:max_title_length - len(title_prefix)]}'
+
+    with transaction.atomic():
+        duplicate = Survey.objects.create(
+            title=cloned_title,
+            question=source_survey.question,
+            description=source_survey.description,
+            status=Survey.STATUS_DRAFT,
+            results_visibility=source_survey.results_visibility,
+            created_by=created_by,
+        )
+
+        source_people = source_survey.people.all().order_by('display_order', 'created_at')
+        SurveyPerson.objects.bulk_create([
+            SurveyPerson(
+                survey=duplicate,
+                full_name=person.full_name,
+                photo=person.photo.name if person.photo else None,
+                role_title=person.role_title,
+                department=person.department,
+                description=person.description,
+                display_order=person.display_order,
+                is_active=person.is_active,
+            )
+            for person in source_people
+        ])
+
+    return duplicate
+

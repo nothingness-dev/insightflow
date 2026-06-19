@@ -18,6 +18,8 @@ export default function AdminSurveyList() {
   const [publishing, setPublishing] = useState(false);
   const [closeId, setCloseId] = useState<number | null>(null);
   const [closing, setClosing] = useState(false);
+  const [duplicateId, setDuplicateId] = useState<number | null>(null);
+  const [duplicating, setDuplicating] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -65,6 +67,23 @@ export default function AdminSurveyList() {
       setCloseId(null);
     } catch (err) { toast.error(getErrorMessage(err)); }
     finally { setClosing(false); }
+  };
+
+
+  const handleDuplicate = async () => {
+    if (!duplicateId) return;
+
+    setDuplicating(true);
+    try {
+      const response = await adminSurveyApi.duplicate(duplicateId);
+      toast.success('کپی نظرسنجی به‌صورت پیش‌نویس ایجاد شد');
+      setDuplicateId(null);
+      navigate(`/admin/surveys/${response.data.id}`);
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setDuplicating(false);
+    }
   };
 
   return (
@@ -147,6 +166,12 @@ export default function AdminSurveyList() {
                         >
                           جزئیات
                         </Link>
+                        <button
+                          onClick={() => setDuplicateId(survey.id)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-50 rounded-lg transition-colors"
+                        >
+                          کپی
+                        </button>
                         {survey.status === 'draft' && (
                           <>
                             <Link
@@ -195,6 +220,16 @@ export default function AdminSurveyList() {
         </div>
       )}
 
+      <ConfirmModal
+        open={!!duplicateId}
+        onClose={() => setDuplicateId(null)}
+        onConfirm={handleDuplicate}
+        title="کپی نظرسنجی"
+        message="یک نسخه پیش‌نویس از تنظیمات و افراد این نظرسنجی ساخته می‌شود. پاسخ‌ها و توضیحات ثبت‌شده کپی نخواهند شد."
+        confirmLabel="ساخت کپی"
+        confirmVariant="primary"
+        loading={duplicating}
+      />
       <ConfirmModal
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
