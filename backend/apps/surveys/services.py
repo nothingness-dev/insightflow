@@ -126,7 +126,8 @@ def calculate_survey_results(survey, request=None):
                 'total_score': q_agg.get('total') or 0,
                 'responses_count': q_agg.get('score_count') or 0,
                 'votes_count': q_agg.get('voters_count') or 0,
-                'comments': comments_by_person_question.get((person.id, question.id), []),
+                'comments_count': len(comments_by_person_question.get((person.id, question.id), [])),
+                # comments omitted here — fetched lazily via comments endpoint
             })
 
         results.append({
@@ -139,7 +140,8 @@ def calculate_survey_results(survey, request=None):
             'total_score': person_score_agg.get('total') or 0,
             'votes_count': voter_counts.get(person.id, 0),
             'scored_answers_count': person_score_agg.get('score_count') or 0,
-            'comments': comments_by_person.get(person.id, []),
+            'comments_count': len(comments_by_person.get(person.id, [])),
+            # comments omitted — fetched lazily via comments endpoint
             'question_results': question_results,
             'display_order': person.display_order,
         })

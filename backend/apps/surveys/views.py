@@ -648,3 +648,71 @@ class AdminDeleteAllDataView(APIView):
                 'employees': employees_count,
             }
         })
+
+
+class AdminSurveyCommentsView(APIView):
+    """Paginated comments for a specific person (and optionally question) in a survey.
+
+    GET /admin/surveys/<pk>/comments/?person_id=<id>&question_id=<id>&page=1&page_size=20
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, pk):
+        try:
+            survey = Survey.objects.get(pk=pk)
+        except Survey.DoesNotExist:
+            return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
+
+        person_id   = request.query_params.get('person_id')
+        question_id = request.query_params.get('question_id')
+        try:
+            page      = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(100, max(1, int(request.query_params.get('page_size', 20))))
+        except (ValueError, TypeError):
+            page, page_size = 1, 20
+
+        # Completed voters only
+        active_people_count    = survey.people.filter(is_active=True).count()
+        active_questions_count = survey.questions.filter(is_active=True).count()
+        required = active_people_count * active_questions_count
+
+        if required > 0:
+            completed_voter_ids = list(
+                Rating.objects
+                .filter(survey=survey, person__is_active=True, question__is_active=True)
+                .values('voter_id')
+                .annotate(answered_count=Count('id', distinct=True))
+                .filter(answered_count=required)
+                .values_list('voter_id', flat=True)
+            )
+        else:
+            completed_voter_ids = []
+
+        qs = Rating.objects.filter(
+            survey=survey,
+            person__is_active=True,
+            question__is_active=True,
+            voter_id__in=completed_voter_ids,
+        ).exclude(comment__isnull=True).exclude(comment__exact='')
+
+        if person_id:
+            qs = qs.filter(person_id=person_id)
+        if question_id:
+            qs = qs.filter(question_id=question_id)
+
+        qs = qs.order_by('person_id', 'question__display_order', 'created_at')
+
+        total = qs.count()
+        offset = (page - 1) * page_size
+        comments_page = list(qs.values('comment', 'question__text')[offset:offset + page_size])
+
+        return Response({
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total + page_size - 1) // page_size,
+            'comments': [
+                {'comment': row['comment'], 'question_text': row['question__text']}
+                for row in comments_page
+            ],
+        })

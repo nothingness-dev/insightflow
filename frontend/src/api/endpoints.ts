@@ -30,6 +30,8 @@ export const adminSurveyApi = {
     api.post<Survey>(`/admin/surveys/${id}/close/`),
   results: (id: number) =>
     api.get<SurveyResults>(`/admin/surveys/${id}/results/`),
+  comments: (id: number, params: { person_id?: number; question_id?: number; page?: number; page_size?: number }) =>
+    api.get<{ total: number; page: number; page_size: number; total_pages: number; comments: { comment: string; question_text: string }[] }>(`/admin/surveys/${id}/comments/`, { params }),
   exportCsv: (id: number) =>
     api.get(`/admin/surveys/${id}/export/csv/`, { responseType: 'blob' }),
   exportExcel: (id: number) =>

@@ -14,6 +14,7 @@ urlpatterns = [
     path('admin/surveys/<int:pk>/publish/', views.AdminSurveyPublishView.as_view(), name='admin-survey-publish'),
     path('admin/surveys/<int:pk>/close/', views.AdminSurveyCloseView.as_view(), name='admin-survey-close'),
     path('admin/surveys/<int:pk>/results/', views.AdminSurveyResultsView.as_view(), name='admin-survey-results'),
+    path('admin/surveys/<int:pk>/comments/', views.AdminSurveyCommentsView.as_view(), name='admin-survey-comments'),
     path('admin/surveys/<int:pk>/export/csv/', views.AdminSurveyExportCSVView.as_view(), name='admin-survey-export-csv'),
     path('admin/surveys/<int:pk>/export/excel/', views.AdminSurveyExportExcelView.as_view(), name='admin-survey-export-excel'),
 
