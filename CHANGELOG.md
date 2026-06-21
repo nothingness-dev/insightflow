@@ -1,5 +1,59 @@
 # Changelog
 
+## [1.8.0] — 2026
+
+### Added
+- **Activity Center / Audit Reports** — a brand-new admin-only section (sidebar item «مرکز فعالیت‌ها» at `/admin/activity`) that tracks and displays important system & admin activities across the whole application. It is completely separate from survey results and does not change any existing results page, chart, ranking, or export.
+  - **Headline KPIs:** Total Activities, Today's Activities, This Week's Activities, and Most Active Admin (plus failed/critical counts).
+  - **Activity Timeline** of the most recent events, color-coded by category.
+  - **Critical Actions Panel** highlighting sensitive actions (failed logins, deletions, password resets, bulk imports, delete-all-data).
+  - **Activity Charts** — 14-day volume (with failed-event overlay) and a breakdown of the most frequent action types, rendered without any new chart dependency.
+  - **Search, Filters & paginated table** — search across description/user/IP, filter by action type, user, status, and «critical only». The table uses **server-side pagination, filtering and searching** and never loads all logs at once (scales to 1000+ rows).
+  - **Export Center** — download activity logs as **Excel, CSV or PDF**. The user is asked for a **From Date** and **To Date** first, and only logs within that range are exported.
+- **Automatic activity tracking** wired into existing flows: Login, Failed Login, Logout, Password Change, Password Reset, User Create/Edit/Delete, User Activate/Deactivate, Bulk Employee Import, Survey Create/Edit/Delete, Survey Duplicate, Survey Publish/Close, Question Add/Edit/Delete, CSV/Excel/PDF result exports (recorded only — export logic itself unchanged), and Delete All Data.
+- **New API endpoints** (all admin-only): `GET /api/admin/activity/logs/`, `/stats/`, `/timeline/`, `/critical/`, `/charts/`, `/filters/`, and `/export/` (requires `export_format`, `date_from`, `date_to`).
+- **Pop-up notifications** added where missing — the Activity Center surfaces success/error toasts for refresh and exports, and the admin Dashboard now shows an error toast if its stats fail to load.
+
+### Fixed
+- **PDF export error («خطا در تولید فایل خروجی»)** — the survey results PDF endpoint now wraps report generation so any runtime failure returns a clean JSON message the UI can display instead of an opaque HTML 500 page, and the optional-dependency import guard was broadened so a missing PDF dependency degrades gracefully to a clear 501 («خروجی PDF در دسترس نیست») rather than crashing.
+
+### Security
+- Activity logging is **admin-only** and **never stores passwords, tokens, session keys, or raw request bodies**. Metadata is sanitised (sensitive-looking keys are dropped, values are bounded), and logging can never break the request it observes.
+
+### Migrations
+- `activity/0001_initial` — creates the `ActivityLog` table (indexed for scale). Run `python manage.py migrate` after deploying.
+
+---
+
+## [1.7.0] — 2026
+
+### Added
+- **PDF results export** — a polished, comprehensive RTL (Persian) analytics report for each survey: gradient brand header, KPI summary cards, score distribution, color-graded person ranking, per-question analysis and grouped textual comments. Endpoint `GET /api/admin/surveys/:id/export/pdf/`.
+- **Self-service password change** — any signed-in user (admin or employee) can change their own password from the profile menu. Endpoint `POST /api/auth/change-password/` (verifies current password). Works independently of the admin's reset ability.
+- **Forced password change on first login** — new `must_change_password` flag on the user model. A non-dismissible modal requires the user to set a new password the first time they sign in.
+- **Repeat-password field + show/hide** — all password forms (self-service change, admin reset, create user) now include a «تکرار رمز عبور» field and a show/hide (eye) toggle.
+- **Confirmation dialogs for sensitive actions** — password changes (self-service and admin reset) now require an explicit double-check confirmation.
+- **Delete survey from the detail page** — a «حذف نظرسنجی» action (with confirmation) is now available on the survey detail page for surveys in any status, not only drafts in the list.
+
+### Changed
+- **Excel export redesigned** to match the PDF report — new «خلاصه» (summary) sheet with brand header, KPI cells and score distribution; a «کیفیت» (grade) column; auto-filters and frozen headers across sheets.
+- **CSV export restructured** into clear sections (individual ranking with grade, per-question analysis, score distribution, full comments) so it stays consistent with the Excel/PDF outputs.
+- **Comment-volume handling** for large surveys made explicit per format: Excel and CSV keep every comment (one row each — scales to hundreds per question), while the PDF groups comments per question and caps them (default 6 per question / 120 total) with a «+N نظر دیگر» note pointing to the Excel/CSV export.
+- **Admin password reset** now sets `must_change_password`, so users are required to change an admin-assigned password on their next login. Newly created and bulk-imported users are flagged the same way.
+- **Robust file-download error handling** on the frontend — failed exports now surface the real backend message instead of saving a broken file.
+- **Large people lists** in the results panel now render incrementally («نمایش بیشتر») for snappier performance.
+
+### Fixed
+- **PDF generation crash** when a comment, name, or question text contained `<`, `>` or `&` — all text is now XML-escaped before rendering, so exports no longer fail (previously surfaced as a broken/erroring PDF download).
+
+### Dependencies
+- Added `reportlab`, `arabic-reshaper`, `python-bidi` (PDF rendering with correct Persian shaping) and a bundled Vazirmatn font (OFL).
+
+### Migrations
+- `accounts/0002_user_must_change_password` — adds the `must_change_password` field. Run `python manage.py migrate` after deploying.
+
+---
+
 ## [1.6.0] — 2026
 
 ### Added

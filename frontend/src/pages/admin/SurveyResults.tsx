@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { adminSurveyApi } from '../../api/endpoints';
 import type { SurveyResults, PersonResult, QuestionResult } from '../../types';
 import { PageLoader } from '../../components/common/index';
-import { downloadBlob, getErrorMessage } from '../../utils/helpers';
+import { downloadBlob, getBlobErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
 // ─── utils ────────────────────────────────────────────────────────────────────
@@ -425,6 +425,8 @@ function TabPeople({ results, surveyId }: { results: PersonResult[]; surveyId: n
   const [expanded, setExpanded] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'rank' | 'name'>('rank');
+  const PAGE = 50;
+  const [visible, setVisible] = useState(PAGE);
 
   const filtered = useMemo(() => {
     let list = [...results];
@@ -440,7 +442,12 @@ function TabPeople({ results, surveyId }: { results: PersonResult[]; surveyId: n
     return list;
   }, [results, search, sort]);
 
+  // Reset the visible window whenever the filter/sort changes so large lists
+  // stay snappy (we only render a slice at a time).
+  useEffect(() => { setVisible(PAGE); }, [search, sort]);
+
   const toggle = (id: number) => setExpanded(e => e === id ? null : id);
+  const shown = filtered.slice(0, visible);
 
   return (
     <div>
@@ -466,7 +473,7 @@ function TabPeople({ results, surveyId }: { results: PersonResult[]; surveyId: n
           <p className="text-sm text-slate-400 text-center py-10">نتیجه‌ای یافت نشد.</p>
         ) : (
           <div className="divide-y divide-slate-100">
-            {filtered.map(r => (
+            {shown.map(r => (
               <PersonRow key={r.person_id} r={r} surveyId={surveyId}
                 expanded={expanded === r.person_id}
                 onToggle={() => toggle(r.person_id)} />
@@ -475,9 +482,18 @@ function TabPeople({ results, surveyId }: { results: PersonResult[]; surveyId: n
         )}
       </div>
 
+      {filtered.length > visible && (
+        <div className="flex justify-center mt-4">
+          <button type="button" onClick={() => setVisible(v => v + PAGE)}
+            className="btn-secondary text-sm px-4 py-2">
+            نمایش بیشتر ({fa(filtered.length - visible)} مورد دیگر)
+          </button>
+        </div>
+      )}
+
       {filtered.length > 0 && (
         <p className="text-xs text-slate-400 text-center mt-4">
-          {fa(filtered.length)} نفر نمایش داده می‌شود
+          نمایش {fa(Math.min(visible, filtered.length))} از {fa(filtered.length)} نفر
           {search && ` (فیلتر شده از ${fa(results.length)} نفر)`}
         </p>
       )}
@@ -498,7 +514,7 @@ export default function SurveyResultsPage() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<SurveyResults | null>(null);
   const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState<'csv' | 'excel' | null>(null);
+  const [exporting, setExporting] = useState<'csv' | 'excel' | 'pdf' | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const surveyId = Number(id);
 
@@ -509,15 +525,28 @@ export default function SurveyResultsPage() {
       .finally(() => setLoading(false));
   }, [surveyId]);
 
-  const handleExport = async (type: 'csv' | 'excel') => {
+  const handleExport = async (type: 'csv' | 'excel' | 'pdf') => {
     setExporting(type);
     try {
       const r = type === 'csv'
         ? await adminSurveyApi.exportCsv(surveyId)
-        : await adminSurveyApi.exportExcel(surveyId);
-      downloadBlob(r.data as Blob, `results_${surveyId}.${type === 'csv' ? 'csv' : 'xlsx'}`);
+        : type === 'excel'
+          ? await adminSurveyApi.exportExcel(surveyId)
+          : await adminSurveyApi.exportPdf(surveyId);
+
+      const blob = r.data as Blob;
+      // The backend now returns non-2xx for any generation error (which axios
+      // catches and rejects). On a 2xx response the blob is always a valid file —
+      // so we only sanity-check for an empty body and skip any content-type
+      // guessing that caused false-positive error toasts on successful PDFs.
+      if (blob.size === 0) {
+        throw new Error('فایل خروجی خالی دریافت شد. لطفاً دوباره تلاش کنید.');
+      }
+
+      const ext = type === 'csv' ? 'csv' : type === 'excel' ? 'xlsx' : 'pdf';
+      downloadBlob(blob, `results_${surveyId}.${ext}`);
       toast.success('فایل دانلود شد');
-    } catch (err) { toast.error(getErrorMessage(err)); }
+    } catch (err) { toast.error(await getBlobErrorMessage(err)); }
     finally { setExporting(null); }
   };
 
@@ -551,6 +580,15 @@ export default function SurveyResultsPage() {
             </p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
+            <button onClick={() => handleExport('pdf')} disabled={!!exporting}
+              className="btn-primary text-sm flex items-center gap-1.5 px-3 py-1.5">
+              {exporting === 'pdf'
+                ? <div className="w-3 h-3 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+                : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 12 1.5 1.5 3-3.75m-8.69-6.44A2.25 2.25 0 0 1 8.25 3h6.879a2.25 2.25 0 0 1 1.59.659l4.122 4.122a2.25 2.25 0 0 1 .659 1.591V19.5a2.25 2.25 0 0 1-2.25 2.25h-1.5" />
+                  </svg>}
+              {'\u06af\u0632\u0627\u0631\u0634 PDF'}
+            </button>
             {(['csv', 'excel'] as const).map(type => (
               <button key={type} onClick={() => handleExport(type)} disabled={!!exporting}
                 className="btn-secondary text-sm flex items-center gap-1.5 px-3 py-1.5">

@@ -14,9 +14,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.activity.models import ActivityActions, ActivityLog
+from apps.activity.services import log_activity
+
 from .models import User
 from .permissions import IsAdminUser
 from .serializers import (
+    ChangePasswordSerializer,
     LoginSerializer,
     PasswordResetSerializer,
     UserCreateSerializer,
@@ -40,11 +44,36 @@ class LoginView(APIView):
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception:
+            attempted_username = (request.data.get('username') or '')[:150]
+            log_activity(
+                ActivityActions.LOGIN_FAILED,
+                request=request,
+                description=(
+                    f'تلاش ناموفق برای ورود با نام کاربری «{attempted_username}»'
+                    if attempted_username else 'تلاش ناموفق برای ورود'
+                ),
+                status=ActivityLog.STATUS_FAILED,
+                target_type='user',
+                target_repr=attempted_username,
+                metadata={'attempted_username': attempted_username},
+            )
+            raise
         user = serializer.validated_data['user']
 
         refresh = RefreshToken.for_user(user)
         logger.info('User logged in: %s', user.username)
+        log_activity(
+            ActivityActions.LOGIN,
+            request=request,
+            actor=user,
+            description=f'ورود موفق به سیستم: {user.username}',
+            target_type='user',
+            target_id=user.id,
+            target_repr=user.full_name or user.username,
+        )
 
         return Response({
             'access': str(refresh.access_token),
@@ -63,6 +92,14 @@ class LogoutView(APIView):
                 RefreshToken(refresh_token).blacklist()
         except Exception:
             pass
+        log_activity(
+            ActivityActions.LOGOUT,
+            request=request,
+            description='خروج از سیستم',
+            target_type='user',
+            target_id=getattr(request.user, 'id', ''),
+            target_repr=getattr(request.user, 'username', ''),
+        )
         return Response({'detail': 'خروج موفق'})
 
 
@@ -71,6 +108,30 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+
+class ChangePasswordView(APIView):
+    """Authenticated users (admin or employee) change their own password."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.set_password(serializer.validated_data['new_password'])
+        user.must_change_password = False
+        user.save(update_fields=['password', 'must_change_password', 'updated_at'])
+        logger.info('User changed own password: %s', user.username)
+        log_activity(
+            ActivityActions.PASSWORD_CHANGE,
+            request=request,
+            actor=user,
+            description=f'تغییر رمز عبور توسط {user.username}',
+            target_type='user',
+            target_id=user.id,
+            target_repr=user.full_name or user.username,
+        )
+        return Response({'detail': 'رمز عبور با موفقیت تغییر یافت.'})
 
 
 class UserListCreateView(generics.ListCreateAPIView):
@@ -100,6 +161,15 @@ class UserListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         logger.info('Admin %s created user: %s', request.user.username, user.username)
+        log_activity(
+            ActivityActions.USER_CREATE,
+            request=request,
+            description=f'ایجاد کاربر «{user.full_name or user.username}» با نقش {user.get_role_display()}',
+            target_type='user',
+            target_id=user.id,
+            target_repr=user.full_name or user.username,
+            metadata={'username': user.username, 'role': user.role},
+        )
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
@@ -112,7 +182,18 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
 
     def update(self, request, *args, **kwargs):
         kwargs['partial'] = True
-        return super().update(request, *args, **kwargs)
+        response = super().update(request, *args, **kwargs)
+        user = self.get_object()
+        log_activity(
+            ActivityActions.USER_EDIT,
+            request=request,
+            description=f'ویرایش کاربر «{user.full_name or user.username}»',
+            target_type='user',
+            target_id=user.id,
+            target_repr=user.full_name or user.username,
+            metadata={'username': user.username, 'role': user.role, 'is_active': user.is_active},
+        )
+        return response
 
     def delete(self, request, pk):
         try:
@@ -124,8 +205,19 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
             return Response({'detail': 'نمی‌توانید حساب خود را حذف کنید.'}, status=status.HTTP_400_BAD_REQUEST)
 
         username = user.username
+        full_name = user.full_name
+        user_id = user.id
         user.delete()
         logger.info('Admin %s deleted user: %s', request.user.username, username)
+        log_activity(
+            ActivityActions.USER_DELETE,
+            request=request,
+            description=f'حذف کاربر «{full_name or username}»',
+            target_type='user',
+            target_id=user_id,
+            target_repr=full_name or username,
+            metadata={'username': username},
+        )
         return Response({'detail': 'کاربر با موفقیت حذف شد.'}, status=status.HTTP_200_OK)
 
 
@@ -141,8 +233,18 @@ class UserResetPasswordView(APIView):
         serializer = PasswordResetSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user.set_password(serializer.validated_data['new_password'])
-        user.save()
+        user.must_change_password = True
+        user.save(update_fields=['password', 'must_change_password', 'updated_at'])
         logger.info('Admin %s reset password for: %s', request.user.username, user.username)
+        log_activity(
+            ActivityActions.PASSWORD_RESET,
+            request=request,
+            description=f'بازنشانی رمز عبور کاربر «{user.full_name or user.username}»',
+            target_type='user',
+            target_id=user.id,
+            target_repr=user.full_name or user.username,
+            metadata={'username': user.username},
+        )
         return Response({'detail': 'رمز عبور با موفقیت تغییر یافت.'})
 
 
@@ -156,6 +258,15 @@ class UserActivateView(APIView):
             return Response({'detail': 'کاربر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
         user.is_active = True
         user.save(update_fields=['is_active', 'updated_at'])
+        log_activity(
+            ActivityActions.USER_ACTIVATE,
+            request=request,
+            description=f'فعال‌سازی حساب کاربر «{user.full_name or user.username}»',
+            target_type='user',
+            target_id=user.id,
+            target_repr=user.full_name or user.username,
+            metadata={'username': user.username},
+        )
         return Response({'detail': 'حساب کاربری فعال شد.'})
 
 
@@ -174,6 +285,15 @@ class UserDeactivateView(APIView):
         user.is_active = False
         user.save(update_fields=['is_active', 'updated_at'])
         logger.info('Admin %s deactivated user: %s', request.user.username, user.username)
+        log_activity(
+            ActivityActions.USER_DEACTIVATE,
+            request=request,
+            description=f'غیرفعال‌سازی حساب کاربر «{user.full_name or user.username}»',
+            target_type='user',
+            target_id=user.id,
+            target_repr=user.full_name or user.username,
+            metadata={'username': user.username},
+        )
         return Response({'detail': 'حساب کاربری غیرفعال شد.'})
 
 
@@ -320,6 +440,7 @@ class UserBulkImportView(APIView):
                 role=row['role'],
                 password=password_hash,
                 is_active=True,
+                must_change_password=True,
             )
             for row, password_hash in zip(rows_to_create, password_hashes)
         ]
@@ -342,6 +463,22 @@ class UserBulkImportView(APIView):
             len(created),
             len(skipped),
             len(errors),
+        )
+        log_activity(
+            ActivityActions.BULK_IMPORT,
+            request=request,
+            description=(
+                f'ورود گروهی کارکنان: {len(created)} ایجاد، '
+                f'{len(skipped)} رد شده، {len(errors)} خطا'
+            ),
+            target_type='user_import',
+            target_repr=file.name,
+            metadata={
+                'created_count': len(created),
+                'skipped_count': len(skipped),
+                'error_count': len(errors),
+                'file_name': file.name,
+            },
         )
 
         return Response({

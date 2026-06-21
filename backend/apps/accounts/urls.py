@@ -7,6 +7,7 @@ urlpatterns = [
     path('auth/logout/', views.LogoutView.as_view(), name='logout'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/me/', views.MeView.as_view(), name='me'),
+    path('auth/change-password/', views.ChangePasswordView.as_view(), name='change-password'),
 
     # Admin user management
     path('admin/users/', views.UserListCreateView.as_view(), name='user-list-create'),

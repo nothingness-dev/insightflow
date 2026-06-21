@@ -1,0 +1,192 @@
+"""Shared dataset builder for survey result exports (CSV / Excel / PDF).
+
+All three export views consume the SAME computed dataset so they stay
+consistent. This module also centralises the policy for how large volumes of
+free-text comments are handled per format:
+
+  * Excel  -> full fidelity. Every comment becomes its own row on a dedicated
+              sheet (Excel supports ~1,048,576 rows). Individual comment text is
+              defensively capped to Excel's 32,767-char cell limit.
+  * CSV    -> full fidelity. Every comment is its own row in a dedicated
+              "comments" section. Inline per-question columns show only the
+              COUNT (e.g. "۶ نظر") so no single cell ever explodes when a
+              question collects hundreds of comments.
+  * PDF    -> executive summary. Comments are grouped per question and capped
+              (see PDF_MAX_* constants); the remainder is summarised as
+              "+N نظر دیگر" with a pointer to the Excel export.
+"""
+from collections import defaultdict
+
+from django.db.models import Count
+
+from .models import Rating
+from .services import calculate_survey_results
+
+
+# ── comment volume policy (PDF only; CSV/Excel keep everything) ──
+PDF_MAX_COMMENTS_PER_QUESTION = 6
+PDF_MAX_TOTAL_COMMENTS = 120
+EXCEL_CELL_LIMIT = 32_000  # below the hard 32,767 ceiling, with headroom
+
+
+# ── score banding (shared across all formats + the frontend palette) ──
+def score_grade(v):
+    if v is None:
+        return '—'
+    if v < 4:
+        return 'ضعیف'
+    if v < 6:
+        return 'متوسط'
+    if v < 8:
+        return 'خوب'
+    return 'عالی'
+
+
+def distribution_buckets(results):
+    """Return [(label, count, hex_color)] for the score distribution, omitting
+    empty buckets."""
+    def _count(predicate):
+        return sum(1 for r in results if predicate(r['average_score']))
+
+    buckets = [
+        ('عالی (۹ به بالا)', _count(lambda v: v is not None and v >= 9),    '#10b981'),
+        ('خوب (۷ تا ۹)',     _count(lambda v: v is not None and 7 <= v < 9), '#22c55e'),
+        ('متوسط (۴ تا ۷)',   _count(lambda v: v is not None and 4 <= v < 7), '#f59e0b'),
+        ('ضعیف (کمتر از ۴)', _count(lambda v: v is not None and v < 4),      '#ef4444'),
+        ('بدون امتیاز',      _count(lambda v: v is None),                    '#94a3b8'),
+    ]
+    return [b for b in buckets if b[1] > 0]
+
+
+def build_export_dataset(survey, request=None):
+    """Compute everything the export views need, exactly once.
+
+    Returns a dict with keys:
+        survey, results, questions, comments_map, questions_meta, summary,
+        comments_flat
+    """
+    results = calculate_survey_results(survey, request)
+    questions = list(
+        survey.questions.filter(is_active=True).order_by('display_order', 'created_at')
+    )
+
+    # ── comments from fully-completed voters only, grouped by (person, q) ──
+    active_people_count = survey.people.filter(is_active=True).count()
+    active_questions_count = survey.questions.filter(is_active=True).count()
+    required = active_people_count * active_questions_count
+    if required > 0:
+        completed_voter_ids = list(
+            Rating.objects
+            .filter(survey=survey, person__is_active=True, question__is_active=True)
+            .values('voter_id')
+            .annotate(answered_count=Count('id', distinct=True))
+            .filter(answered_count=required)
+            .values_list('voter_id', flat=True)
+        )
+    else:
+        completed_voter_ids = []
+
+    comments_map = defaultdict(list)
+    if completed_voter_ids:
+        for rating in (Rating.objects
+                       .filter(survey=survey, voter_id__in=completed_voter_ids,
+                               person__is_active=True, question__is_active=True)
+                       .exclude(comment__isnull=True).exclude(comment__exact='')
+                       .order_by('person__display_order', 'question__display_order', 'created_at')
+                       .values('person_id', 'question_id', 'comment')):
+            comments_map[(rating['person_id'], rating['question_id'])].append(rating['comment'])
+
+    # ── per-question aggregates (response-weighted average) ──
+    questions_meta = []
+    for q in questions:
+        scores, total_resps = [], 0
+        for r in results:
+            by_q = {item['question_id']: item for item in r.get('question_results', [])}
+            item = by_q.get(q.id, {})
+            if item.get('average_score') is not None and item.get('responses_count', 0) > 0:
+                scores.extend([item['average_score']] * item['responses_count'])
+                total_resps += item['responses_count']
+        total_comments = sum(len(comments_map.get((r['person_id'], q.id), [])) for r in results)
+        q_avg = round(sum(scores) / len(scores), 2) if scores else None
+        questions_meta.append({
+            'id': q.id,
+            'text': q.text,
+            'avg': q_avg if q.has_score else None,
+            'responses': total_resps,
+            'comments': total_comments,
+            'has_score': q.has_score,
+            'has_comment': q.has_comment,
+        })
+
+    # ── flat comment list (person, dept, question, comment) — ALL of them ──
+    comments_flat = [
+        (r['full_name'], r['department'] or '', q.text, comment)
+        for r in results
+        for q in questions
+        if q.has_comment
+        for comment in comments_map.get((r['person_id'], q.id), [])
+    ]
+
+    # ── summary KPIs ──
+    all_scores = [r['average_score'] for r in results if r['average_score'] is not None]
+    overall_avg = round(sum(all_scores) / len(all_scores), 2) if all_scores else None
+    max_voters = max((r['votes_count'] for r in results), default=0)
+    scored_results = [r for r in results if r['average_score'] is not None]
+
+    summary = {
+        'overall_avg': overall_avg,
+        'questions': len(questions),
+        'people': active_people_count,
+        'voters': max_voters,
+        'best': scored_results[0]['average_score'] if scored_results else None,
+        'worst': scored_results[-1]['average_score'] if scored_results else None,
+        'total_comments': len(comments_flat),
+        'distribution': distribution_buckets(results),
+    }
+
+    return {
+        'survey': survey,
+        'results': results,
+        'questions': questions,
+        'comments_map': comments_map,
+        'questions_meta': questions_meta,
+        'summary': summary,
+        'comments_flat': comments_flat,
+    }
+
+
+def build_pdf_comment_groups(dataset,
+                             per_question=PDF_MAX_COMMENTS_PER_QUESTION,
+                             total_cap=PDF_MAX_TOTAL_COMMENTS):
+    """Group comments by question and cap them for the (bounded) PDF report.
+
+    Returns (groups, truncated) where groups is a list of dicts:
+        {question, items: [(person, dept, comment)], total, extra}
+    `extra` is how many comments for that question were omitted.
+    `truncated` is True if any cap kicked in (so the view can show a note).
+    """
+    results = dataset['results']
+    comments_map = dataset['comments_map']
+    groups = []
+    rendered = 0
+    truncated = False
+
+    for q in dataset['questions']:
+        if not q.has_comment:
+            continue
+        items = []
+        total = 0
+        for r in results:
+            for comment in comments_map.get((r['person_id'], q.id), []):
+                total += 1
+                if len(items) < per_question and rendered < total_cap:
+                    items.append((r['full_name'], r['department'] or '', comment))
+                    rendered += 1
+        if total == 0:
+            continue
+        extra = total - len(items)
+        if extra > 0:
+            truncated = True
+        groups.append({'question': q.text, 'items': items, 'total': total, 'extra': extra})
+
+    return groups, truncated

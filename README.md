@@ -1,6 +1,6 @@
 # InsightFlow
 
-![Version](https://img.shields.io/badge/version-1.6.0-blue)
+![Version](https://img.shields.io/badge/version-1.8.0-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-success)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Backend](https://img.shields.io/badge/backend-Django%20REST%20Framework-092E20)
@@ -58,6 +58,7 @@
 - **داشبورد پیشرفت نظرسنجی** — نمایش درصد مشارکت، تعداد پاسخ‌داده‌ها، افراد باقی‌مانده و نمودار مقایسه پیشرفت نظرسنجی‌ها
 - **مدیریت کاربران** — فعال/غیرفعال کردن، ریست رمز، حذف، و آپلود دسته‌ای از CSV
 - **خروجی CSV و Excel** — ستون‌های مجزا برای هر سوال
+- **مرکز فعالیت‌ها و گزارش‌های ممیزی** — صفحهٔ مخصوص مدیر برای رصد فعالیت‌های مهم سیستم (ورود/خروج، ورود ناموفق، تغییر/بازنشانی رمز، مدیریت کاربران، ایجاد/ویرایش/حذف نظرسنجی و سوال، خروجی‌ها و حذف کل داده‌ها) با آمار کلیدی، جدول زمانی، نمودارها، پنل اقدامات حساس، جستجو/فیلتر، جدول صفحه‌بندی‌شده در سمت سرور و مرکز خروجی Excel/CSV/PDF بر اساس بازهٔ تاریخ
 - **تغییر تم رنگی** — چهار تم بنفش، آبی، سبز، قرمز با یک کلیک
 - **رابط کاربری فارسی و راست‌به‌چپ**
 - **آماده برای استقرار در شبکه داخلی با Docker**
@@ -184,7 +185,8 @@ insightflow/
 ├── backend/
 │   ├── apps/
 │   │   ├── accounts/        # کاربران، نقش‌ها، JWT
-│   │   └── surveys/         # نظرسنجی‌ها، سوالات، افراد، پاسخ‌ها، نتایج
+│   │   ├── surveys/         # نظرسنجی‌ها، سوالات، افراد، پاسخ‌ها، نتایج
+│   │   └── activity/        # مرکز فعالیت‌ها و گزارش‌های ممیزی (لاگ، آمار، خروجی)
 │   ├── config/
 │   │   └── settings/        # base/dev/prod settings
 │   ├── Dockerfile
@@ -255,8 +257,21 @@ insightflow/
 | GET | `/api/admin/surveys/:id/results/` | نتایج ناشناس + سوالات |
 | GET | `/api/admin/surveys/:id/export/csv/` | خروجی CSV |
 | GET | `/api/admin/surveys/:id/export/excel/` | خروجی Excel |
+| GET | `/api/admin/surveys/:id/export/pdf/` | خروجی PDF (گزارش تحلیلی) |
 | GET, POST | `/api/admin/surveys/:id/people/` | لیست / افزودن فرد |
 | PATCH, DELETE | `/api/admin/people/:id/` | ویرایش / حذف فرد |
+
+### مرکز فعالیت‌ها و گزارش‌های ممیزی (فقط مدیر)
+
+| متد | مسیر | توضیح |
+|---|---|---|
+| GET | `/api/admin/activity/logs/` | گزارش فعالیت‌ها (صفحه‌بندی، فیلتر و جستجوی سمت سرور) |
+| GET | `/api/admin/activity/stats/` | آمار کلیدی (کل، امروز، این هفته، فعال‌ترین مدیر) |
+| GET | `/api/admin/activity/timeline/` | جدول زمانی فعالیت‌های اخیر |
+| GET | `/api/admin/activity/critical/` | اقدامات حساس اخیر |
+| GET | `/api/admin/activity/charts/` | داده نمودارها (حجم روزانه و تفکیک بر اساس نوع) |
+| GET | `/api/admin/activity/filters/` | گزینه‌های فیلتر (انواع فعالیت، کاربران، وضعیت‌ها) |
+| GET | `/api/admin/activity/export/` | خروجی Excel/CSV/PDF در بازهٔ تاریخ (`export_format`، `date_from`، `date_to`) |
 
 ### کاربران/کارکنان
 
@@ -284,7 +299,7 @@ insightflow/
 ## اجرای تست‌ها
 
 ```bash
-docker compose exec backend python manage.py test apps.surveys apps.accounts --settings=config.settings.dev -v 2
+docker compose exec backend python manage.py test apps.surveys apps.accounts apps.activity --settings=config.settings.dev -v 2
 ```
 
 ---
@@ -411,7 +426,12 @@ Many organizations still rely on spreadsheets, paper forms or disconnected tools
 - **Results by question** — overall ranking with expandable per-question breakdown
 - **Survey Progress Dashboard** — participation totals, completion rates, pending employees and a survey comparison chart
 - **User management** — activate/deactivate, password reset, delete, bulk CSV import
-- **CSV and Excel exports** — separate columns per question
+- **Self-service password change** — every user can change their own password from the profile menu (with current-password check, «تکرار رمز عبور» field, show/hide toggle and a confirmation dialog)
+- **Forced first-login password change** — accounts created/reset by an admin must set a new password on first sign-in
+- **CSV, Excel and PDF exports** — per-question columns, a styled multi-sheet Excel workbook, and a comprehensive RTL PDF analytics report (KPIs, score distribution, ranking, per-question analysis, grouped comments)
+- **Scales to large comment volumes** — Excel/CSV keep every comment (one row each); the PDF groups and caps comments per question with a pointer to the full export
+- **Activity Center / Audit Reports** — an admin-only page that automatically tracks important system & admin activities (logins, failed logins, logout, password change/reset, user CRUD & activate/deactivate, bulk import, survey & question CRUD, duplicate/publish/close, exports, delete-all-data). Includes headline KPIs, an activity timeline, charts, a critical-actions panel, search & filters, a **server-side paginated** table that scales past 1000+ logs, and an Export Center (Excel/CSV/PDF) scoped to a chosen date range
+- **Delete surveys** — from both the survey list and the survey detail page, with confirmation
 - **Four color themes** — purple, blue, green, red; saved in localStorage
 - **Persian RTL UI**
 - **Docker-based LAN deployment**
@@ -479,7 +499,7 @@ http://<server-ip>
 | Username | `admin` |
 | Password | value of `ADMIN_PASSWORD` in `.env` |
 
-> Change the administrator password after the first login.
+> Change the administrator password after the first login. Accounts created or reset by an admin are required to set a new password on their first sign-in.
 
 ---
 
@@ -512,6 +532,7 @@ insightflow/
 | POST | `/api/auth/logout/` | Logout |
 | POST | `/api/auth/refresh/` | Refresh access token |
 | GET | `/api/auth/me/` | Current user info |
+| POST | `/api/auth/change-password/` | Change own password (current + new + confirm) |
 
 ### User Management
 
@@ -520,7 +541,7 @@ insightflow/
 | GET, POST | `/api/admin/users/` | List / create users |
 | POST | `/api/admin/users/bulk-import/` | Bulk import users from CSV/TXT |
 | GET, PATCH, DELETE | `/api/admin/users/:id/` | Detail / edit / delete user |
-| POST | `/api/admin/users/:id/reset-password/` | Reset password |
+| POST | `/api/admin/users/:id/reset-password/` | Reset a user's password (forces change on next login) |
 | POST | `/api/admin/users/:id/activate/` | Activate user |
 | POST | `/api/admin/users/:id/deactivate/` | Deactivate user |
 
@@ -536,10 +557,24 @@ insightflow/
 | POST | `/api/admin/surveys/:id/publish/` | Publish |
 | POST | `/api/admin/surveys/:id/close/` | Close |
 | GET | `/api/admin/surveys/:id/results/` | Anonymous results with per-question breakdown |
-| GET | `/api/admin/surveys/:id/export/csv/` | CSV export (one column set per question) |
-| GET | `/api/admin/surveys/:id/export/excel/` | Excel export (one column set per question) |
+| GET | `/api/admin/surveys/:id/comments/` | Paginated anonymous comments (by person/question) |
+| GET | `/api/admin/surveys/:id/export/csv/` | CSV export (ranking, per-question analysis, distribution, full comments) |
+| GET | `/api/admin/surveys/:id/export/excel/` | Styled multi-sheet Excel workbook (summary, ranking, questions, comments) |
+| GET | `/api/admin/surveys/:id/export/pdf/` | Comprehensive RTL PDF analytics report |
 | GET, POST | `/api/admin/surveys/:id/people/` | List / add person |
 | PATCH, DELETE | `/api/admin/people/:id/` | Edit / delete person |
+
+### Activity Center / Audit Reports (admin only)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/admin/activity/logs/` | Activity log (server-side pagination, filtering & search) |
+| GET | `/api/admin/activity/stats/` | Headline KPIs (total, today, this week, most active admin) |
+| GET | `/api/admin/activity/timeline/` | Recent activity timeline |
+| GET | `/api/admin/activity/critical/` | Recent critical actions |
+| GET | `/api/admin/activity/charts/` | Chart data (daily volume + breakdown by action type) |
+| GET | `/api/admin/activity/filters/` | Filter options (action types, actors, statuses) |
+| GET | `/api/admin/activity/export/` | Export Excel/CSV/PDF for a date range (`export_format`, `date_from`, `date_to`) |
 
 ### Employee
 
@@ -567,7 +602,7 @@ InsightFlow uses a mandatory-login but anonymous-results model:
 ## Running Tests
 
 ```bash
-docker compose exec backend python manage.py test apps.surveys apps.accounts --settings=config.settings.dev -v 2
+docker compose exec backend python manage.py test apps.surveys apps.accounts apps.activity --settings=config.settings.dev -v 2
 ```
 
 ---

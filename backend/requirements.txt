@@ -7,5 +7,8 @@ Pillow==10.3.0
 gunicorn==22.0.0
 python-decouple==3.8
 openpyxl==3.1.2
+reportlab==4.2.2
+arabic-reshaper==3.0.0
+python-bidi==0.4.2
 dj-database-url==2.1.0
 django-filter==24.2

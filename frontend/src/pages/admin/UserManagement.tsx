@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, FormEvent, useRef } from 'react';
 import { adminUserApi, dashboardApi } from '../../api/endpoints';
 import { BulkImportResult, PaginatedResponse, User } from '../../types';
-import { PageHeader, SearchInput, EmptyState, PageLoader, ConfirmModal, Modal } from '../../components/common/index';
+import { PageHeader, SearchInput, EmptyState, PageLoader, ConfirmModal, Modal, PasswordInput } from '../../components/common/index';
 import { formatDate, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -34,6 +34,9 @@ export default function UserManagement() {
   const [deactivateId, setDeactivateId] = useState<number | null>(null);
   const [resetId, setResetId] = useState<number | null>(null);
   const [newPass, setNewPass] = useState('');
+  const [newPassConfirm, setNewPassConfirm] = useState('');
+  const [resetErr, setResetErr] = useState('');
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
 
   // Bulk import state
@@ -150,14 +153,23 @@ export default function UserManagement() {
     } catch (err) { toast.error(getErrorMessage(err)); }
   };
 
+  const closeResetModal = () => {
+    setResetId(null); setNewPass(''); setNewPassConfirm(''); setResetErr(''); setResetConfirmOpen(false);
+  };
+
+  const requestReset = () => {
+    if (newPass.length < 8) { setResetErr('رمز عبور باید حداقل ۸ کاراکتر باشد.'); return; }
+    if (newPass !== newPassConfirm) { setResetErr('تکرار رمز عبور مطابقت ندارد.'); return; }
+    setResetErr(''); setResetConfirmOpen(true);
+  };
+
   const handleResetPassword = async () => {
-    if (!resetId || !newPass) return;
+    if (!resetId) return;
     setResetting(true);
     try {
       await adminUserApi.resetPassword(resetId, newPass);
-      toast.success('رمز عبور تغییر یافت');
-      setResetId(null);
-      setNewPass('');
+      toast.success('رمز عبور تغییر یافت. کاربر در ورود بعدی باید آن را تغییر دهد.');
+      closeResetModal();
     } catch (err) { toast.error(getErrorMessage(err)); }
     finally { setResetting(false); }
   };
@@ -405,12 +417,12 @@ export default function UserManagement() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">رمز عبور <span className="text-red-500">*</span></label>
-                <input type="password" value={form.password} onChange={set('password')} className={`input-field ${errors.password ? 'border-red-400' : ''}`} placeholder="حداقل ۸ کاراکتر" />
+                <PasswordInput value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} placeholder="حداقل ۸ کاراکتر" error={!!errors.password} />
                 {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
               </div>
               <div>
                 <label className="label">تکرار رمز عبور <span className="text-red-500">*</span></label>
-                <input type="password" value={form.password_confirm} onChange={set('password_confirm')} className={`input-field ${errors.password_confirm ? 'border-red-400' : ''}`} placeholder="تکرار رمز عبور" />
+                <PasswordInput value={form.password_confirm} onChange={v => setForm(f => ({ ...f, password_confirm: v }))} placeholder="تکرار رمز عبور" error={!!errors.password_confirm} />
                 {errors.password_confirm && <p className="text-xs text-red-500 mt-1">{errors.password_confirm}</p>}
               </div>
             </div>
@@ -426,21 +438,37 @@ export default function UserManagement() {
       </Modal>
 
       {/* Reset Password Modal */}
-      <Modal open={!!resetId} onClose={() => setResetId(null)} title="تغییر رمز عبور" size="sm">
+      <Modal open={!!resetId} onClose={closeResetModal} title="تغییر رمز عبور" size="sm">
         <div className="p-6 space-y-4">
+          <p className="text-xs text-gray-500">کاربر در اولین ورود بعدی ملزم به تغییر این رمز خواهد بود.</p>
           <div>
             <label className="label">رمز عبور جدید</label>
-            <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} className="input-field" placeholder="حداقل ۸ کاراکتر" />
+            <PasswordInput value={newPass} onChange={setNewPass} placeholder="حداقل ۸ کاراکتر" autoFocus error={!!resetErr} />
           </div>
+          <div>
+            <label className="label">تکرار رمز عبور</label>
+            <PasswordInput value={newPassConfirm} onChange={setNewPassConfirm} placeholder="رمز عبور جدید را دوباره وارد کنید" error={!!resetErr} />
+          </div>
+          {resetErr && <p className="text-xs text-red-500">{resetErr}</p>}
           <div className="flex gap-3">
-            <button onClick={handleResetPassword} disabled={resetting || !newPass} className="btn-primary flex items-center gap-2">
-              {resetting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+            <button onClick={requestReset} disabled={resetting || !newPass || !newPassConfirm} className="btn-primary flex items-center gap-2">
               تغییر رمز
             </button>
-            <button onClick={() => setResetId(null)} className="btn-secondary">انصراف</button>
+            <button onClick={closeResetModal} className="btn-secondary">انصراف</button>
           </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        open={resetConfirmOpen}
+        onClose={() => !resetting && setResetConfirmOpen(false)}
+        onConfirm={handleResetPassword}
+        title="تأیید تغییر رمز عبور"
+        message="آیا از تغییر رمز عبور این کاربر اطمینان دارید؟"
+        confirmLabel="بله، تغییر بده"
+        confirmVariant="primary"
+        loading={resetting}
+      />
 
       {/* Bulk Import Modal */}
       <Modal open={importModalOpen} onClose={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }} title="آپلود کاربران از فایل" size="lg">

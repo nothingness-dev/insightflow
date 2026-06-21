@@ -30,6 +30,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='employee', verbose_name='نقش')
     is_active = models.BooleanField(default=True, verbose_name='فعال')
     is_staff = models.BooleanField(default=False)
+    must_change_password = models.BooleanField(
+        default=False,
+        verbose_name='باید رمز عبور را تغییر دهد',
+        help_text='در اولین ورود، کاربر ملزم به تغییر رمز عبور خود می‌شود.'
+    )
     created_at = models.DateTimeField(default=timezone.now, verbose_name='تاریخ ایجاد')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='تاریخ به‌روزرسانی')
 

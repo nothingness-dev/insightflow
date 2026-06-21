@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'apps.accounts',
     'apps.surveys',
+    'apps.activity',
 ]
 
 MIDDLEWARE = [

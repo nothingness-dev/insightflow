@@ -2,6 +2,7 @@ import { ReactNode, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ThemeSwitcher from '../components/common/ThemeSwitcher';
+import ChangePasswordModal from '../components/common/ChangePasswordModal';
 import toast from 'react-hot-toast';
 
 interface NavItem { path: string; label: string; icon: ReactNode; }
@@ -13,18 +14,21 @@ const UsersIcon  = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24
 const LogoutIcon = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>;
 const MenuIcon   = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>;
 const CloseIcon  = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>;
+const ActivityIcon = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12h4l3 8 4-16 3 8h4" /></svg>;
 
 const navItems: NavItem[] = [
   { path: '/admin',         label: 'داشبورد',    icon: <ChartIcon />  },
   { path: '/admin/surveys', label: 'نظرسنجی‌ها', icon: <SurveyIcon /> },
   { path: '/admin/survey-progress', label: 'پیشرفت',      icon: <ProgressIcon /> },
   { path: '/admin/users',   label: 'کارکنان',    icon: <UsersIcon />  },
+  { path: '/admin/activity', label: 'مرکز فعالیت‌ها', icon: <ActivityIcon /> },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
 
   const handleLogout = async () => { await logout(); toast.success('خروج موفق'); navigate('/login'); };
 
@@ -75,6 +79,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <p className="text-xs text-gray-400">مدیر سیستم</p>
           </div>
         </div>
+        <button onClick={() => { setSidebarOpen(false); setPwOpen(true); }} className="sidebar-item w-full text-gray-600 hover:bg-gray-50 hover:text-gray-800">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" /></svg>
+          <span>تغییر رمز عبور</span>
+        </button>
         <button onClick={handleLogout} className="sidebar-item w-full text-red-600 hover:bg-red-50 hover:text-red-700">
           <LogoutIcon /><span>خروج</span>
         </button>
@@ -111,6 +119,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
+
+      <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />
+      <ChangePasswordModal open={!!user?.must_change_password} onClose={() => {}} forced />
     </div>
   );
 }

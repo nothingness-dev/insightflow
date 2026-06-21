@@ -1,5 +1,5 @@
 import api from './client';
-import { BulkImportResult, DashboardStats, MyRatings, PaginatedResponse, Survey, SurveyPerson, SurveyProgressDashboard, SurveyQuestionInput, SurveyResults, User } from '../types';
+import { ActivityCharts, ActivityCriticalPanel, ActivityFilterOptions, ActivityLog, ActivityLogFilters, ActivityStats, BulkImportResult, DashboardStats, MyRatings, PaginatedResponse, Survey, SurveyPerson, SurveyProgressDashboard, SurveyQuestionInput, SurveyResults, User } from '../types';
 
 // Auth
 export const authApi = {
@@ -8,6 +8,8 @@ export const authApi = {
   logout: (refresh: string) =>
     api.post('/auth/logout/', { refresh }),
   me: () => api.get<User>('/auth/me/'),
+  changePassword: (data: { current_password: string; new_password: string; new_password_confirm: string }) =>
+    api.post('/auth/change-password/', data),
 };
 
 // Admin Surveys
@@ -36,6 +38,8 @@ export const adminSurveyApi = {
     api.get(`/admin/surveys/${id}/export/csv/`, { responseType: 'blob' }),
   exportExcel: (id: number) =>
     api.get(`/admin/surveys/${id}/export/excel/`, { responseType: 'blob' }),
+  exportPdf: (id: number) =>
+    api.get(`/admin/surveys/${id}/export/pdf/`, { responseType: 'blob' }),
 };
 
 // Admin People
@@ -90,6 +94,25 @@ export const dashboardApi = {
   surveyProgress: () => api.get<SurveyProgressDashboard>('/admin/surveys/progress/'),
   deleteAllData: () =>
     api.delete('/admin/delete-all-data/', { data: { confirm: 'DELETE_ALL' } }),
+};
+
+// Activity Center / Audit Reports
+export const activityApi = {
+  logs: (params?: ActivityLogFilters) =>
+    api.get<PaginatedResponse<ActivityLog>>('/admin/activity/logs/', { params }),
+  stats: () => api.get<ActivityStats>('/admin/activity/stats/'),
+  timeline: (limit = 15) =>
+    api.get<ActivityLog[]>('/admin/activity/timeline/', { params: { limit: String(limit) } }),
+  critical: (limit = 10) =>
+    api.get<ActivityCriticalPanel>('/admin/activity/critical/', { params: { limit: String(limit) } }),
+  charts: (days = 14) =>
+    api.get<ActivityCharts>('/admin/activity/charts/', { params: { days: String(days) } }),
+  filterOptions: () => api.get<ActivityFilterOptions>('/admin/activity/filters/'),
+  export: (exportFormat: 'csv' | 'excel' | 'pdf', dateFrom: string, dateTo: string, extra?: ActivityLogFilters) =>
+    api.get(`/admin/activity/export/`, {
+      params: { export_format: exportFormat, date_from: dateFrom, date_to: dateTo, ...extra },
+      responseType: 'blob',
+    }),
 };
 
 // Employee

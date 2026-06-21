@@ -14,6 +14,7 @@ import SurveyDetail from './pages/admin/SurveyDetail';
 import SurveyResults from './pages/admin/SurveyResults';
 import UserManagement from './pages/admin/UserManagement';
 import SurveyProgressPage from './pages/admin/SurveyProgress';
+import ActivityCenter from './pages/admin/ActivityCenter';
 import EmployeeSurveyList from './pages/employee/SurveyList';
 import EmployeeSurveyDetail from './pages/employee/SurveyDetail';
 
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/admin/surveys/:id/edit" element={<AdminWrapper><SurveyForm /></AdminWrapper>} />
           <Route path="/admin/surveys/:id/results" element={<AdminWrapper><SurveyResults /></AdminWrapper>} />
           <Route path="/admin/users" element={<AdminWrapper><UserManagement /></AdminWrapper>} />
+          <Route path="/admin/activity" element={<AdminWrapper><ActivityCenter /></AdminWrapper>} />
 
           {/* Employee */}
           <Route path="/surveys" element={<EmployeeWrapper><EmployeeSurveyList /></EmployeeWrapper>} />

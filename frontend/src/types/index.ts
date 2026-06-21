@@ -4,6 +4,7 @@ export interface User {
   full_name: string;
   role: 'admin' | 'employee';
   is_active: boolean;
+  must_change_password?: boolean;
   created_at: string;
 }
 
@@ -188,4 +189,69 @@ export interface BulkImportResult {
   created_details_omitted: number;
   skipped_details_omitted: number;
   error_details_omitted: number;
+}
+
+// ─── Activity Center / Audit Reports ───────────────────────────────
+export interface ActivityLog {
+  id: number;
+  action: string;
+  action_label: string;
+  actor: number | null;
+  actor_username: string;
+  actor_full_name: string;
+  actor_role: string;
+  actor_display: string;
+  description: string;
+  target_type: string;
+  target_id: string;
+  target_repr: string;
+  status: 'success' | 'failed';
+  is_critical: boolean;
+  ip_address: string | null;
+  user_agent: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface ActivityStats {
+  total_activities: number;
+  today_activities: number;
+  week_activities: number;
+  critical_activities: number;
+  failed_activities: number;
+  most_active_admin: {
+    actor_id: number;
+    username: string;
+    full_name: string;
+    count: number;
+  } | null;
+}
+
+export interface ActivityFilterOptions {
+  actions: { value: string; label: string; critical: boolean }[];
+  actors: { id: number; username: string; full_name: string }[];
+  statuses: { value: string; label: string }[];
+}
+
+export interface ActivityCharts {
+  days: number;
+  daily: { date: string; total: number; failed: number }[];
+  by_action: { action: string; label: string; count: number }[];
+}
+
+export interface ActivityCriticalPanel {
+  count: number;
+  items: ActivityLog[];
+}
+
+export interface ActivityLogFilters {
+  search?: string;
+  action?: string;
+  status?: string;
+  actor?: string;
+  is_critical?: string;
+  date_from?: string;
+  date_to?: string;
+  page?: string;
+  page_size?: string;
 }

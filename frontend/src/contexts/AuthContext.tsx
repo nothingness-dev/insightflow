@@ -7,6 +7,7 @@ interface AuthContextType {
   accessToken: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (partial: Partial<User>) => void;
   isLoading: boolean;
 }
 
@@ -39,6 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
   };
 
+  const updateUser = (partial: Partial<User>) => {
+    setUser(prev => {
+      const next = prev ? { ...prev, ...partial } : prev;
+      if (next) localStorage.setItem('user', JSON.stringify(next));
+      return next;
+    });
+  };
+
   const logout = async () => {
     try {
       const refresh = localStorage.getItem('refresh_token');
@@ -53,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, accessToken, login, logout, updateUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

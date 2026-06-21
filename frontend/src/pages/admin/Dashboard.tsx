@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { dashboardApi } from '../../api/endpoints';
 import { DashboardStats, Survey } from '../../types';
 import { StatusBadge, PageLoader } from '../../components/common/index';
-import { formatDate } from '../../utils/helpers';
+import { formatDate, getErrorMessage } from '../../utils/helpers';
+import toast from 'react-hot-toast';
 
 function StatCard({ label, value, bgColor, iconColor, icon }: {
   label: string; value: number;
@@ -26,7 +27,12 @@ export default function AdminDashboard() {
   const [data, setData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { dashboardApi.stats().then(r => setData(r.data)).finally(() => setLoading(false)); }, []);
+  useEffect(() => {
+    dashboardApi.stats()
+      .then(r => setData(r.data))
+      .catch(err => toast.error(getErrorMessage(err)))
+      .finally(() => setLoading(false));
+  }, []);
 
   if (loading) return <PageLoader />;
   if (!data) return null;

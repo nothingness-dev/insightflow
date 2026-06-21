@@ -17,6 +17,7 @@ urlpatterns = [
     path('admin/surveys/<int:pk>/comments/', views.AdminSurveyCommentsView.as_view(), name='admin-survey-comments'),
     path('admin/surveys/<int:pk>/export/csv/', views.AdminSurveyExportCSVView.as_view(), name='admin-survey-export-csv'),
     path('admin/surveys/<int:pk>/export/excel/', views.AdminSurveyExportExcelView.as_view(), name='admin-survey-export-excel'),
+    path('admin/surveys/<int:pk>/export/pdf/', views.AdminSurveyExportPDFView.as_view(), name='admin-survey-export-pdf'),
 
     # Admin people management
     path('admin/surveys/<int:survey_id>/people/', views.AdminPersonListCreateView.as_view(), name='admin-person-list'),
