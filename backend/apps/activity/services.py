@@ -16,6 +16,7 @@ import logging
 from django.utils import timezone
 
 from .models import ActivityLog, ACTION_LABELS, CRITICAL_ACTIONS
+from apps.core.cache import invalidate_activity_stats, invalidate_filter_options
 
 logger = logging.getLogger('apps')
 
@@ -109,7 +110,7 @@ def log_activity(
             label = ACTION_LABELS.get(action, action)
             description = f'{label}: {target_repr}' if target_repr else label
 
-        return ActivityLog.objects.create(
+        entry = ActivityLog.objects.create(
             action=action,
             actor=snapshot['actor'],
             actor_username=snapshot['actor_username'],
@@ -126,6 +127,12 @@ def log_activity(
             metadata=_sanitise_metadata(metadata),
             created_at=timezone.now(),
         )
+        # Bust the activity stats/charts cache so the next read gets fresh counts.
+        invalidate_activity_stats()
+        # If a new actor appeared, the filter-options actor list is stale too.
+        if snapshot['actor'] is not None:
+            invalidate_filter_options()
+        return entry
     except Exception:  # pragma: no cover - defensive guard
         logger.exception('Failed to record activity log for action=%s', action)
         return None

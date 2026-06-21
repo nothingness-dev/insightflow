@@ -23,6 +23,13 @@ from .export_data import (
     build_export_dataset, build_pdf_comment_groups, score_grade, EXCEL_CELL_LIMIT,
 )
 import logging
+from django.conf import settings
+from django.core.cache import cache
+from apps.core.cache import (
+    key_dashboard, key_survey_results, key_employee_survey_list,
+    invalidate_dashboard, invalidate_survey_results,
+    invalidate_all_employee_survey_lists, invalidate_employee_survey_list,
+)
 
 logger = logging.getLogger('apps')
 
@@ -161,6 +168,8 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
                 target_type='survey', target_id=instance.id, target_repr=instance.title,
                 metadata={'questions_deleted': deactivated},
             )
+        invalidate_dashboard()
+        invalidate_survey_results(instance.id)
         return response
 
     def destroy(self, request, *args, **kwargs):
@@ -168,6 +177,9 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
         logger.info(f"Admin {request.user.username} deleted survey: {instance.title}")
         survey_id, survey_title = instance.id, instance.title
         response = super().destroy(request, *args, **kwargs)
+        invalidate_dashboard()
+        invalidate_survey_results(survey_id)
+        invalidate_all_employee_survey_lists()
         log_activity(
             ActivityActions.SURVEY_DELETE,
             request=request,
@@ -245,6 +257,8 @@ class AdminSurveyPublishView(APIView):
         survey.status = Survey.STATUS_PUBLISHED
         survey.published_at = timezone.now()
         survey.save()
+        invalidate_dashboard()
+        invalidate_all_employee_survey_lists()
         logger.info(f"Admin {request.user.username} published survey: {survey.title}")
         log_activity(
             ActivityActions.SURVEY_PUBLISH,
@@ -272,6 +286,9 @@ class AdminSurveyCloseView(APIView):
         survey.status = Survey.STATUS_CLOSED
         survey.closed_at = timezone.now()
         survey.save()
+        invalidate_dashboard()
+        invalidate_survey_results(survey.id)
+        invalidate_all_employee_survey_lists()
         logger.info(f"Admin {request.user.username} closed survey: {survey.title}")
         log_activity(
             ActivityActions.SURVEY_CLOSE,
@@ -293,11 +310,18 @@ class AdminSurveyResultsView(APIView):
         except Survey.DoesNotExist:
             return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
+        ck = key_survey_results(pk)
+        cached = cache.get(ck)
+        if cached is not None:
+            return Response(cached)
+
         results = calculate_survey_results(survey, request)
-        return Response({
+        payload = {
             'survey': SurveySerializer(survey, context={'request': request}).data,
-            'results': results
-        })
+            'results': results,
+        }
+        cache.set(ck, payload, settings.CACHE_TTL_SURVEY_RESULTS)
+        return Response(payload)
 
 
 class AdminSurveyExportCSVView(APIView):
@@ -949,6 +973,9 @@ class EmployeeRatePersonView(APIView):
         except IntegrityError:
             return Response({'detail': 'شما قبلاً برای این فرد پاسخ ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        invalidate_survey_results(survey.id)
+        invalidate_dashboard()
+        invalidate_employee_survey_list(request.user.id)
         return Response({'detail': 'پاسخ‌های شما با موفقیت ثبت شد.'}, status=status.HTTP_201_CREATED)
 
 
@@ -1030,6 +1057,11 @@ class AdminDashboardView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        ck = key_dashboard()
+        cached = cache.get(ck)
+        if cached is not None:
+            return Response(cached)
+
         from apps.accounts.models import User
 
         total_surveys = Survey.objects.count()
@@ -1058,7 +1090,7 @@ class AdminDashboardView(APIView):
         recent_surveys = Survey.objects.order_by('-created_at')[:5]
         recent_data = SurveySerializer(recent_surveys, many=True, context={'request': request}).data
 
-        return Response({
+        payload = {
             'stats': {
                 'total_surveys': total_surveys,
                 'draft_surveys': draft_surveys,
@@ -1068,7 +1100,9 @@ class AdminDashboardView(APIView):
                 'total_employees': total_employees,
             },
             'recent_surveys': recent_data,
-        })
+        }
+        cache.set(ck, payload, settings.CACHE_TTL_DASHBOARD)
+        return Response(payload)
 
 
 class AdminDeleteAllDataView(APIView):

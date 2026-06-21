@@ -110,3 +110,28 @@ SIMPLE_JWT = {
 
 MAX_UPLOAD_SIZE = config('MAX_UPLOAD_SIZE', default=2097152, cast=int)
 ALLOWED_UPLOAD_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
+
+# ── Redis Cache ────────────────────────────────────────────────────────────────
+REDIS_URL = config('REDIS_URL', default='redis://redis:6379/0')
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            # If Redis is temporarily unavailable, fall through gracefully.
+            'IGNORE_EXCEPTIONS': True,
+        },
+        'KEY_PREFIX': 'insightflow',
+        'TIMEOUT': 60 * 5,  # default: 5 minutes
+    }
+}
+
+# Cache TTLs (seconds) — tune here without touching view code.
+CACHE_TTL_DASHBOARD       = 60 * 2       # 2 min  — refreshes on every new rating
+CACHE_TTL_SURVEY_RESULTS  = 60 * 5       # 5 min  — expensive multi-join aggregations
+CACHE_TTL_ACTIVITY_STATS  = 60 * 2       # 2 min  — headline KPIs update frequently
+CACHE_TTL_ACTIVITY_CHARTS = 60 * 10      # 10 min — historical chart data is stable
+CACHE_TTL_FILTER_OPTIONS  = 60 * 30      # 30 min — action labels / actor list rarely change
+CACHE_TTL_EMPLOYEE_LIST   = 60 * 2       # 2 min  — per-user survey+progress list

@@ -19,6 +19,13 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 from apps.accounts.permissions import IsAdminUser
 
+from django.conf import settings
+from django.core.cache import cache
+from apps.core.cache import (
+    key_activity_stats, key_activity_charts, key_activity_filter_options,
+    invalidate_activity_stats, invalidate_filter_options,
+)
+
 from .models import ACTION_LABELS, CRITICAL_ACTIONS, ActivityLog
 from .serializers import ActivityLogSerializer
 
@@ -118,6 +125,11 @@ class ActivityStatsView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        ck = key_activity_stats()
+        cached = cache.get(ck)
+        if cached is not None:
+            return Response(cached)
+
         now = timezone.localtime()
         start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         # Week starts on Saturday (Iranian calendar). weekday(): Mon=0..Sun=6 → Sat=5.
@@ -147,14 +159,16 @@ class ActivityStatsView(APIView):
                 'count': most_active['count'],
             }
 
-        return Response({
+        payload = {
             'total_activities': total,
             'today_activities': today,
             'week_activities': this_week,
             'critical_activities': critical_total,
             'failed_activities': failed_total,
             'most_active_admin': most_active_admin,
-        })
+        }
+        cache.set(ck, payload, settings.CACHE_TTL_ACTIVITY_STATS)
+        return Response(payload)
 
 
 class ActivityTimelineView(APIView):
@@ -201,6 +215,11 @@ class ActivityChartsView(APIView):
         except (TypeError, ValueError):
             days = 14
 
+        ck = key_activity_charts(days)
+        cached = cache.get(ck)
+        if cached is not None:
+            return Response(cached)
+
         now = timezone.localtime()
         start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         window_start = start_of_today - dt.timedelta(days=days - 1)
@@ -241,7 +260,9 @@ class ActivityChartsView(APIView):
             for row in by_action_rows
         ]
 
-        return Response({'days': days, 'daily': daily, 'by_action': by_action})
+        payload = {'days': days, 'daily': daily, 'by_action': by_action}
+        cache.set(ck, payload, settings.CACHE_TTL_ACTIVITY_CHARTS)
+        return Response(payload)
 
 
 class ActivityFilterOptionsView(APIView):
@@ -249,6 +270,11 @@ class ActivityFilterOptionsView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        ck = key_activity_filter_options()
+        cached = cache.get(ck)
+        if cached is not None:
+            return Response(cached)
+
         actions = [
             {'value': code, 'label': label, 'critical': code in CRITICAL_ACTIONS}
             for code, label in ACTION_LABELS.items()
@@ -268,7 +294,9 @@ class ActivityFilterOptionsView(APIView):
             {'value': ActivityLog.STATUS_SUCCESS, 'label': 'موفق'},
             {'value': ActivityLog.STATUS_FAILED, 'label': 'ناموفق'},
         ]
-        return Response({'actions': actions, 'actors': actors, 'statuses': statuses})
+        payload = {'actions': actions, 'actors': actors, 'statuses': statuses}
+        cache.set(ck, payload, settings.CACHE_TTL_FILTER_OPTIONS)
+        return Response(payload)
 
 
 class ActivityExportView(APIView):

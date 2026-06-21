@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.9.0] — 2026-06-21
+
+### Added
+- **Redis caching layer** — a Redis 7 service is now part of the Docker stack, providing
+  a shared in-memory cache that dramatically reduces database load on hot read paths.
+
+  | Endpoint / data | Cache TTL | Invalidated when |
+  |---|---|---|
+  | Admin Dashboard stats | 2 min | Rating submitted, survey created/deleted |
+  | Survey Results (per survey) | 5 min | Rating submitted, survey edited/closed/deleted |
+  | Activity Headline KPIs | 2 min | Any activity log written |
+  | Activity Charts (per day-window) | 10 min | Any activity log written |
+  | Activity Filter Options | 30 min | Any activity log written |
+  | Employee Survey List (per user) | 2 min | Rating submitted, survey published/closed/deleted |
+
+- **`apps/core/cache.py`** — centralised key registry and invalidation helpers so every
+  cache key is defined in exactly one place; no magic strings scattered across views.
+- **Graceful Redis degradation** — `IGNORE_EXCEPTIONS = True` in the cache backend means
+  the app falls back to direct DB queries if Redis is temporarily unavailable; no crashes,
+  no stale data served to users.
+- **`REDIS_URL` env variable** (default `redis://redis:6379/0`) — allows pointing at an
+  external Redis cluster without rebuilding images.
+- **Redis maxmemory policy** set to `allkeys-lru` with a 128 MB cap so the container
+  can never consume unbounded memory; least-recently-used keys are evicted automatically.
+
+### Changed
+- `docker-compose.yml` — added `redis` service (Redis 7 Alpine) with a healthcheck;
+  the `backend` service now depends on both `db` and `redis` being healthy before starting.
+- `backend/requirements.txt` — added `django-redis==5.4.0` and `redis==5.0.8`.
+- `backend/config/settings/base.py` — added `CACHES` configuration and TTL constants.
+- `apps/activity/services.py` — `log_activity()` now busts activity stats and filter-options
+  caches immediately after writing a log entry (still never raises).
+
+### Fixed
+- **Startup 502 errors** — nginx now waits for the backend healthcheck to pass before
+  accepting traffic, eliminating the "502 Bad Gateway" page users saw on first `docker compose up`.
+- **False PDF export error popup** — raw HTML nginx error pages are now detected and
+  converted to a friendly Persian message instead of being rendered as raw markup in toasts.
+
+---
+
 ## [1.8.0] — 2026
 
 ### Added

@@ -21,4 +21,7 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Bind explicitly to 0.0.0.0 so nginx can reach the container via its IPv4
+# Docker network address. Without this, `serve` defaults to ::1 (IPv6 loopback)
+# which is unreachable from other containers on the Docker bridge network.
+CMD ["serve", "-s", "dist", "-l", "tcp://0.0.0.0:3000"]

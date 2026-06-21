@@ -1,6 +1,6 @@
 # InsightFlow
 
-![Version](https://img.shields.io/badge/version-1.8.0-blue)
+![Version](https://img.shields.io/badge/version-1.9.0-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-success)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Backend](https://img.shields.io/badge/backend-Django%20REST%20Framework-092E20)
@@ -86,6 +86,7 @@
 | Backend | Django 4.2 + Django REST Framework |
 | Frontend | React 18 + TypeScript + Tailwind CSS |
 | Database | PostgreSQL 15 |
+| Cache | Redis 7 (django-redis) |
 | Authentication | JWT / SimpleJWT |
 | Deployment | Docker + Docker Compose + Nginx + Gunicorn |
 
@@ -335,6 +336,21 @@ npm run dev
 
 ```bash
 # Backup database
+### پاک‌سازی کش Redis
+
+```bash
+# پاک کردن تمام کش (پس از دیپلوی یا در صورت داده‌های قدیمی)
+docker compose exec redis redis-cli FLUSHDB
+
+# مشاهده وضعیت و آمار Redis
+docker compose exec redis redis-cli INFO memory
+docker compose exec redis redis-cli DBSIZE
+```
+
+> **توجه:** پاک کردن کش تأثیری بر داده‌های اصلی دیتابیس ندارد. سیستم به‌طور خودکار کش را در صورت تغییر داده‌ها باطل می‌کند.
+
+---
+
 docker compose exec db pg_dump -U surveyuser surveydb > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Restore database
@@ -369,6 +385,7 @@ docker compose cp backend:/app/media ./media_backup
 | پورت ۸۰ اشغال است | در `docker-compose.yml` پورت را به `8080:80` تغییر دهید |
 | دسترسی از شبکه داخلی کار نمی‌کند | IP سرور را به `ALLOWED_HOSTS` اضافه کنید و فایروال را بررسی کنید |
 | فایل‌های static نمایش داده نمی‌شوند | `docker compose exec backend python manage.py collectstatic --noinput` |
+| کش Redis پاک شود | `docker compose exec redis redis-cli FLUSHDB` |
 | خطای 500 هنگام ایجاد نظرسنجی | مطمئن شوید migration `0005` اجرا شده: `docker compose exec backend python manage.py migrate` |
 
 </div>
@@ -459,6 +476,7 @@ Admins can monitor participation across all surveys from a dedicated progress da
 | Backend | Django 4.2 + Django REST Framework |
 | Frontend | React 18 + TypeScript + Tailwind CSS |
 | Database | PostgreSQL 15 |
+| Cache | Redis 7 (django-redis) |
 | Authentication | JWT / SimpleJWT |
 | Deployment | Docker + Docker Compose + Nginx + Gunicorn |
 
