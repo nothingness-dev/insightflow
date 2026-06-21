@@ -31,11 +31,26 @@ _MAX_METADATA_KEYS = 25
 
 
 def _client_ip(request):
+    """Extract the real client IP from nginx reverse-proxy headers.
+
+    In Docker, REMOTE_ADDR is always the nginx container IP (172.x.x.x).
+    nginx sets X-Real-IP to the actual client's IP via $remote_addr at the
+    TCP socket level — this is the value we want.
+    """
     if request is None:
         return None
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
+
+    # X-Real-IP is set by nginx to $remote_addr — the true client IP.
+    real_ip = (request.META.get('HTTP_X_REAL_IP') or '').strip()
+    if real_ip:
+        return real_ip
+
+    # X-Forwarded-For: take the first (leftmost) address — the originating client.
+    forwarded_for = (request.META.get('HTTP_X_FORWARDED_FOR') or '').strip()
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+
+    # Last resort: direct socket peer (will be Docker bridge IP behind nginx).
     return request.META.get('REMOTE_ADDR')
 
 

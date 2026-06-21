@@ -28,6 +28,8 @@ export default function AdminSurveyList() {
     if (statusFilter) params.status = statusFilter;
     adminSurveyApi.list(params)
       .then(r => setSurveys(Array.isArray(r.data) ? r.data : (r.data as any).results || []))
+      // FIX #8: load errors were silently swallowed — user saw infinite spinner.
+      .catch(err => { toast.error(getErrorMessage(err)); setSurveys([]); })
       .finally(() => setLoading(false));
   }, [search, statusFilter]);
 

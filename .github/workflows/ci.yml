@@ -26,13 +26,25 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       SECRET_KEY: ci-test-secret-key-not-for-production-use-only
       DEBUG: "True"
       DB_NAME: surveydb_test
       DB_USER: surveyuser
       DB_PASSWORD: testpassword
+      REDIS_URL: redis://localhost:6379/0
       ALLOWED_HOSTS: localhost,127.0.0.1
+      CORS_ALLOWED_ORIGINS: http://localhost,http://127.0.0.1
       ADMIN_USERNAME: admin
       ADMIN_PASSWORD: Admin@Test123
       ADMIN_FULL_NAME: Test Admin
@@ -61,7 +73,7 @@ jobs:
       - name: Run tests
         run: |
           cd backend
-          python manage.py test apps.surveys apps.accounts \
+          python manage.py test apps.surveys apps.accounts apps.activity \
             --settings=config.settings.dev \
             --verbosity=2
 

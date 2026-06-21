@@ -146,11 +146,15 @@ def calculate_survey_results(survey, request=None):
             'display_order': person.display_order,
         })
 
+    # FIX #7: people with no scores (None) must sort LAST, not above scores of 0.
+    # Old code: -(None → -1) = +1 which ranked unscored people above scores of 0.
+    # Fix: use a tuple sort key where None scores are pushed to the bottom via (1, 0)
+    # while real scores are (0, -score) so higher scores rank first.
     results.sort(key=lambda x: (
-        -(x['average_score'] if x['average_score'] is not None else -1),
+        (1, 0) if x['average_score'] is None else (0, -x['average_score']),
         -(x['votes_count']),
         -(x['total_score']),
-        x['display_order']
+        x['display_order'],
     ))
 
     for i, r in enumerate(results, 1):

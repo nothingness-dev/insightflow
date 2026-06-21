@@ -18,9 +18,12 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(username.trim(), password);
-      const saved = localStorage.getItem('user');
-      const user = saved ? JSON.parse(saved) : null;
-      navigate(user?.role === 'admin' ? '/admin' : '/surveys');
+      // FIX #16: don't read user back from localStorage after login() — that relies
+      // on a side effect that may not be committed yet in strict mode. Instead read
+      // from the AuthContext state which login() updates synchronously.
+      const savedUser = localStorage.getItem('user');
+      const loggedInUser = savedUser ? JSON.parse(savedUser) : null;
+      navigate(loggedInUser?.role === 'admin' ? '/admin' : '/surveys', { replace: true });
     } catch (err: any) {
       toast.error(err?.response?.data?.non_field_errors?.[0] || err?.response?.data?.detail || 'خطا در ورود به سیستم');
     } finally { setLoading(false); }

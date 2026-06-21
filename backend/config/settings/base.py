@@ -18,6 +18,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    # FIX #3: token_blacklist must be in INSTALLED_APPS for logout blacklisting to work.
+    # Without this app the RefreshToken.blacklist() call in LogoutView silently does nothing,
+    # meaning logged-out refresh tokens remain valid until they expire naturally.
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'apps.accounts',
     'apps.surveys',
@@ -104,7 +108,9 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': False,
+    # FIX #3: enable blacklisting so LogoutView.blacklist() actually invalidates tokens.
+    # Requires 'rest_framework_simplejwt.token_blacklist' in INSTALLED_APPS (added above).
+    'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
@@ -135,3 +141,11 @@ CACHE_TTL_ACTIVITY_STATS  = 60 * 2       # 2 min  — headline KPIs update frequ
 CACHE_TTL_ACTIVITY_CHARTS = 60 * 10      # 10 min — historical chart data is stable
 CACHE_TTL_FILTER_OPTIONS  = 60 * 30      # 30 min — action labels / actor list rarely change
 CACHE_TTL_EMPLOYEE_LIST   = 60 * 2       # 2 min  — per-user survey+progress list
+
+# ── Reverse-proxy trust ───────────────────────────────────────────────────────
+# The app runs behind nginx which sets X-Real-IP / X-Forwarded-For on every
+# request. Tell Django to trust exactly ONE proxy hop (the nginx container).
+# Without this, request.META['REMOTE_ADDR'] is the nginx container IP
+# (e.g. 172.18.0.x) rather than the real client IP.
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

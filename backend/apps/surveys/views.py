@@ -48,11 +48,9 @@ except Exception as _pdf_import_exc:  # noqa: BLE001 - any import failure must d
     PDF_IMPORT_ERROR = str(_pdf_import_exc)
 
 
-def get_client_ip(request):
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        return x_forwarded_for.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+# FIX #13: removed duplicate get_client_ip() — consolidated into activity.services._client_ip.
+# Import the shared helper to keep IP extraction logic in one place with consistent priority order.
+from apps.activity.services import _client_ip as get_client_ip
 
 
 # ============================================================
@@ -917,9 +915,6 @@ class EmployeeRatePersonView(APIView):
         except SurveyPerson.DoesNotExist:
             return Response({'detail': 'فرد مورد نظر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if Rating.objects.filter(survey=survey, person=person, voter=request.user).exists():
-            return Response({'detail': 'شما قبلاً برای این فرد پاسخ ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
-
         questions = list(survey.questions.filter(is_active=True).order_by('display_order', 'created_at'))
         if not questions and survey.question:
             questions = [SurveyQuestion.objects.create(
@@ -934,6 +929,17 @@ class EmployeeRatePersonView(APIView):
             )]
         if not questions:
             return Response({'detail': 'این نظرسنجی هنوز سوال فعالی ندارد.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # FIX #2: Check completeness correctly — only block if the voter has already
+        # answered ALL active questions for this person (a full, completed submission).
+        # The old check (.exists() on any rating) blocked voters from finishing
+        # multi-question surveys after a partial save, which was a serious UX bug.
+        existing_answer_count = Rating.objects.filter(
+            survey=survey, person=person, voter=request.user,
+            question__is_active=True,
+        ).count()
+        if existing_answer_count >= len(questions):
+            return Response({'detail': 'شما قبلاً برای این فرد پاسخ ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = RatingCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -1070,21 +1076,36 @@ class AdminDashboardView(APIView):
         closed_surveys = Survey.objects.filter(status=Survey.STATUS_CLOSED).count()
         # Count voters who fully completed at least one survey
         from django.db.models import Count as DCount, F as DF, Q as DQ
-        total_responses = 0
-        for survey in Survey.objects.prefetch_related('people', 'questions'):
-            active_people = survey.people.filter(is_active=True).count()
-            active_questions = survey.questions.filter(is_active=True).count()
-            required = active_people * active_questions
-            if not required:
-                continue
-            total_responses += (
-                Rating.objects
-                .filter(survey=survey, person__is_active=True, question__is_active=True)
-                .values('voter_id')
-                .annotate(answered_count=DCount('id', distinct=True))
-                .filter(answered_count=required)
-                .count()
+        # FIX #9: N+1 query replaced — the old loop fired one Rating query per survey
+        # (100 surveys = 100 DB queries). Now we compute required answers per survey
+        # in Python and count completed voters in a single annotated query.
+        from django.db.models import Count as _Count, F as _F, Q as _Q
+        survey_meta = list(
+            Survey.objects
+            .annotate(
+                ap=_Count('people', filter=_Q(people__is_active=True), distinct=True),
+                aq=_Count('questions', filter=_Q(questions__is_active=True), distinct=True),
             )
+            .values('id', 'ap', 'aq')
+        )
+        required_by_survey = {
+            s['id']: s['ap'] * s['aq'] for s in survey_meta if s['ap'] * s['aq'] > 0
+        }
+        voter_answer_counts = (
+            Rating.objects
+            .filter(
+                survey_id__in=required_by_survey.keys(),
+                person__is_active=True,
+                question__is_active=True,
+            )
+            .values('survey_id', 'voter_id')
+            .annotate(answered_count=DCount('id', distinct=True))
+        )
+        total_responses = sum(
+            1
+            for row in voter_answer_counts
+            if row['answered_count'] >= required_by_survey.get(row['survey_id'], 0)
+        )
         total_employees = User.objects.filter(role='employee').count()
 
         recent_surveys = Survey.objects.order_by('-created_at')[:5]

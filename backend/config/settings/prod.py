@@ -3,7 +3,15 @@ from decouple import config, Csv
 
 DEBUG = False
 
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost', cast=Csv())
+# FIX #15: CORS_ALLOWED_ORIGINS default was only 'http://localhost', which blocks
+# all LAN clients (e.g. 192.168.1.x) on a hospital network. Include the server's
+# own origin. Operators should set CORS_ALLOWED_ORIGINS in their .env to match
+# the server's actual IP/hostname, e.g. "http://192.168.1.100,http://myserver.local"
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='http://localhost,http://127.0.0.1',
+    cast=Csv(),
+)
 CORS_ALLOW_CREDENTIALS = True
 
 SECURE_BROWSER_XSS_FILTER = True

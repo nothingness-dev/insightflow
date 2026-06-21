@@ -182,8 +182,12 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
 
     def update(self, request, *args, **kwargs):
         kwargs['partial'] = True
-        response = super().update(request, *args, **kwargs)
+        # FIX #4: snapshot BEFORE super().update() so the log reflects pre-update data
+        # and we avoid a second DB round-trip (get_object() after save() was wasteful).
         user = self.get_object()
+        response = super().update(request, *args, **kwargs)
+        # Refresh to pick up any field changes applied by the serializer.
+        user.refresh_from_db()
         log_activity(
             ActivityActions.USER_EDIT,
             request=request,

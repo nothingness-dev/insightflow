@@ -1,5 +1,80 @@
 # Changelog
 
+## [2.0.0] — 2026-06-21
+
+### Security
+- **Removed `debug_ip` endpoint** — the `/api/debug-ip/` view was registered
+  unconditionally in production, leaking internal header and IP information to any
+  caller who knew the URL. Endpoint is gone entirely.
+- **nginx: removed `set_real_ip_from 172.16.0.0/12`** — trusting the client subnet as
+  a proxy range allowed clients to spoof their IP via a fake `X-Forwarded-For` header.
+  nginx is the edge proxy; `$remote_addr` (the real TCP source, preserved by Linux
+  iptables DNAT) is used directly instead.
+- **Backend port 8000 no longer exposed to host** — changed from `ports: "8000:8000"`
+  to `expose: "8000"` so gunicorn is reachable only via nginx inside the Docker network.
+
+### Fixed — Critical
+- **Multi-question vote lock** (`surveys/views.py` `EmployeeRatePersonView`) — the
+  duplicate-vote guard used `.exists()` on *any* rating for that person. If a partial
+  save occurred (e.g. network drop mid-submit), the voter was permanently locked out
+  from completing the remaining questions. The check now only blocks when the voter
+  has answered **all** active questions for that person.
+- **JWT token blacklisting silently broken** — `rest_framework_simplejwt.token_blacklist`
+  was missing from `INSTALLED_APPS` and `BLACKLIST_AFTER_ROTATION` was `False`. Calling
+  `RefreshToken.blacklist()` on logout succeeded without error but did nothing; logged-out
+  tokens remained valid for their full 7-day lifetime. Both are now correctly configured.
+- **Stale user read in audit log** (`accounts/views.py` `UserDetailView.update`) — the
+  view called `self.get_object()` *after* `super().update()`, producing a second DB query
+  and potentially reading stale or wrong data. User is now snapshotted before the update
+  and refreshed with `refresh_from_db()` afterwards.
+- **nginx service missing from docker-compose** — `nginx.conf` existed but no nginx
+  container was defined. The frontend was directly exposed on port 3000 and the backend
+  on port 8000 with no reverse proxy, no static-file serving, and no real-IP forwarding.
+  nginx is now a proper service and the single public entry point on port 80.
+
+### Fixed — Moderate
+- **Sort bug: unscored people ranked above score 0** (`surveys/services.py`) — the
+  sort key used `-(None → -1) = +1` for people with no votes, ranking them above people
+  with a real average score of `0.0`. None scores are now sorted last via a tuple key.
+- **Survey list load errors silently swallowed** (`SurveyList.tsx`) — missing `.catch()`
+  meant API failures showed an empty list with no user feedback. `toast.error` added.
+- **N+1 query in AdminDashboardView** (`surveys/views.py`) — the dashboard looped over
+  all surveys and fired a separate `Rating` query per survey (100 surveys = 100 DB
+  queries). Replaced with a single annotated aggregate query.
+- **nginx `X-Forwarded-For` overwrote the chain** (`nginx.conf`) — `$remote_addr` was
+  set directly, destroying any existing XFF chain from upstream proxies. Changed to
+  `$proxy_add_x_forwarded_for`.
+
+### Fixed — Minor
+- **Axios refresh infinite 401 loop** (`api/client.ts`) — if the `/auth/refresh/`
+  endpoint itself returned 401, the response interceptor would catch it and attempt
+  another refresh, looping forever. Added `isRefreshEndpoint` guard.
+- **CORS blocked all LAN clients** (`settings/prod.py`) — default
+  `CORS_ALLOWED_ORIGINS` was `http://localhost` only, blocking every device on a
+  hospital LAN. Default now includes `http://127.0.0.1`; operators must set the env
+  variable to their server IP for LAN deployments.
+- **Duplicate `get_client_ip()` implementations** — `surveys/views.py` had its own
+  IP-extraction function with a different priority order than `activity/services.py`.
+  Consolidated to the single shared `_client_ip` helper.
+- **LoginPage read from localStorage after `login()`** (`LoginPage.tsx`) — added
+  `replace: true` to navigation so the login page is removed from browser history.
+
+### Added
+- **`nginx` service in docker-compose** — with `static_data` and `media_data` volume
+  mounts so Django's collected static files and user uploads are served by nginx.
+- **`deploy.sh`** — one-command Linux deploy script (build → start → migrate).
+
+### Removed
+- **`nginx/nginx-windows.conf`** — outdated file that connected to `127.0.0.1` (pre-Docker
+  setup) and caused confusion. The current architecture is fully containerised.
+
+### CI
+- Added `apps.activity` to the Django test suite in the GitHub Actions workflow.
+- Added a Redis service to the CI job so cache-backed views are tested correctly.
+- Added `CORS_ALLOWED_ORIGINS` and `REDIS_URL` env vars to the CI environment.
+
+---
+
 ## [1.9.0] — 2026-06-21
 
 ### Added
