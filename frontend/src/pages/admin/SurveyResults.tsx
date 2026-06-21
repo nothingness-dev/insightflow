@@ -527,6 +527,10 @@ export default function SurveyResultsPage() {
 
   const handleExport = async (type: 'csv' | 'excel' | 'pdf') => {
     setExporting(type);
+    // downloadStarted: if the browser already started the download we must
+    // NOT show an error toast — the old ctype check caused a false-positive
+    // 'خطا در تولید فایل خروجی' popup even when the PDF was valid.
+    let downloadStarted = false;
     try {
       const r = type === 'csv'
         ? await adminSurveyApi.exportCsv(surveyId)
@@ -535,19 +539,28 @@ export default function SurveyResultsPage() {
           : await adminSurveyApi.exportPdf(surveyId);
 
       const blob = r.data as Blob;
-      // The backend now returns non-2xx for any generation error (which axios
-      // catches and rejects). On a 2xx response the blob is always a valid file —
-      // so we only sanity-check for an empty body and skip any content-type
-      // guessing that caused false-positive error toasts on successful PDFs.
+      // Guard against empty or HTML responses (e.g. a transient nginx 502 that
+      // arrived with a 2xx status — the blob type will be text/html, not the
+      // expected file type).
       if (blob.size === 0) {
         throw new Error('فایل خروجی خالی دریافت شد. لطفاً دوباره تلاش کنید.');
+      }
+      const expectedType = type === 'pdf' ? 'application/pdf'
+        : type === 'excel' ? 'application/vnd.openxmlformats'
+        : 'text/';
+      if (blob.type && !blob.type.includes(expectedType.split('/')[0] === 'text' ? 'text' : expectedType.split('/')[1])) {
+        throw new Error('فایل خروجی نامعتبر است. لطفاً دوباره تلاش کنید.');
       }
 
       const ext = type === 'csv' ? 'csv' : type === 'excel' ? 'xlsx' : 'pdf';
       downloadBlob(blob, `results_${surveyId}.${ext}`);
+      downloadStarted = true;   // download triggered — suppress any later errors
       toast.success('فایل دانلود شد');
-    } catch (err) { toast.error(await getBlobErrorMessage(err)); }
-    finally { setExporting(null); }
+    } catch (err) {
+      if (!downloadStarted) {   // only show error if the file never started
+        toast.error(await getBlobErrorMessage(err));
+      }
+    } finally { setExporting(null); }
   };
 
   if (loading) return <PageLoader />;

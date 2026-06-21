@@ -375,7 +375,7 @@ function ActionBreakdown({ data }: { data: { action: string; label: string; coun
   );
 }
 
-// ─── Export Center (always last 30 days, no date picker) ────────────
+// ─── Export Center (always last 30 days — no date picker) ────────────
 function ExportCenterModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [busy, setBusy] = useState<'csv' | 'excel' | 'pdf' | null>(null);
 
@@ -383,10 +383,10 @@ function ExportCenterModal({ open, onClose }: { open: boolean; onClose: () => vo
     if (!open) setBusy(null);
   }, [open]);
 
-  /** Compute ISO date strings for the last 30 days (today inclusive). */
+  /** Always export the last 30 days — computed fresh on each click. */
   const getLast30Days = () => {
     const today = new Date();
-    const from = new Date(today);
+    const from  = new Date(today);
     from.setDate(from.getDate() - 30);
     const pad = (n: number) => String(n).padStart(2, '0');
     const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -396,19 +396,30 @@ function ExportCenterModal({ open, onClose }: { open: boolean; onClose: () => vo
   const handleExport = async (fmt: 'csv' | 'excel' | 'pdf') => {
     setBusy(fmt);
     const { dateFrom, dateTo } = getLast30Days();
+    // downloadStarted: if the browser already initiated the download we must NOT
+    // show an error toast. The old content-type (ctype) check caused a false-positive
+    // "خطا در تولید فایل خروجی" popup even when the file was perfectly valid.
+    let downloadStarted = false;
     try {
       const r = await activityApi.export(fmt, dateFrom, dateTo);
       const blob = r.data as Blob;
-      // Backend returns non-2xx on any error (axios throws). On 2xx the blob is
-      // always a valid file — only guard against an unexpectedly empty body.
+      // Backend returns non-2xx on any error (axios rejects those).
+      // Guard against empty body or HTML blobs (e.g. a transient nginx 502
+      // that arrived with a 2xx status — its content-type will be text/html).
       if (blob.size === 0) {
         throw new Error('فایل خروجی خالی دریافت شد. لطفاً دوباره تلاش کنید.');
       }
+      if (blob.type && blob.type.includes('text/html')) {
+        throw new Error('سرور در دسترس نیست. لطفاً دوباره تلاش کنید.');
+      }
       const ext = fmt === 'csv' ? 'csv' : fmt === 'excel' ? 'xlsx' : 'pdf';
       downloadBlob(blob, `activity_logs_${dateFrom}_${dateTo}.${ext}`);
+      downloadStarted = true;             // download triggered — suppress later errors
       toast.success('فایل خروجی دانلود شد');
     } catch (err) {
-      toast.error(await getBlobErrorMessage(err));
+      if (!downloadStarted) {           // only show error if file never started
+        toast.error(await getBlobErrorMessage(err));
+      }
     } finally {
       setBusy(null);
     }
@@ -417,15 +428,15 @@ function ExportCenterModal({ open, onClose }: { open: boolean; onClose: () => vo
   const { dateFrom, dateTo } = getLast30Days();
 
   const formats: { id: 'csv' | 'excel' | 'pdf'; label: string; hint: string; color: string }[] = [
-    { id: 'excel', label: 'Excel', hint: 'کامل، با قالب‌بندی', color: 'text-emerald-600 border-emerald-200 hover:bg-emerald-50' },
-    { id: 'csv',   label: 'CSV',   hint: 'کامل، سازگار با Excel', color: 'text-sky-600 border-sky-200 hover:bg-sky-50' },
+    { id: 'excel', label: 'Excel', hint: 'کامل، با قالب‌بندی',         color: 'text-emerald-600 border-emerald-200 hover:bg-emerald-50' },
+    { id: 'csv',   label: 'CSV',   hint: 'کامل، سازگار با Excel',       color: 'text-sky-600 border-sky-200 hover:bg-sky-50' },
     { id: 'pdf',   label: 'PDF',   hint: 'گزارش خلاصه (حداکثر ۱۵۰۰ ردیف)', color: 'text-red-600 border-red-200 hover:bg-red-50' },
   ];
 
   return (
     <Modal open={open} onClose={onClose} title="مرکز خروجی گزارش فعالیت‌ها" size="sm">
       <div className="p-6 space-y-5">
-        {/* Date range info — fixed 30-day window, no date picker needed */}
+        {/* Fixed 30-day window — no date picker */}
         <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
           <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

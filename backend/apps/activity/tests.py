@@ -109,8 +109,8 @@ class ActivityApiTests(APITestCase):
         self.assertEqual(log.status, ActivityLog.STATUS_FAILED)
 
     def test_export_defaults_to_last_30_days_when_no_dates(self):
-        # When no date range is provided the view defaults to last 30 days
-        # and still returns a valid CSV file (not a 400).
+        # When no date range is supplied the view defaults to the last 30 days
+        # and returns a valid CSV rather than a 400 error.
         self._seed(3)
         self.client.force_authenticate(self.admin)
         res = self.client.get('/api/admin/activity/export/?export_format=csv')
