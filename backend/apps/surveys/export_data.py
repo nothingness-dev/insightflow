@@ -1,20 +1,4 @@
-"""Shared dataset builder for survey result exports (CSV / Excel / PDF).
-
-All three export views consume the SAME computed dataset so they stay
-consistent. This module also centralises the policy for how large volumes of
-free-text comments are handled per format:
-
-  * Excel  -> full fidelity. Every comment becomes its own row on a dedicated
-              sheet (Excel supports ~1,048,576 rows). Individual comment text is
-              defensively capped to Excel's 32,767-char cell limit.
-  * CSV    -> full fidelity. Every comment is its own row in a dedicated
-              "comments" section. Inline per-question columns show only the
-              COUNT (e.g. "۶ نظر") so no single cell ever explodes when a
-              question collects hundreds of comments.
-  * PDF    -> executive summary. Comments are grouped per question and capped
-              (see PDF_MAX_* constants); the remainder is summarised as
-              "+N نظر دیگر" with a pointer to the Excel export.
-"""
+   
 from collections import defaultdict
 
 from django.db.models import Count
@@ -23,13 +7,11 @@ from .models import Rating
 from .services import calculate_survey_results
 
 
-# ── comment volume policy (PDF only; CSV/Excel keep everything) ──
 PDF_MAX_COMMENTS_PER_QUESTION = 6
 PDF_MAX_TOTAL_COMMENTS = 120
-EXCEL_CELL_LIMIT = 32_000  # below the hard 32,767 ceiling, with headroom
+EXCEL_CELL_LIMIT = 32_000                                                
 
 
-# ── score banding (shared across all formats + the frontend palette) ──
 def score_grade(v):
     if v is None:
         return '—'
@@ -70,7 +52,6 @@ def build_export_dataset(survey, request=None):
         survey.questions.filter(is_active=True).order_by('display_order', 'created_at')
     )
 
-    # ── comments from fully-completed voters only, grouped by (person, q) ──
     active_people_count = survey.people.filter(is_active=True).count()
     active_questions_count = survey.questions.filter(is_active=True).count()
     required = active_people_count * active_questions_count
@@ -96,7 +77,6 @@ def build_export_dataset(survey, request=None):
                        .values('person_id', 'question_id', 'comment')):
             comments_map[(rating['person_id'], rating['question_id'])].append(rating['comment'])
 
-    # ── per-question aggregates (response-weighted average) ──
     questions_meta = []
     for q in questions:
         scores, total_resps = [], 0
@@ -118,7 +98,6 @@ def build_export_dataset(survey, request=None):
             'has_comment': q.has_comment,
         })
 
-    # ── flat comment list (person, dept, question, comment) — ALL of them ──
     comments_flat = [
         (r['full_name'], r['department'] or '', q.text, comment)
         for r in results
@@ -127,7 +106,6 @@ def build_export_dataset(survey, request=None):
         for comment in comments_map.get((r['person_id'], q.id), [])
     ]
 
-    # ── summary KPIs ──
     all_scores = [r['average_score'] for r in results if r['average_score'] is not None]
     overall_avg = round(sum(all_scores) / len(all_scores), 2) if all_scores else None
     max_voters = max((r['votes_count'] for r in results), default=0)

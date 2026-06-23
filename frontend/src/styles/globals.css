@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── CSS variables — defaults = purple, overridden at runtime by ThemeContext ── */
+
 :root {
   --c-50:  #faf5ff;
   --c-100: #f3e8ff;
@@ -27,7 +27,7 @@
 
 @layer components {
 
-  /* ── Buttons ── */
+  
   .btn-primary {
     display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
     background-color: var(--c-600); color: white;
@@ -62,10 +62,10 @@
            transition-all duration-150 shadow-sm cursor-pointer;
   }
 
-  /* ── Card ── */
+  
   .card { @apply bg-white rounded-xl border border-gray-100 shadow-sm; }
 
-  /* ── Input ── */
+  
   .input-field {
     @apply w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm
            focus:outline-none focus:border-transparent
@@ -73,10 +73,10 @@
   }
   .input-field:focus { box-shadow: 0 0 0 2px var(--c-400); }
 
-  /* ── Label ── */
+  
   .label { @apply block text-sm font-medium text-gray-700 mb-1.5; }
 
-  /* ── Badges ── */
+  
   .badge-draft     { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200; }
   .badge-published { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200; }
   .badge-closed {
@@ -86,12 +86,12 @@
     background-color: var(--c-50); color: var(--c-700); border: 1px solid var(--c-200);
   }
 
-  /* ── Typography ── */
+  
   .page-title    { @apply text-2xl font-bold text-slate-800; }
   .section-title { @apply text-lg font-semibold text-slate-700; }
   .skeleton      { @apply animate-pulse bg-gray-200 rounded; }
 
-  /* ── Sidebar ── */
+  
   .sidebar-item {
     @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
            transition-all duration-150 text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full;
@@ -99,18 +99,18 @@
   .sidebar-item.active { background-color: var(--c-50); color: var(--c-700); }
   .sidebar-item.active:hover { background-color: var(--c-100); color: var(--c-800); }
 
-  /* ── Table ── */
+  
   .table-row { @apply transition-colors duration-100; }
   .table-row:hover { background-color: color-mix(in srgb, var(--c-50) 50%, transparent); }
 
-  /* ── Person card ── */
+  
   .person-card {
     @apply card p-0 overflow-hidden cursor-pointer
            transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
   }
   .person-card:hover { border-color: var(--c-200); }
 
-  /* ── Theme helpers (inline use) ── */
+  
   .theme-bg      { background-color: var(--c-600) !important; }
   .theme-bg-50   { background-color: var(--c-50)  !important; }
   .theme-bg-100  { background-color: var(--c-100) !important; }
@@ -119,8 +119,77 @@
   .theme-border  { border-color: var(--c-200) !important; }
 }
 
-/* ── Scrollbar ── */
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #f1f5f9; }
 ::-webkit-scrollbar-thumb { background: var(--c-scrollbar); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--c-scrollbar-hover); }
+
+/* --------------------------------------------------------------------------
+   Responsive foundation
+   Covers common mobile (320–480px), tablet (768px), laptop (1024px), and
+   desktop viewports without changing application data or API behavior.
+   -------------------------------------------------------------------------- */
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, #root { min-height: 100%; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { min-width: 320px; }
+  img, svg, video, canvas { max-width: 100%; }
+  button, input, textarea, select { min-width: 0; }
+  input, textarea, select { font-size: 16px; }
+}
+
+@layer components {
+  .responsive-page { width: 100%; min-width: 0; }
+
+  .table-wrapper,
+  .responsive-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable both-edges;
+    /* Ensure the scroll container is self-contained */
+    contain: inline-size;
+  }
+
+  .responsive-table { width: 100%; min-width: 640px; }
+
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  .mobile-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .page-title { font-size: 1.25rem; line-height: 1.75rem; }
+  .section-title { font-size: 1rem; }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger,
+  .btn-success {
+    min-height: 2.75rem;
+    padding-inline: 0.875rem;
+  }
+
+  .card { border-radius: 0.875rem; }
+
+  .responsive-table { width: 100%; min-width: 560px; }
+
+  .table-wrapper::after,
+  .responsive-table-wrap::after {
+    content: '';
+    display: block;
+    width: 1px;
+    height: 1px;
+  }
+}

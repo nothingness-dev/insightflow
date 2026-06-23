@@ -6,7 +6,6 @@ import { PageLoader } from '../../components/common/index';
 import { downloadBlob, getBlobErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
-// ─── utils ────────────────────────────────────────────────────────────────────
 
 const fa = (n: number, d = 0) => n.toLocaleString('fa-IR', { maximumFractionDigits: d });
 
@@ -30,7 +29,6 @@ function scoreGrade(v: number | null) {
   return 'عالی';
 }
 
-// ─── atoms ────────────────────────────────────────────────────────────────────
 
 function ScorePill({ value, size = 'md' }: { value: number | null; size?: 'sm' | 'md' | 'lg' }) {
   const sizes = { sm: 'text-sm px-2.5 py-0.5', md: 'text-base px-3 py-1', lg: 'text-2xl px-4 py-2' };
@@ -84,7 +82,6 @@ function RankMedal({ rank }: { rank: number }) {
   );
 }
 
-// ─── lazy comments ────────────────────────────────────────────────────────────
 
 interface CommentRow { comment: string; question_text: string; }
 interface CommentsPage { total: number; page: number; page_size: number; total_pages: number; comments: CommentRow[]; }
@@ -144,7 +141,6 @@ function LazyComments({ surveyId, personId, questionId, total }: {
   );
 }
 
-// ─── tab 1: خلاصه ─────────────────────────────────────────────────────────────
 
 function TabOverview({ results, survey }: { results: PersonResult[]; survey: any }) {
   const scored = useMemo(() => results.filter(r => r.average_score != null), [results]);
@@ -152,7 +148,7 @@ function TabOverview({ results, survey }: { results: PersonResult[]; survey: any
   const maxVoters = useMemo(() => Math.max(...results.map(r => r.votes_count), 0), [results]);
   const top3 = results.slice(0, 3);
 
-  // Distribution buckets
+
   const buckets = useMemo(() => [
     { label: '۱–۳', color: '#ef4444', count: scored.filter(r => r.average_score! < 4).length },
     { label: '۴–۶', color: '#f59e0b', count: scored.filter(r => r.average_score! >= 4 && r.average_score! < 7).length },
@@ -163,8 +159,8 @@ function TabOverview({ results, survey }: { results: PersonResult[]; survey: any
 
   return (
     <div className="space-y-4">
-      {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {}
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'میانگین کل', value: avg != null ? avg.toFixed(1) : '—', sub: scoreGrade(avg), color: scoreColor(avg), bg: scoreBg(avg) },
           { label: 'رأی‌دهندگان', value: fa(maxVoters), sub: 'نفر شرکت‌کننده', color: '#6366f1', bg: '#eef2ff' },
@@ -180,7 +176,7 @@ function TabOverview({ results, survey }: { results: PersonResult[]; survey: any
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Distribution */}
+        {}
         <div className="card p-5">
           <p className="text-sm font-semibold text-slate-700 mb-4">توزیع امتیازات</p>
           <div className="flex items-end gap-2" style={{ height: 100 }}>
@@ -201,7 +197,7 @@ function TabOverview({ results, survey }: { results: PersonResult[]; survey: any
           </div>
         </div>
 
-        {/* Top 3 podium */}
+        {}
         <div className="card p-5">
           <p className="text-sm font-semibold text-slate-700 mb-4">سکوی برتر</p>
           {top3.length === 0 ? (
@@ -231,7 +227,6 @@ function TabOverview({ results, survey }: { results: PersonResult[]; survey: any
   );
 }
 
-// ─── tab 2: تحلیل سوال‌ها ────────────────────────────────────────────────────
 
 interface QStat {
   question_id: number;
@@ -288,7 +283,7 @@ function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId
         {stats.map((q, i) => (
           <div key={q.question_id} className="p-5">
             <div className="flex items-start gap-3">
-              {/* rank circle */}
+              {}
               <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-bold text-slate-400 flex-shrink-0 mt-0.5">
                 {(i + 1).toLocaleString('fa-IR')}
               </div>
@@ -314,7 +309,7 @@ function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId
                 <LazyComments surveyId={surveyId} questionId={q.question_id} total={q.comments_count} />
               </div>
 
-              {/* score badge */}
+              {}
               {q.has_score && (
                 <div className="flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center"
                   style={{ background: scoreBg(q.avg) }}>
@@ -334,7 +329,6 @@ function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId
   );
 }
 
-// ─── tab 3: نتایج فردی ───────────────────────────────────────────────────────
 
 function QuestionRow({ q, surveyId, personId }: { q: QuestionResult; surveyId: number; personId: number }) {
   return (
@@ -364,7 +358,7 @@ function PersonRow({ r, surveyId, expanded, onToggle }: {
 
   return (
     <div className={`border-b border-slate-100 last:border-0 transition-colors ${expanded ? 'bg-slate-50/70' : 'hover:bg-slate-50/50'}`}>
-      {/* Main row */}
+      {}
       <button
         type="button"
         onClick={hasDetail ? onToggle : undefined}
@@ -396,7 +390,7 @@ function PersonRow({ r, surveyId, expanded, onToggle }: {
         </div>
       </button>
 
-      {/* Expanded detail */}
+      {}
       {expanded && hasDetail && (
         <div className="px-5 pb-5">
           <div className="bg-white rounded-xl border border-slate-100 p-4">
@@ -442,8 +436,7 @@ function TabPeople({ results, surveyId }: { results: PersonResult[]; surveyId: n
     return list;
   }, [results, search, sort]);
 
-  // Reset the visible window whenever the filter/sort changes so large lists
-  // stay snappy (we only render a slice at a time).
+
   useEffect(() => { setVisible(PAGE); }, [search, sort]);
 
   const toggle = (id: number) => setExpanded(e => e === id ? null : id);
@@ -451,8 +444,8 @@ function TabPeople({ results, surveyId }: { results: PersonResult[]; surveyId: n
 
   return (
     <div>
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-3">
+      {}
+      <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-2 mb-3">
         <div className="flex-1 relative">
           <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -462,7 +455,7 @@ function TabPeople({ results, surveyId }: { results: PersonResult[]; surveyId: n
             className="w-full pr-9 pl-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 placeholder:text-slate-400" />
         </div>
         <select value={sort} onChange={e => setSort(e.target.value as any)}
-          className="text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 text-slate-600">
+          className="w-full min-[420px]:w-auto text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 text-slate-600">
           <option value="rank">مرتب‌سازی: رتبه</option>
           <option value="name">مرتب‌سازی: نام</option>
         </select>
@@ -501,7 +494,6 @@ function TabPeople({ results, surveyId }: { results: PersonResult[]; surveyId: n
   );
 }
 
-// ─── main ─────────────────────────────────────────────────────────────────────
 
 type Tab = 'overview' | 'questions' | 'people';
 const TABS: { id: Tab; label: string }[] = [
@@ -527,9 +519,8 @@ export default function SurveyResultsPage() {
 
   const handleExport = async (type: 'csv' | 'excel' | 'pdf') => {
     setExporting(type);
-    // downloadStarted: if the browser already started the download we must
-    // NOT show an error toast — the old ctype check caused a false-positive
-    // 'خطا در تولید فایل خروجی' popup even when the PDF was valid.
+
+
     let downloadStarted = false;
     try {
       const r = type === 'csv'
@@ -539,9 +530,8 @@ export default function SurveyResultsPage() {
           : await adminSurveyApi.exportPdf(surveyId);
 
       const blob = r.data as Blob;
-      // Guard against empty or HTML responses (e.g. a transient nginx 502 that
-      // arrived with a 2xx status — the blob type will be text/html, not the
-      // expected file type).
+
+
       if (blob.size === 0) {
         throw new Error('فایل خروجی خالی دریافت شد. لطفاً دوباره تلاش کنید.');
       }
@@ -554,10 +544,10 @@ export default function SurveyResultsPage() {
 
       const ext = type === 'csv' ? 'csv' : type === 'excel' ? 'xlsx' : 'pdf';
       downloadBlob(blob, `results_${surveyId}.${ext}`);
-      downloadStarted = true;   // download triggered — suppress any later errors
+      downloadStarted = true;
       toast.success('فایل دانلود شد');
     } catch (err) {
-      if (!downloadStarted) {   // only show error if the file never started
+      if (!downloadStarted) {
         toast.error(await getBlobErrorMessage(err));
       }
     } finally { setExporting(null); }
@@ -569,9 +559,9 @@ export default function SurveyResultsPage() {
   const { survey, results } = data;
 
   return (
-    <div className="max-w-4xl">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-sm text-slate-400 mb-5">
+    <div className="responsive-page max-w-4xl">
+      {}
+      <div className="flex flex-wrap items-center gap-1.5 text-sm text-slate-400 mb-5">
         <Link to="/admin/surveys" className="hover:text-slate-600 transition-colors">نظرسنجی‌ها</Link>
         <span>/</span>
         <Link to={`/admin/surveys/${id}`} className="hover:text-slate-600 transition-colors truncate max-w-[160px]">{survey.title}</Link>
@@ -579,9 +569,9 @@ export default function SurveyResultsPage() {
         <span className="text-slate-700">نتایج</span>
       </div>
 
-      {/* Header */}
-      <div className="card p-5 mb-5">
-        <div className="flex items-start justify-between gap-4">
+      {}
+      <div className="card p-4 sm:p-5 mb-5">
+        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between gap-3 sm:gap-4">
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-slate-800 truncate">{survey.title}</h1>
             <p className="text-sm text-slate-400 mt-1">
@@ -592,7 +582,7 @@ export default function SurveyResultsPage() {
               {results.length} نتیجه ثبت‌شده
             </p>
           </div>
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex flex-wrap gap-2 flex-shrink-0">
             <button onClick={() => handleExport('pdf')} disabled={!!exporting}
               className="btn-primary text-sm flex items-center gap-1.5 px-3 py-1.5">
               {exporting === 'pdf'
@@ -626,8 +616,8 @@ export default function SurveyResultsPage() {
         </div>
       ) : (
         <>
-          {/* Tab bar */}
-          <div className="flex gap-1 border-b border-slate-200 mb-5">
+          {}
+          <div className="flex gap-1 border-b border-slate-200 mb-5 overflow-x-auto">
             {TABS.map(t => (
               <button key={t.id} type="button" onClick={() => setTab(t.id)}
                 className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${

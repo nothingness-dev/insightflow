@@ -18,9 +18,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
-    # FIX #3: token_blacklist must be in INSTALLED_APPS for logout blacklisting to work.
-    # Without this app the RefreshToken.blacklist() call in LogoutView silently does nothing,
-    # meaning logged-out refresh tokens remain valid until they expire naturally.
+
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'apps.accounts',
@@ -101,15 +99,24 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon':  '60/minute',
+        'user':  '300/minute',
+        'login': '5/minute',
+    },
 }
 
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    # FIX #3: enable blacklisting so LogoutView.blacklist() actually invalidates tokens.
-    # Requires 'rest_framework_simplejwt.token_blacklist' in INSTALLED_APPS (added above).
+
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
@@ -117,7 +124,6 @@ SIMPLE_JWT = {
 MAX_UPLOAD_SIZE = config('MAX_UPLOAD_SIZE', default=2097152, cast=int)
 ALLOWED_UPLOAD_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
 
-# ── Redis Cache ────────────────────────────────────────────────────────────────
 REDIS_URL = config('REDIS_URL', default='redis://redis:6379/0')
 
 CACHES = {
@@ -126,26 +132,20 @@ CACHES = {
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            # If Redis is temporarily unavailable, fall through gracefully.
+
             'IGNORE_EXCEPTIONS': True,
         },
         'KEY_PREFIX': 'insightflow',
-        'TIMEOUT': 60 * 5,  # default: 5 minutes
+        'TIMEOUT': 60 * 5,
     }
 }
 
-# Cache TTLs (seconds) — tune here without touching view code.
-CACHE_TTL_DASHBOARD       = 60 * 2       # 2 min  — refreshes on every new rating
-CACHE_TTL_SURVEY_RESULTS  = 60 * 5       # 5 min  — expensive multi-join aggregations
-CACHE_TTL_ACTIVITY_STATS  = 60 * 2       # 2 min  — headline KPIs update frequently
-CACHE_TTL_ACTIVITY_CHARTS = 60 * 10      # 10 min — historical chart data is stable
-CACHE_TTL_FILTER_OPTIONS  = 60 * 30      # 30 min — action labels / actor list rarely change
-CACHE_TTL_EMPLOYEE_LIST   = 60 * 2       # 2 min  — per-user survey+progress list
+CACHE_TTL_DASHBOARD       = 60 * 2
+CACHE_TTL_SURVEY_RESULTS  = 60 * 5
+CACHE_TTL_ACTIVITY_STATS  = 60 * 2
+CACHE_TTL_ACTIVITY_CHARTS = 60 * 10
+CACHE_TTL_FILTER_OPTIONS  = 60 * 30
+CACHE_TTL_EMPLOYEE_LIST   = 60 * 2
 
-# ── Reverse-proxy trust ───────────────────────────────────────────────────────
-# The app runs behind nginx which sets X-Real-IP / X-Forwarded-For on every
-# request. Tell Django to trust exactly ONE proxy hop (the nginx container).
-# Without this, request.META['REMOTE_ADDR'] is the nginx container IP
-# (e.g. 172.18.0.x) rather than the real client IP.
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

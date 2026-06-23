@@ -1,17 +1,4 @@
-"""Activity / audit logging models.
-
-This app records system & admin activities across the whole application so an
-administrator can review *who did what, and when* from a single Activity Center.
-
-Security policy (enforced by the service layer in ``services.py``):
-  * We NEVER store passwords, tokens, session keys or raw request bodies.
-  * Only a small, explicitly-built, human-readable description plus a bounded,
-    sanitised ``metadata`` dict is persisted.
-
-The table is designed for scale (1000+ rows): every column used for filtering,
-searching or ordering is indexed, and the API layer always paginates and never
-loads the whole table at once.
-"""
+   
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -24,14 +11,13 @@ class ActivityActions:
     frontend filter dropdown.
     """
 
-    # auth
+          
     LOGIN = 'login'
     LOGIN_FAILED = 'login_failed'
     LOGOUT = 'logout'
     PASSWORD_CHANGE = 'password_change'
     PASSWORD_RESET = 'password_reset'
 
-    # user management
     USER_CREATE = 'user_create'
     USER_EDIT = 'user_edit'
     USER_DELETE = 'user_delete'
@@ -39,7 +25,7 @@ class ActivityActions:
     USER_DEACTIVATE = 'user_deactivate'
     BULK_IMPORT = 'bulk_employee_import'
 
-    # surveys
+             
     SURVEY_CREATE = 'survey_create'
     SURVEY_EDIT = 'survey_edit'
     SURVEY_DELETE = 'survey_delete'
@@ -47,21 +33,20 @@ class ActivityActions:
     SURVEY_PUBLISH = 'survey_publish'
     SURVEY_CLOSE = 'survey_close'
 
-    # questions
+               
     QUESTION_ADD = 'question_add'
     QUESTION_EDIT = 'question_edit'
     QUESTION_DELETE = 'question_delete'
 
-    # exports
+             
     EXPORT_CSV = 'export_csv'
     EXPORT_EXCEL = 'export_excel'
     EXPORT_PDF = 'export_pdf'
 
-    # destructive
+                 
     DELETE_ALL_DATA = 'delete_all_data'
 
 
-# Persian, human-readable label for every action code.
 ACTION_LABELS = {
     ActivityActions.LOGIN: 'ورود به سیستم',
     ActivityActions.LOGIN_FAILED: 'ورود ناموفق',
@@ -91,8 +76,6 @@ ACTION_LABELS = {
 
 ACTION_CHOICES = [(code, label) for code, label in ACTION_LABELS.items()]
 
-# Actions considered sensitive / high-impact. They populate the dedicated
-# "Critical Actions" panel and are highlighted in the table.
 CRITICAL_ACTIONS = {
     ActivityActions.LOGIN_FAILED,
     ActivityActions.PASSWORD_RESET,
@@ -115,9 +98,7 @@ class ActivityLog(models.Model):
     action = models.CharField(
         max_length=40, choices=ACTION_CHOICES, db_index=True, verbose_name='نوع فعالیت'
     )
-    # The user who performed the action. SET_NULL so deleting a user keeps the
-    # historical audit trail intact; the denormalised snapshot below preserves
-    # who they were.
+
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='activity_logs', verbose_name='کاربر'
@@ -128,7 +109,6 @@ class ActivityLog(models.Model):
 
     description = models.CharField(max_length=500, blank=True, verbose_name='شرح فعالیت')
 
-    # Optional reference to the affected object (never a sensitive value).
     target_type = models.CharField(max_length=40, blank=True, verbose_name='نوع هدف')
     target_id = models.CharField(max_length=40, blank=True, verbose_name='شناسه هدف')
     target_repr = models.CharField(max_length=300, blank=True, verbose_name='عنوان هدف')
@@ -142,8 +122,6 @@ class ActivityLog(models.Model):
     ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name='آدرس IP')
     user_agent = models.CharField(max_length=300, blank=True, verbose_name='مرورگر')
 
-    # Bounded, sanitised extra context (counts, names, statuses). The service
-    # layer guarantees no secrets ever reach this field.
     metadata = models.JSONField(default=dict, blank=True, verbose_name='اطلاعات تکمیلی')
 
     created_at = models.DateTimeField(default=timezone.now, db_index=True, verbose_name='زمان')

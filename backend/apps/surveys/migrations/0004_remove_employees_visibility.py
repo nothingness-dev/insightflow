@@ -8,7 +8,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Update any existing rows that used the old value to admin_only
         migrations.RunSQL(
             "UPDATE surveys_survey SET results_visibility = 'admin_only' WHERE results_visibility = 'employees_after_close';",
             reverse_sql=migrations.RunSQL.noop,

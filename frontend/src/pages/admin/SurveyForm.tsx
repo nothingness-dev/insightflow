@@ -174,13 +174,13 @@ export default function SurveyForm() {
   if (loading) return <PageLoader />;
 
   return (
-    <div className="max-w-3xl">
+    <div className="responsive-page max-w-3xl">
       <PageHeader
         title={isEdit ? 'ویرایش نظرسنجی' : 'نظرسنجی جدید'}
         subtitle={isEdit ? 'اطلاعات و سوال‌های نظرسنجی را ویرایش کنید' : 'سوال‌های چندگانه برای همه افراد نظرسنجی تعریف کنید'}
       />
 
-      <form onSubmit={handleSubmit} className="card p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="card p-4 sm:p-6 space-y-6">
         <div>
           <label className="label">عنوان نظرسنجی <span className="text-red-500">*</span></label>
           <input
@@ -201,12 +201,12 @@ export default function SurveyForm() {
         </div>
 
         <div className="border-t border-gray-100 pt-5">
-          <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 mb-4">
             <div>
               <h2 className="font-bold text-slate-800">سوال‌های نظرسنجی</h2>
               <p className="text-xs text-gray-400 mt-1">کاربر برای هر فرد باید به همه سوال‌های فعال پاسخ بدهد.</p>
             </div>
-            <button type="button" onClick={addQuestion} className="btn-secondary text-sm">افزودن سوال</button>
+            <button type="button" onClick={addQuestion} className="btn-secondary w-full min-[420px]:w-auto text-sm">افزودن سوال</button>
           </div>
           {errors.questions && <p className="text-xs text-red-500 mb-3">{errors.questions}</p>}
 
@@ -291,12 +291,12 @@ export default function SurveyForm() {
           </div>
         </div>
 
-        <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">
+        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+          <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto flex items-center gap-2">
             {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
             {isEdit ? 'ذخیره تغییرات' : 'ایجاد نظرسنجی'}
           </button>
-          <button type="button" onClick={() => navigate(-1)} className="btn-secondary">انصراف</button>
+          <button type="button" onClick={() => navigate(-1)} className="btn-secondary w-full sm:w-auto">انصراف</button>
         </div>
       </form>
     </div>

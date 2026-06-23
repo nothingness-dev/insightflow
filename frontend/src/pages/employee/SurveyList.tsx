@@ -46,7 +46,7 @@ function SurveyCard({ survey }: { survey: Survey }) {
             </div>
           </div>
 
-          {/* Progress */}
+          {}
           {(survey.total_people || 0) > 0 && (
             <div className="mb-3">
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -62,7 +62,7 @@ function SurveyCard({ survey }: { survey: Survey }) {
             </div>
           )}
 
-          {/* Meta */}
+          {}
           <div className="flex items-center gap-4 text-xs text-gray-400">
             <span className="flex items-center gap-1">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -73,7 +73,7 @@ function SurveyCard({ survey }: { survey: Survey }) {
             </span>
           </div>
 
-          {/* CTA */}
+          {}
           <div className="mt-3 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium gap-1" style={{ color: 'var(--c-600)' }}>
             مشاهده
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
@@ -142,29 +142,29 @@ export default function EmployeeSurveyList() {
   const displayList = tab === 'active' ? active : tab === 'closed' ? closed : completed;
 
   return (
-    <div>
+    <div className="responsive-page">
       <div className="mb-6">
         <h1 className="page-title">نظرسنجی‌ها</h1>
         <p className="text-sm text-gray-500 mt-1">همه نظرسنجی‌های سازمان</p>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      {}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
         {tabs.map(t => (
-          <div key={t.key} className="card p-4 text-center" style={{ borderTop: '2px solid var(--c-500)' }}>
-            <p className="text-2xl font-bold" style={{ color: 'var(--c-700)' }}>{t.count}</p>
+          <div key={t.key} className="card p-3 sm:p-4 text-center" style={{ borderTop: '2px solid var(--c-500)' }}>
+            <p className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--c-700)' }}>{t.count}</p>
             <p className="text-xs text-gray-500 mt-0.5">{t.label}</p>
           </div>
         ))}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-5">
+      {}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-5 overflow-x-auto">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150
+            className={`min-w-[104px] flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150
               ${tab === t.key ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             style={tab === t.key ? { color: 'var(--c-700)' } : {}}
           >
@@ -181,7 +181,7 @@ export default function EmployeeSurveyList() {
         ))}
       </div>
 
-      {/* List */}
+      {}
       {displayList.length === 0 ? (
         <EmptyState
           title={tab === 'active' ? 'نظرسنجی فعالی وجود ندارد' : tab === 'closed' ? 'نظرسنجی بسته‌شده‌ای وجود ندارد' : 'هنوز نظرسنجی‌ای را تکمیل نکرده‌اید'}

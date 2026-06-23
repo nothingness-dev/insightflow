@@ -229,8 +229,8 @@ class SurveyCreateUpdateSerializer(serializers.ModelSerializer):
             else:
                 SurveyQuestion.objects.create(survey=survey, **item)
 
-        # Do not hard-delete old questions that may already have answers. Mark
-        # them inactive so historical results/export remain consistent.
+                                                                              
+                                                                       
         for question_id, question in existing_by_id.items():
             if question_id not in seen_ids:
                 question.is_active = False
@@ -245,7 +245,7 @@ class QuestionAnswerCreateSerializer(serializers.Serializer):
 
 class RatingCreateSerializer(serializers.Serializer):
     answers = QuestionAnswerCreateSerializer(many=True, required=False)
-    # Backward-compatible fields for older clients/tests that posted one score.
+                                                                               
     score = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(1), MaxValueValidator(10)])
     comment = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=1000)
 

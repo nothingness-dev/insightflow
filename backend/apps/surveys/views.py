@@ -3,7 +3,7 @@ import io
 from django.http import HttpResponse
 from django.utils import timezone
 from django.db import IntegrityError, transaction
-from django.db.models import Count
+from django.db.models import Count, Q, F
 from rest_framework import status, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -43,19 +43,14 @@ try:
     from .pdf_report import build_survey_pdf
     HAS_PDF = True
     PDF_IMPORT_ERROR = None
-except Exception as _pdf_import_exc:  # noqa: BLE001 - any import failure must degrade gracefully
+except Exception as _pdf_import_exc:                                                             
     HAS_PDF = False
     PDF_IMPORT_ERROR = str(_pdf_import_exc)
 
 
-# FIX #13: removed duplicate get_client_ip() — consolidated into activity.services._client_ip.
-# Import the shared helper to keep IP extraction logic in one place with consistent priority order.
 from apps.activity.services import _client_ip as get_client_ip
 
 
-# ============================================================
-# Admin Survey Views
-# ============================================================
 
 class AdminSurveyListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminUser]
@@ -118,7 +113,6 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
         if instance.status == Survey.STATUS_CLOSED:
             return Response({'detail': 'نظرسنجی بسته شده قابل ویرایش نیست.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Snapshot question state so we can record granular add/edit/delete events.
         before_texts = {q.id: q.text for q in instance.questions.all()}
         before_active = set(instance.questions.filter(is_active=True).values_list('id', flat=True))
 
@@ -356,7 +350,6 @@ class AdminSurveyExportCSVView(APIView):
         )
         writer = csv.writer(response)
 
-        # ── Section 1: individual ranking ──
         headers = ['رتبه', 'نام و نام خانوادگی', 'واحد سازمانی', 'سمت',
                    'میانگین کلی', 'کیفیت', 'تعداد رأی‌دهنده', 'تعداد پاسخ امتیازی']
         for q in questions:
@@ -381,11 +374,10 @@ class AdminSurveyExportCSVView(APIView):
                     row.append(item.get('average_score') if item.get('average_score') is not None else '')
                     row.append(item.get('responses_count') or 0)
                 if q.has_comment:
-                    # only the count here — full text lives in the comments section
+
                     row.append(len(comments_map.get((r['person_id'], q.id), [])))
             writer.writerow(row)
 
-        # ── Section 2: question-by-question summary ──
         writer.writerow([])
         writer.writerow(['تحلیل سوال‌به‌سوال'])
         writer.writerow(['#', 'متن سوال', 'میانگین کل', 'کیفیت', 'تعداد پاسخ', 'تعداد نظرات متنی'])
@@ -398,14 +390,12 @@ class AdminSurveyExportCSVView(APIView):
                 q['comments'] if q['has_comment'] else '—',
             ])
 
-        # ── Section 3: score distribution ──
         writer.writerow([])
         writer.writerow(['توزیع امتیازات'])
         writer.writerow(['دسته', 'تعداد افراد'])
         for label, count, _color in summary['distribution']:
             writer.writerow([label, count])
 
-        # ── Section 4: full textual comments (one row each — scales freely) ──
         if ds['comments_flat']:
             writer.writerow([])
             writer.writerow([f"نظرات متنی (مجموع {summary['total_comments']})"])
@@ -443,10 +433,9 @@ class AdminSurveyExportExcelView(APIView):
         comments_map, summary = ds['comments_map'], ds['summary']
         questions_meta = ds['questions_meta']
 
-        # ── brand palette (matches the PDF) ──
-        BRAND_FILL    = PatternFill('solid', fgColor='4F46E5')   # indigo
-        BRAND2_FILL   = PatternFill('solid', fgColor='7C3AED')   # violet
-        HEADER_FILL   = PatternFill('solid', fgColor='1E293B')   # slate-800
+        BRAND_FILL    = PatternFill('solid', fgColor='4F46E5')           
+        BRAND2_FILL   = PatternFill('solid', fgColor='7C3AED')           
+        HEADER_FILL   = PatternFill('solid', fgColor='1E293B')              
         HEADER_FONT   = Font(name='Calibri', bold=True, color='FFFFFF', size=10)
         SUBHEAD_FILL  = PatternFill('solid', fgColor='334155')
         SUBHEAD_FONT  = Font(bold=True, color='FFFFFF', size=10)
@@ -481,15 +470,11 @@ class AdminSurveyExportExcelView(APIView):
 
         wb = openpyxl.Workbook()
 
-        # ═══════════════════════════════════════════════════════════
-        # Sheet 1: خلاصه  (KPI summary + distribution — matches PDF)
-        # ═══════════════════════════════════════════════════════════
         ws0 = wb.active
         ws0.title = 'خلاصه'
         ws0.sheet_view.rightToLeft = True
         ws0.sheet_view.showGridLines = False
 
-        # Brand header band
         ws0.merge_cells('A1:D2')
         ws0['A1'] = f'نتایج نظرسنجی: {survey.title}'
         ws0['A1'].fill = BRAND_FILL
@@ -516,7 +501,7 @@ class AdminSurveyExportExcelView(APIView):
             ('افراد ارزیابی‌شونده', summary['people']),
             ('رأی‌دهندگان کامل', summary['voters']),
         ]
-        # KPI value row (5) + label row (6)
+
         for i, (label, value) in enumerate(kpis, 1):
             vc = ws0.cell(row=5, column=i, value=value)
             vc.alignment = CENTER
@@ -531,7 +516,6 @@ class AdminSurveyExportExcelView(APIView):
         ws0.row_dimensions[5].height = 30
         ws0.row_dimensions[6].height = 18
 
-        # Best / worst
         ws0.cell(row=8, column=1, value='بهترین امتیاز').font = SUBHEAD_FONT
         ws0.cell(row=8, column=1).fill = SUBHEAD_FILL
         ws0.cell(row=8, column=2, value=summary['best'] if summary['best'] is not None else '—').alignment = CENTER
@@ -539,7 +523,6 @@ class AdminSurveyExportExcelView(APIView):
         ws0.cell(row=9, column=1).fill = SUBHEAD_FILL
         ws0.cell(row=9, column=2, value=summary['worst'] if summary['worst'] is not None else '—').alignment = CENTER
 
-        # Distribution table
         ws0.merge_cells('A11:D11')
         ws0['A11'] = 'توزیع امتیازات'
         ws0['A11'].font = TITLE_FONT
@@ -566,9 +549,6 @@ class AdminSurveyExportExcelView(APIView):
         ws0.column_dimensions['C'].width = 14
         ws0.column_dimensions['D'].width = 22
 
-        # ═══════════════════════════════════════════════════════════
-        # Sheet 2: نتایج فردی  (ranking + per-question)
-        # ═══════════════════════════════════════════════════════════
         ws1 = wb.create_sheet('نتایج فردی')
         ws1.sheet_view.rightToLeft = True
 
@@ -619,7 +599,7 @@ class AdminSurveyExportExcelView(APIView):
                     cell.fill = score_fill(avg_v); cell.font = score_font(avg_v)
                 elif col_idx == 6:
                     cell.font = score_font(avg_v)
-            # colour per-question average cells
+
             offset = len(base_cols)
             for q in questions:
                 if q.has_score:
@@ -637,9 +617,6 @@ class AdminSurveyExportExcelView(APIView):
         for ci in range(len(base_cols) + 1, ncols + 1):
             ws1.column_dimensions[get_column_letter(ci)].width = 14
 
-        # ═══════════════════════════════════════════════════════════
-        # Sheet 3: تحلیل سوال‌ها
-        # ═══════════════════════════════════════════════════════════
         ws2 = wb.create_sheet('تحلیل سوال‌ها')
         ws2.sheet_view.rightToLeft = True
         ws2.append([f'تحلیل سوال‌به‌سوال: {survey.title}'])
@@ -673,9 +650,6 @@ class AdminSurveyExportExcelView(APIView):
         for col, w in (('A', 6), ('B', 46), ('C', 14), ('D', 12), ('E', 14), ('F', 16)):
             ws2.column_dimensions[col].width = w
 
-        # ═══════════════════════════════════════════════════════════
-        # Sheet 4: نظرات متنی  (one row per comment — full fidelity)
-        # ═══════════════════════════════════════════════════════════
         if ds['comments_flat']:
             ws3 = wb.create_sheet('نظرات متنی')
             ws3.sheet_view.rightToLeft = True
@@ -688,7 +662,7 @@ class AdminSurveyExportExcelView(APIView):
             ws3.append(['#', 'نام فرد ارزیابی‌شده', 'واحد سازمانی', 'سوال', 'نظر'])
             style_header_row(ws3, 3, SUBHEAD_FILL, SUBHEAD_FONT)
             for i, (person_name, dept, q_text, comment) in enumerate(ds['comments_flat'], 1):
-                # defensive: Excel hard cell limit is 32,767 chars
+
                 safe_comment = comment if len(comment) <= EXCEL_CELL_LIMIT else comment[:EXCEL_CELL_LIMIT] + '…'
                 ws3.append([i, person_name, dept, q_text, safe_comment])
                 row_num = ws3.max_row
@@ -747,8 +721,7 @@ class AdminSurveyExportPDFView(APIView):
                 comment_groups, ds['summary'], comments_truncated=truncated,
             )
         except Exception:
-            # Surface a readable JSON error instead of a raw 500/HTML page so the
-            # client shows a meaningful message rather than the generic toast.
+
             logger.exception('PDF export failed for survey %s', pk)
             return Response(
                 {'detail': 'خطا در تولید خروجی PDF. لطفاً دوباره تلاش کنید یا خروجی Excel/CSV را امتحان کنید.'},
@@ -770,9 +743,6 @@ class AdminSurveyExportPDFView(APIView):
         return response
 
 
-# ============================================================
-# Admin Person Views
-# ============================================================
 
 class AdminPersonListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminUser]
@@ -802,15 +772,11 @@ class AdminPersonDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().update(request, *args, **kwargs)
 
 
-# ============================================================
-# Employee Survey Views
-# ============================================================
 
 class EmployeeSurveyListView(generics.ListAPIView):
     permission_classes = [IsEmployeeUser]
     serializer_class = SurveySerializer
-    # This endpoint returns one explicit list payload for the employee app;
-    # never let the global admin-table pagination reshape it.
+
     pagination_class = None
 
     def get_queryset(self):
@@ -916,24 +882,9 @@ class EmployeeRatePersonView(APIView):
             return Response({'detail': 'فرد مورد نظر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
         questions = list(survey.questions.filter(is_active=True).order_by('display_order', 'created_at'))
-        if not questions and survey.question:
-            questions = [SurveyQuestion.objects.create(
-                survey=survey,
-                text=survey.question,
-                has_score=True,
-                score_required=True,
-                has_comment=True,
-                comment_required=False,
-                display_order=0,
-                is_active=True,
-            )]
         if not questions:
             return Response({'detail': 'این نظرسنجی هنوز سوال فعالی ندارد.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # FIX #2: Check completeness correctly — only block if the voter has already
-        # answered ALL active questions for this person (a full, completed submission).
-        # The old check (.exists() on any rating) blocked voters from finishing
-        # multi-question surveys after a partial save, which was a serious UX bug.
         existing_answer_count = Rating.objects.filter(
             survey=survey, person=person, voter=request.user,
             question__is_active=True,
@@ -946,8 +897,7 @@ class EmployeeRatePersonView(APIView):
 
         submitted_answers = serializer.validated_data.get('answers')
         if submitted_answers is None:
-            # Backward-compatible single-score payload. It is valid only for
-            # surveys with one active question.
+
             if len(questions) != 1:
                 return Response({'detail': 'برای این نظرسنجی باید پاسخ همه سوال‌ها ارسال شود.'}, status=status.HTTP_400_BAD_REQUEST)
             submitted_answers = [{
@@ -1037,11 +987,9 @@ class EmployeeSurveyResultsView(APIView):
         except Survey.DoesNotExist:
             return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
-        can_view = False
-        # Results are only visible if explicitly set to allow employees (currently admin_only is the only option)
-        # So employees never see results — always forbidden
+        can_view = survey.status == Survey.STATUS_CLOSED
         if not can_view:
-            return Response({'detail': 'نتایج این نظرسنجی در دسترس نیست.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'detail': 'نتایج پس از بسته شدن نظرسنجی در دسترس خواهد بود.'}, status=status.HTTP_403_FORBIDDEN)
 
         results = calculate_survey_results(survey, request)
         return Response({
@@ -1055,9 +1003,6 @@ class EmployeeSurveyResultsView(APIView):
         })
 
 
-# ============================================================
-# Admin Dashboard Stats
-# ============================================================
 
 class AdminDashboardView(APIView):
     permission_classes = [IsAdminUser]
@@ -1074,17 +1019,13 @@ class AdminDashboardView(APIView):
         draft_surveys = Survey.objects.filter(status=Survey.STATUS_DRAFT).count()
         published_surveys = Survey.objects.filter(status=Survey.STATUS_PUBLISHED).count()
         closed_surveys = Survey.objects.filter(status=Survey.STATUS_CLOSED).count()
-        # Count voters who fully completed at least one survey
-        from django.db.models import Count as DCount, F as DF, Q as DQ
-        # FIX #9: N+1 query replaced — the old loop fired one Rating query per survey
-        # (100 surveys = 100 DB queries). Now we compute required answers per survey
-        # in Python and count completed voters in a single annotated query.
-        from django.db.models import Count as _Count, F as _F, Q as _Q
+
+
         survey_meta = list(
             Survey.objects
             .annotate(
-                ap=_Count('people', filter=_Q(people__is_active=True), distinct=True),
-                aq=_Count('questions', filter=_Q(questions__is_active=True), distinct=True),
+                ap=Count('people', filter=Q(people__is_active=True), distinct=True),
+                aq=Count('questions', filter=Q(questions__is_active=True), distinct=True),
             )
             .values('id', 'ap', 'aq')
         )
@@ -1099,7 +1040,7 @@ class AdminDashboardView(APIView):
                 question__is_active=True,
             )
             .values('survey_id', 'voter_id')
-            .annotate(answered_count=DCount('id', distinct=True))
+            .annotate(answered_count=Count('id', distinct=True))
         )
         total_responses = sum(
             1
@@ -1133,7 +1074,6 @@ class AdminDeleteAllDataView(APIView):
     def delete(self, request):
         from apps.accounts.models import User
 
-        # Verify confirmation token sent in body
         confirm = request.data.get('confirm')
         if confirm != 'DELETE_ALL':
             return Response(
@@ -1141,7 +1081,6 @@ class AdminDeleteAllDataView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Delete all ratings, survey people, surveys, and employee users
         ratings_count = Rating.objects.count()
         people_count = SurveyPerson.objects.count()
         surveys_count = Survey.objects.count()
@@ -1206,7 +1145,6 @@ class AdminSurveyCommentsView(APIView):
         except (ValueError, TypeError):
             page, page_size = 1, 20
 
-        # Completed voters only
         active_people_count    = survey.people.filter(is_active=True).count()
         active_questions_count = survey.questions.filter(is_active=True).count()
         required = active_people_count * active_questions_count

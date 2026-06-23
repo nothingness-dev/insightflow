@@ -1,16 +1,4 @@
-"""Central activity-logging service.
-
-``log_activity`` is the single entry point used across the app to record audit
-events. It is intentionally defensive: logging must NEVER break the request it
-is observing, so every failure is swallowed and reported to the standard logger
-instead of propagating.
-
-Security:
-  * IP / user-agent are read from request meta only.
-  * ``metadata`` is sanitised — any key whose name hints at a secret
-    (password, token, secret, authorization, ...) is dropped, and values are
-    coerced to safe JSON primitives with bounded length.
-"""
+   
 import logging
 
 from django.utils import timezone
@@ -20,7 +8,6 @@ from apps.core.cache import invalidate_activity_stats, invalidate_filter_options
 
 logger = logging.getLogger('apps')
 
-# Substrings that mark a metadata key as sensitive — such keys are never stored.
 _SENSITIVE_KEY_HINTS = (
     'password', 'passwd', 'pwd', 'token', 'secret', 'authorization',
     'auth', 'session', 'cookie', 'csrf', 'refresh', 'access', 'key',
@@ -40,17 +27,14 @@ def _client_ip(request):
     if request is None:
         return None
 
-    # X-Real-IP is set by nginx to $remote_addr — the true client IP.
     real_ip = (request.META.get('HTTP_X_REAL_IP') or '').strip()
     if real_ip:
         return real_ip
 
-    # X-Forwarded-For: take the first (leftmost) address — the originating client.
     forwarded_for = (request.META.get('HTTP_X_FORWARDED_FOR') or '').strip()
     if forwarded_for:
         return forwarded_for.split(',')[0].strip()
 
-    # Last resort: direct socket peer (will be Docker bridge IP behind nginx).
     return request.META.get('REMOTE_ADDR')
 
 
@@ -142,12 +126,12 @@ def log_activity(
             metadata=_sanitise_metadata(metadata),
             created_at=timezone.now(),
         )
-        # Bust the activity stats/charts cache so the next read gets fresh counts.
+
         invalidate_activity_stats()
-        # If a new actor appeared, the filter-options actor list is stale too.
+
         if snapshot['actor'] is not None:
             invalidate_filter_options()
         return entry
-    except Exception:  # pragma: no cover - defensive guard
+    except Exception:                                      
         logger.exception('Failed to record activity log for action=%s', action)
         return None

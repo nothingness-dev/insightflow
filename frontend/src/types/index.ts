@@ -51,7 +51,7 @@ export interface Survey {
   updated_at: string;
   published_at: string | null;
   closed_at: string | null;
-  // employee fields
+
   my_votes_count?: number;
   total_people?: number;
   total_questions?: number;
@@ -191,7 +191,7 @@ export interface BulkImportResult {
   error_details_omitted: number;
 }
 
-// ─── Activity Center / Audit Reports ───────────────────────────────
+
 export interface ActivityLog {
   id: number;
   action: string;

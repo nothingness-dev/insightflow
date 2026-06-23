@@ -27,8 +27,6 @@ def create_legacy_questions(apps, schema_editor):
 
 
 def reverse_legacy_questions(apps, schema_editor):
-    # Keep migrated answers intact on reverse attempts; Django will drop the table
-    # when reversing the migration. No data transformation is safe here.
     pass
 
 

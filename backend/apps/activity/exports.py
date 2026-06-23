@@ -1,9 +1,4 @@
-"""Export center for activity logs (CSV / Excel / PDF).
-
-All three formats consume the SAME filtered queryset and a date range. To stay
-scalable the queryset is streamed/iterated lazily and the PDF is row-capped
-(PDF is an executive summary; CSV/Excel carry full fidelity).
-"""
+   
 import csv
 import io
 
@@ -12,7 +7,6 @@ from django.utils import timezone
 from .models import ActivityLog
 
 
-# PDF stays readable & bounded; CSV/Excel keep everything.
 PDF_MAX_ROWS = 1500
 EXCEL_CELL_LIMIT = 32_000
 
@@ -21,7 +15,6 @@ _STATUS_LABELS = {
     ActivityLog.STATUS_FAILED: 'ناموفق',
 }
 
-# Order of columns shared across formats.
 _HEADERS = [
     'زمان', 'نوع فعالیت', 'کاربر', 'نام کاربری', 'نقش',
     'وضعیت', 'حساس', 'شرح', 'نوع هدف', 'عنوان هدف', 'آدرس IP',
@@ -59,24 +52,22 @@ def _filename(export_format, date_from, date_to):
     return f'activity_logs_{date_from:%Y%m%d}_{date_to:%Y%m%d}.{ext}'
 
 
-# ───────────────────────── CSV ─────────────────────────
 def _build_csv(qs):
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(_HEADERS)
     for log in qs.iterator(chunk_size=500):
         writer.writerow(_row_values(log))
-    # BOM so Excel opens the UTF-8 file with correct Persian glyphs.
+
     return ('\ufeff' + buffer.getvalue()).encode('utf-8')
 
 
-# ───────────────────────── Excel ─────────────────────────
 def _build_excel(qs):
     try:
         import openpyxl
         from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
         from openpyxl.utils import get_column_letter
-    except ImportError as exc:  # pragma: no cover
+    except ImportError as exc:                    
         raise RuntimeError('خروجی Excel در دسترس نیست.') from exc
 
     wb = openpyxl.Workbook()
@@ -123,7 +114,6 @@ def _build_excel(qs):
     return out.getvalue()
 
 
-# ───────────────────────── PDF ─────────────────────────
 def _build_pdf(qs, date_from, date_to):
     try:
         from reportlab.lib import colors
@@ -134,9 +124,9 @@ def _build_pdf(qs, date_from, date_to):
         from reportlab.platypus import (
             Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
         )
-        # Reuse the shared font registration + RTL helpers from the survey PDF.
+
         from apps.surveys.pdf_report import _ensure_fonts, _fa_num, _rtl, _rtlp
-    except ImportError as exc:  # pragma: no cover
+    except ImportError as exc:                    
         raise RuntimeError('خروجی PDF در دسترس نیست.') from exc
 
     _ensure_fonts()
@@ -178,7 +168,6 @@ def _build_pdf(qs, date_from, date_to):
         Spacer(1, 8),
     ]
 
-    # Compact, PDF-friendly column subset.
     headers = ['زمان', 'نوع فعالیت', 'کاربر', 'وضعیت', 'شرح']
     data = [[Paragraph(_rtlp(h), styles['th']) for h in headers]]
     style_cmds = [

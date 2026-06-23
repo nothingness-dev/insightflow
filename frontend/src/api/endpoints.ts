@@ -1,7 +1,7 @@
 import api from './client';
 import { ActivityCharts, ActivityCriticalPanel, ActivityFilterOptions, ActivityLog, ActivityLogFilters, ActivityStats, BulkImportResult, DashboardStats, MyRatings, PaginatedResponse, Survey, SurveyPerson, SurveyProgressDashboard, SurveyQuestionInput, SurveyResults, User } from '../types';
 
-// Auth
+
 export const authApi = {
   login: (username: string, password: string) =>
     api.post('/auth/login/', { username, password }),
@@ -12,7 +12,7 @@ export const authApi = {
     api.post('/auth/change-password/', data),
 };
 
-// Admin Surveys
+
 export const adminSurveyApi = {
   list: (params?: Record<string, string>) =>
     api.get<Survey[]>('/admin/surveys/', { params }),
@@ -42,7 +42,7 @@ export const adminSurveyApi = {
     api.get(`/admin/surveys/${id}/export/pdf/`, { responseType: 'blob' }),
 };
 
-// Admin People
+
 export const adminPersonApi = {
   list: (surveyId: number) =>
     api.get<SurveyPerson[]>(`/admin/surveys/${surveyId}/people/`),
@@ -58,7 +58,7 @@ export const adminPersonApi = {
     api.delete(`/admin/people/${id}/`),
 };
 
-// Admin Users
+
 export const adminUserApi = {
   list: (params?: Record<string, string>) =>
     api.get<PaginatedResponse<User>>('/admin/users/', { params }),
@@ -88,7 +88,7 @@ export const adminUserApi = {
   },
 };
 
-// Admin Dashboard
+
 export const dashboardApi = {
   stats: () => api.get<DashboardStats>('/admin/dashboard/'),
   surveyProgress: () => api.get<SurveyProgressDashboard>('/admin/surveys/progress/'),
@@ -96,7 +96,7 @@ export const dashboardApi = {
     api.delete('/admin/delete-all-data/', { data: { confirm: 'DELETE_ALL' } }),
 };
 
-// Activity Center / Audit Reports
+
 export const activityApi = {
   logs: (params?: ActivityLogFilters) =>
     api.get<PaginatedResponse<ActivityLog>>('/admin/activity/logs/', { params }),
@@ -115,7 +115,7 @@ export const activityApi = {
     }),
 };
 
-// Employee
+
 export const employeeApi = {
   surveys: () =>
     api.get<Survey[]>('/surveys/'),

@@ -193,8 +193,8 @@ class ResultsTests(APITestCase):
             )
             employees.append(e)
 
-        # p1 gets scores 8, 9, 10 -> avg 9.0
-        # p2 gets scores 5, 6 -> avg 5.5
+                                            
+                                        
         for i, score in enumerate([8, 9, 10]):
             Rating.objects.create(survey=self.survey, person=self.p1, voter=employees[i], score=score)
         for i, score in enumerate([5, 6]):
@@ -316,7 +316,6 @@ class SurveyDuplicateTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(Survey.objects.count(), 1)
-
 
 
 class SurveyProgressTests(APITestCase):
@@ -572,4 +571,3 @@ class EmployeeSurveyListTests(APITestCase):
         self.assertEqual(published_item['total_people'], 1)
         self.assertEqual(published_item['total_questions'], 1)
         self.assertEqual(published_item['my_votes_count'], 0)
-

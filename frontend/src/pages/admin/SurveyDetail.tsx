@@ -89,16 +89,16 @@ export default function SurveyDetail() {
   if (loading || !survey) return <PageLoader />;
 
   return (
-    <div className="max-w-4xl">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-400 mb-5">
+    <div className="responsive-page max-w-4xl">
+      {}
+      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400 mb-5">
         <Link to="/admin/surveys" className="hover:text-gray-600">نظرسنجی‌ها</Link>
         <span>/</span>
         <span className="text-gray-700">{survey.title}</span>
       </div>
 
-      {/* Header */}
-      <div className="card p-6 mb-5">
+      {}
+      <div className="card p-4 sm:p-6 mb-5">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2">
@@ -115,7 +115,7 @@ export default function SurveyDetail() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t border-gray-100">
           <div>
             <p className="text-xs text-gray-400">افراد</p>
             <p className="text-lg font-semibold text-slate-700">{survey.people_count}</p>
@@ -130,7 +130,7 @@ export default function SurveyDetail() {
           </div>
         </div>
 
-        {/* Actions */}
+        {}
         <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-gray-100">
           {survey.status === 'draft' && (
             <>
@@ -158,9 +158,9 @@ export default function SurveyDetail() {
         </div>
       </div>
 
-      {/* Questions section */}
-      <div className="card p-6 mb-5">
-        <div className="flex items-center justify-between mb-4">
+      {}
+      <div className="card p-4 sm:p-6 mb-5">
+        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 mb-4">
           <h2 className="font-bold text-slate-800">سوال‌های نظرسنجی</h2>
           {survey.status === 'draft' && (
             <Link to={`/admin/surveys/${id}/edit`} className="text-sm text-[color:var(--c-600)] hover:underline">
@@ -196,9 +196,9 @@ export default function SurveyDetail() {
         )}
       </div>
 
-      {/* People section */}
+      {}
       <div className="card">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
           <h2 className="section-title">افراد نظرسنجی</h2>
           {survey.status !== 'closed' && (
             <button
@@ -223,8 +223,8 @@ export default function SurveyDetail() {
         ) : (
           <div className="divide-y divide-gray-50">
             {people.map(person => (
-              <div key={person.id} className="px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors">
-                {/* Photo */}
+              <div key={person.id} className="px-4 sm:px-6 py-4 flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-3 sm:gap-4 hover:bg-gray-50 transition-colors">
+                {}
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
                   {person.photo_url ? (
                     <img src={person.photo_url} alt={person.full_name} className="w-full h-full object-cover" />
@@ -234,7 +234,7 @@ export default function SurveyDetail() {
                     </div>
                   )}
                 </div>
-                {/* Info */}
+                {}
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-800 text-sm">{person.full_name}</p>
                   <p className="text-xs text-gray-400">{[person.role_title, person.department].filter(Boolean).join(' — ')}</p>
@@ -242,9 +242,9 @@ export default function SurveyDetail() {
                     <span className="text-xs text-red-500 font-medium">غیرفعال</span>
                   )}
                 </div>
-                {/* Actions */}
+                {}
                 {survey.status !== 'closed' && (
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex flex-wrap items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => setPersonModal({ open: true, person })}
                       className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -265,7 +265,7 @@ export default function SurveyDetail() {
         )}
       </div>
 
-      {/* Modals */}
+      {}
       <PersonModal
         open={personModal.open}
         onClose={() => setPersonModal({ open: false })}

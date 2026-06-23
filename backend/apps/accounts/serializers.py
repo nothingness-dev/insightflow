@@ -39,8 +39,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        # Newly created accounts receive a temporary password and must change it
-        # on first login.
+
         user = User.objects.create_user(**validated_data)
         user.must_change_password = True
         user.save(update_fields=['must_change_password'])

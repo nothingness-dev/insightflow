@@ -12,10 +12,10 @@ import { downloadBlob, formatDateTime, getBlobErrorMessage, getErrorMessage } fr
 
 const PAGE_SIZE = 20;
 
-// ─── small presentational helpers ──────────────────────────────────
+
 function StatCard({ label, value, accent, icon }: { label: string; value: string | number; accent: string; icon: JSX.Element }) {
   return (
-    <div className="card p-4 flex items-center gap-4">
+    <div className="card p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
       <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${accent}`}>
         {icon}
       </div>
@@ -43,7 +43,7 @@ function actionDotColor(action: string, isCritical: boolean) {
   return 'bg-slate-400';
 }
 
-// ─── icons ──────────────────────────────────────────────────────────
+
 const Ic = {
   total: <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12h4l3 8 4-16 3 8h4" /></svg>,
   today: <svg className="w-5 h-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
@@ -66,7 +66,7 @@ export default function ActivityCenter() {
   const [loadingTable, setLoadingTable] = useState(true);
   const [loadingTop, setLoadingTop] = useState(true);
 
-  // filters
+
   const [search, setSearch] = useState('');
   const [action, setAction] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -125,7 +125,7 @@ export default function ActivityCenter() {
   useEffect(() => { loadTop(); }, [loadTop]);
   useEffect(() => { loadTable(); }, [loadTable]);
 
-  // reset to page 1 when filters change
+
   const onFilterChange = (fn: () => void) => { fn(); setPage(1); };
 
   const handleSearch = (v: string) => {
@@ -137,24 +137,24 @@ export default function ActivityCenter() {
   const refreshAll = () => { loadTop(); loadTable(); toast.success('اطلاعات به‌روزرسانی شد'); };
 
   return (
-    <div className="max-w-6xl">
+    <div className="responsive-page max-w-6xl">
       <PageHeader
         title="مرکز فعالیت‌ها و گزارش‌های ممیزی"
         subtitle="رصد فعالیت‌های مهم سیستم و کاربران در یک نگاه"
         action={
-          <div className="flex items-center gap-2">
-            <button onClick={refreshAll} className="btn-secondary flex items-center gap-2">
+          <div className="flex flex-col min-[420px]:flex-row items-stretch min-[420px]:items-center gap-2">
+            <button onClick={refreshAll} className="btn-secondary w-full min-[420px]:w-auto flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
               به‌روزرسانی
             </button>
-            <button onClick={() => setExportOpen(true)} className="btn-primary flex items-center gap-2">
+            <button onClick={() => setExportOpen(true)} className="btn-primary w-full min-[420px]:w-auto flex items-center gap-2">
               {Ic.download} مرکز خروجی
             </button>
           </div>
         }
       />
 
-      {/* ── Stats ── */}
+      {}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <StatCard label="کل فعالیت‌ها" value={stats ? stats.total_activities.toLocaleString('fa-IR') : '—'} accent="bg-indigo-50" icon={Ic.total} />
         <StatCard label="فعالیت‌های امروز" value={stats ? stats.today_activities.toLocaleString('fa-IR') : '—'} accent="bg-sky-50" icon={Ic.today} />
@@ -168,8 +168,8 @@ export default function ActivityCenter() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-        {/* ── Charts ── */}
-        <div className="lg:col-span-2 card p-5">
+        {}
+        <div className="lg:col-span-2 card p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-slate-800">نمودار فعالیت‌ها (۱۴ روز اخیر)</h2>
             {stats && (
@@ -194,8 +194,8 @@ export default function ActivityCenter() {
           )}
         </div>
 
-        {/* ── Critical Actions Panel ── */}
-        <div className="card p-5">
+        {}
+        <div className="card p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-4">
             <span className="w-2 h-2 rounded-full bg-red-500" />
             <h2 className="text-sm font-bold text-slate-800">اقدامات حساس</h2>
@@ -221,8 +221,8 @@ export default function ActivityCenter() {
         </div>
       </div>
 
-      {/* ── Timeline ── */}
-      <div className="card p-5 mb-5">
+      {}
+      <div className="card p-4 sm:p-5 mb-5">
         <h2 className="text-sm font-bold text-slate-800 mb-4">جدول زمانی فعالیت‌ها</h2>
         {loadingTop ? (
           <div className="flex justify-center py-8"><Spinner /></div>
@@ -246,8 +246,8 @@ export default function ActivityCenter() {
         )}
       </div>
 
-      {/* ── Filters + Table ── */}
-      <div className="card p-5">
+      {}
+      <div className="card p-4 sm:p-5">
         <h2 className="text-sm font-bold text-slate-800 mb-4">گزارش کامل فعالیت‌ها</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div className="lg:col-span-2">
@@ -272,7 +272,7 @@ export default function ActivityCenter() {
         </div>
 
         <div className="table-wrapper overflow-x-auto rounded-lg border border-gray-100">
-          <table className="w-full text-sm">
+          <table className="responsive-table w-full min-w-[720px] text-sm">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs">
                 <th className="text-right font-medium px-3 py-2.5 whitespace-nowrap">زمان</th>
@@ -309,8 +309,8 @@ export default function ActivityCenter() {
           </table>
         </div>
 
-        {/* pagination */}
-        <div className="flex items-center justify-between mt-4 text-sm">
+        {}
+        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 mt-4 text-sm">
           <p className="text-xs text-gray-400">
             {count.toLocaleString('fa-IR')} رکورد · صفحه {page.toLocaleString('fa-IR')} از {totalPages.toLocaleString('fa-IR')}
           </p>
@@ -334,7 +334,7 @@ export default function ActivityCenter() {
   );
 }
 
-// ─── Daily volume chart (CSS bars, no extra deps) ──────────────────
+
 function DailyChart({ data }: { data: { date: string; total: number; failed: number }[] }) {
   const max = Math.max(1, ...data.map(d => d.total));
   return (
@@ -375,7 +375,7 @@ function ActionBreakdown({ data }: { data: { action: string; label: string; coun
   );
 }
 
-// ─── Export Center (always last 30 days — no date picker) ────────────
+
 function ExportCenterModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [busy, setBusy] = useState<'csv' | 'excel' | 'pdf' | null>(null);
 
@@ -383,7 +383,7 @@ function ExportCenterModal({ open, onClose }: { open: boolean; onClose: () => vo
     if (!open) setBusy(null);
   }, [open]);
 
-  /** Always export the last 30 days — computed fresh on each click. */
+  
   const getLast30Days = () => {
     const today = new Date();
     const from  = new Date(today);
@@ -396,16 +396,14 @@ function ExportCenterModal({ open, onClose }: { open: boolean; onClose: () => vo
   const handleExport = async (fmt: 'csv' | 'excel' | 'pdf') => {
     setBusy(fmt);
     const { dateFrom, dateTo } = getLast30Days();
-    // downloadStarted: if the browser already initiated the download we must NOT
-    // show an error toast. The old content-type (ctype) check caused a false-positive
-    // "خطا در تولید فایل خروجی" popup even when the file was perfectly valid.
+
+
     let downloadStarted = false;
     try {
       const r = await activityApi.export(fmt, dateFrom, dateTo);
       const blob = r.data as Blob;
-      // Backend returns non-2xx on any error (axios rejects those).
-      // Guard against empty body or HTML blobs (e.g. a transient nginx 502
-      // that arrived with a 2xx status — its content-type will be text/html).
+
+
       if (blob.size === 0) {
         throw new Error('فایل خروجی خالی دریافت شد. لطفاً دوباره تلاش کنید.');
       }
@@ -414,10 +412,10 @@ function ExportCenterModal({ open, onClose }: { open: boolean; onClose: () => vo
       }
       const ext = fmt === 'csv' ? 'csv' : fmt === 'excel' ? 'xlsx' : 'pdf';
       downloadBlob(blob, `activity_logs_${dateFrom}_${dateTo}.${ext}`);
-      downloadStarted = true;             // download triggered — suppress later errors
+      downloadStarted = true;
       toast.success('فایل خروجی دانلود شد');
     } catch (err) {
-      if (!downloadStarted) {           // only show error if file never started
+      if (!downloadStarted) {
         toast.error(await getBlobErrorMessage(err));
       }
     } finally {
@@ -435,8 +433,8 @@ function ExportCenterModal({ open, onClose }: { open: boolean; onClose: () => vo
 
   return (
     <Modal open={open} onClose={onClose} title="مرکز خروجی گزارش فعالیت‌ها" size="sm">
-      <div className="p-6 space-y-5">
-        {/* Fixed 30-day window — no date picker */}
+      <div className="p-4 sm:p-6 space-y-5">
+        {}
         <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
           <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

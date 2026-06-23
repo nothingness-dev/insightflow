@@ -33,10 +33,10 @@ class LogActivityServiceTests(APITestCase):
         self.assertEqual(log.metadata.get('name'), 'ok')
 
     def test_log_activity_never_raises(self):
-        # Logging must never bubble an exception into the observed request.
+                                                                           
         try:
             log_activity(ActivityActions.LOGIN, metadata={'obj': object(), 'nested': {'a': 1}})
-        except Exception as exc:  # pragma: no cover
+        except Exception as exc:                    
             self.fail(f'log_activity raised: {exc}')
 
 
@@ -109,8 +109,8 @@ class ActivityApiTests(APITestCase):
         self.assertEqual(log.status, ActivityLog.STATUS_FAILED)
 
     def test_export_defaults_to_last_30_days_when_no_dates(self):
-        # When no date range is supplied the view defaults to the last 30 days
-        # and returns a valid CSV rather than a 400 error.
+                                                                              
+                                                          
         self._seed(3)
         self.client.force_authenticate(self.admin)
         res = self.client.get('/api/admin/activity/export/?export_format=csv')

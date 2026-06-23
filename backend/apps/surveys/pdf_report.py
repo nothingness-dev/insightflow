@@ -1,14 +1,4 @@
-"""Beautiful, comprehensive PDF report for survey results.
-
-Renders an RTL (Persian) analytics report using ReportLab. Persian text is
-reshaped + bidi-reordered so it displays correctly, and a bundled Vazirmatn
-font is used for full glyph coverage. The public entry point is
-``build_survey_pdf`` which returns the PDF as bytes.
-
-Dependencies (declared in requirements.txt): reportlab, arabic-reshaper,
-python-bidi. The view guards the import so a missing dependency degrades
-gracefully to a 501 response instead of a 500.
-"""
+   
 import io
 import os
 from xml.sax.saxutils import escape
@@ -29,7 +19,6 @@ import arabic_reshaper
 from bidi.algorithm import get_display
 
 
-# ─── font registration (idempotent) ─────────────────────────────────
 _FONT_DIR = os.path.join(os.path.dirname(__file__), 'assets', 'fonts')
 _FONTS_READY = False
 
@@ -84,7 +73,6 @@ def _rtlp(text):
     return escape(_rtl(text))
 
 
-# ─── colour helpers (mirror the frontend score palette) ──────────────
 def _score_palette(v):
     if v is None:
         return colors.HexColor('#94a3b8'), colors.HexColor('#f8fafc')
@@ -207,11 +195,9 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
     content_w = page_w - 2 * margin
     story = []
 
-    # ─── header band ───
     story.append(_GradientBand(content_w, 78, survey.title, 'گزارش تحلیلی نتایج نظرسنجی'))
     story.append(Spacer(1, 14))
 
-    # ─── KPI cards ───
     def _kpi(label, value, accent):
         inner = Table(
             [[Paragraph(_rtlp(value), ParagraphStyle(
@@ -249,7 +235,6 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
     ]))
     story.append(kpi_table)
 
-    # ─── score distribution bars ───
     distribution = summary.get('distribution') or []
     if distribution:
         story.append(P('توزیع امتیازات', 'h2'))
@@ -276,7 +261,6 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
         ]))
         story.append(dist_table)
 
-    # ─── ranking table ───
     story.append(P('رتبه‌بندی افراد', 'h2'))
     header = [P('رتبه', 'th'), P('نام و نام خانوادگی', 'th'), P('واحد', 'th'),
               P('سمت', 'th'), P('میانگین', 'th'), P('کیفیت', 'th'), P('رأی', 'th')]
@@ -313,7 +297,6 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
     rank_table.setStyle(TableStyle(style_cmds))
     story.append(rank_table)
 
-    # ─── question-by-question analysis ───
     story.append(P('تحلیل سوال‌به‌سوال', 'h2'))
     qheader = [P('#', 'th'), P('متن سوال', 'th'), P('میانگین کل', 'th'),
                P('تعداد پاسخ', 'th'), P('نظرات متنی', 'th')]
@@ -348,7 +331,6 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
     qtable.setStyle(TableStyle(qstyle))
     story.append(qtable)
 
-    # ─── textual comments (grouped by question, capped for readability) ───
     if comment_groups:
         total_all = sum(g['total'] for g in comment_groups)
         shown_all = sum(len(g['items']) for g in comment_groups)

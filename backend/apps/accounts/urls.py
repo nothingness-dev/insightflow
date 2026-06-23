@@ -9,7 +9,7 @@ urlpatterns = [
     path('auth/me/', views.MeView.as_view(), name='me'),
     path('auth/change-password/', views.ChangePasswordView.as_view(), name='change-password'),
 
-    # Admin user management
+                           
     path('admin/users/', views.UserListCreateView.as_view(), name='user-list-create'),
     path('admin/users/bulk-import/', views.UserBulkImportView.as_view(), name='user-bulk-import'),
     path('admin/users/<int:pk>/', views.UserDetailView.as_view(), name='user-detail'),

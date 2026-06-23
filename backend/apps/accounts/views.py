@@ -16,6 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.activity.models import ActivityActions, ActivityLog
 from apps.activity.services import log_activity
+from .throttles import LoginRateThrottle
 
 from .models import User
 from .permissions import IsAdminUser
@@ -41,6 +42,7 @@ class UserPagination(PageNumberPagination):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes   = [LoginRateThrottle] 
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -182,11 +184,10 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
 
     def update(self, request, *args, **kwargs):
         kwargs['partial'] = True
-        # FIX #4: snapshot BEFORE super().update() so the log reflects pre-update data
-        # and we avoid a second DB round-trip (get_object() after save() was wasteful).
+
         user = self.get_object()
         response = super().update(request, *args, **kwargs)
-        # Refresh to pick up any field changes applied by the serializer.
+
         user.refresh_from_db()
         log_activity(
             ActivityActions.USER_EDIT,
@@ -364,7 +365,6 @@ class UserBulkImportView(APIView):
             if cells[0].startswith('#'):
                 continue
 
-            # Accept a conventional header row even when comment lines appear before it.
             if cells[0].lower() in {'username', 'نام کاربری'} and len(cells) >= 3:
                 continue
 
@@ -430,9 +430,6 @@ class UserBulkImportView(APIView):
             else:
                 rows_to_create.append(row)
 
-        # Password hashing is intentionally retained for security. Running a
-        # small, bounded pool keeps large imports responsive without weakening
-        # the configured Django password hasher.
         worker_count = min(4, max(1, os.cpu_count() or 1))
         with ThreadPoolExecutor(max_workers=worker_count) as executor:
             password_hashes = list(executor.map(lambda row: make_password(row['password']), rows_to_create))

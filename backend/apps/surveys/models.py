@@ -30,8 +30,8 @@ class Survey(models.Model):
     ]
 
     title = models.CharField(max_length=300, verbose_name='عنوان')
-    # Legacy fallback kept for existing data/backward compatibility. New surveys
-    # use SurveyQuestion rows instead of this single-question field.
+                                                                                
+                                                                    
     question = models.TextField(blank=True, default='', verbose_name='سوال اصلی قدیمی')
     description = models.TextField(blank=True, verbose_name='توضیحات')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, verbose_name='وضعیت')
@@ -135,29 +135,10 @@ class Rating(models.Model):
         verbose_name = 'پاسخ'
         verbose_name_plural = 'پاسخ‌ها'
         unique_together = [('survey', 'person', 'question', 'voter')]
-
-    def save(self, *args, **kwargs):
-        # Backward compatibility for old tests/fixtures that created one rating
-        # per person before questions existed. New application code always sets
-        # question explicitly.
-        if not self.question_id and self.survey_id:
-            question = (
-                SurveyQuestion.objects
-                .filter(survey_id=self.survey_id, is_active=True)
-                .order_by('display_order', 'created_at')
-                .first()
-            )
-            if question is None:
-                question = SurveyQuestion.objects.create(
-                    survey_id=self.survey_id,
-                    text='سوال اصلی',
-                    has_score=True,
-                    score_required=True,
-                    has_comment=True,
-                    comment_required=False,
-                )
-            self.question = question
-        super().save(*args, **kwargs)
+        indexes = [
+            models.Index(fields=['survey', 'voter'],  name='rating_survey_voter_idx'),
+            models.Index(fields=['survey', 'person'], name='rating_survey_person_idx'),
+        ]
 
     def __str__(self):
         value = self.score if self.score is not None else 'متنی'

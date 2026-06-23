@@ -175,10 +175,10 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
 
   return (
     <Modal open={open} onClose={onClose} size="lg">
-      <div className="p-6 max-h-[85vh] overflow-y-auto">
+      <div className="p-4 sm:p-6 max-h-[85dvh] overflow-y-auto">
         {person && (
           <>
-            <div className="flex items-center gap-4 mb-5 pb-5 border-b border-gray-100">
+            <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-3 sm:gap-4 mb-5 pb-5 border-b border-gray-100">
               <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[color:var(--c-100)] flex-shrink-0 shadow-sm">
                 {person.photo_url ? (
                   <img src={person.photo_url} alt={person.full_name} className="w-full h-full object-cover"/>
@@ -215,7 +215,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
                         <p className="text-xs text-gray-500 mb-2">
                           امتیاز ۱ تا ۱۰ {question.score_required ? <span className="text-red-500">*</span> : <span className="text-gray-400">(اختیاری)</span>}
                         </p>
-                        <div className="grid grid-cols-5 gap-2">
+                        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
                           {[1,2,3,4,5,6,7,8,9,10].map(s => (
                             <button
                               key={s}
@@ -257,16 +257,16 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
               })}
             </div>
 
-            <div className="flex gap-3 sticky bottom-0 bg-white pt-3 border-t border-gray-100">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-0 bg-white pt-3 border-t border-gray-100">
               <button
                 onClick={submit}
                 disabled={submitting}
-                className="btn-primary flex-1 flex items-center justify-center gap-2"
+                className="btn-primary w-full sm:flex-1 flex items-center justify-center gap-2"
               >
                 {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}
                 ثبت همه پاسخ‌ها
               </button>
-              <button onClick={onClose} className="btn-secondary" disabled={submitting}>انصراف</button>
+              <button onClick={onClose} className="btn-secondary w-full sm:w-auto" disabled={submitting}>انصراف</button>
             </div>
           </>
         )}
@@ -333,8 +333,8 @@ export default function EmployeeSurveyDetail() {
   const allDone = ratedCount === totalCount && totalCount > 0;
 
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-6">
+    <div className="responsive-page">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         <button
           onClick={() => navigate('/surveys')}
           className="flex items-center gap-2 text-sm text-gray-500 transition-colors bg-white border border-gray-200 px-3 py-2 rounded-lg shadow-sm hover:border-[color:var(--c-300)] hover:text-[color:var(--c-700)]"
@@ -360,8 +360,8 @@ export default function EmployeeSurveyDetail() {
         </div>
       )}
 
-      <div className="card p-6 mb-6">
-        <div className="flex items-start justify-between gap-4 mb-4">
+      <div className="card p-4 sm:p-6 mb-6">
+        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between gap-3 sm:gap-4 mb-4">
           <h1 className="text-xl font-bold text-slate-800 leading-snug">{survey.title}</h1>
           <span className="flex-shrink-0 text-xs font-semibold px-3 py-1 rounded-full border"
             style={closed
@@ -434,7 +434,7 @@ export default function EmployeeSurveyDetail() {
               <p className="text-xs text-gray-400">{ratedCount} از {totalCount} نفر تکمیل شده</p>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             {survey.people.map(person => (
               <PersonCard
                 key={person.id}
@@ -447,7 +447,7 @@ export default function EmployeeSurveyDetail() {
         </>
       )}
 
-      <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
+      <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3">
         <button
           onClick={() => navigate('/surveys')}
           className="flex items-center gap-2 text-sm text-gray-500 hover:text-[color:var(--c-700)] transition-colors"

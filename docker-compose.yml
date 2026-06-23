@@ -36,7 +36,6 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.prod
       - DATABASE_URL=postgres://${DB_USER:-surveyuser}:${DB_PASSWORD}@db:5432/${DB_NAME:-surveydb}
-    # FIX #14: expose internally only — nginx is the single public entry point.
     # Direct port 8000 access bypassed nginx and exposed the API without rate-limiting.
     expose:
       - "8000"
@@ -67,13 +66,10 @@ services:
       args:
         - VITE_API_BASE_URL=/api
     restart: unless-stopped
-    # FIX #5 (part): frontend no longer directly exposed — nginx proxies to it.
     expose:
       - "3000"
 
-  # FIX #5: nginx service was completely missing. Added here so it:
   #   - serves as the single public entry point on port 80
-  #   - proxies /api/* to gunicorn and /* to the React app
   #   - serves /static/ and /media/ from shared volumes
   #   - forwards the real client IP via X-Real-IP (works correctly on Linux)
   nginx:

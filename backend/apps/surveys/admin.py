@@ -32,5 +32,5 @@ class SurveyPersonAdmin(admin.ModelAdmin):
 class RatingAdmin(admin.ModelAdmin):
     list_display = ['person', 'question', 'survey', 'score', 'created_at']
     list_filter = ['survey', 'question', 'score']
-    # Never show voter in list to enforce privacy model
+                                                       
     exclude = ['voter', 'ip_address', 'user_agent']

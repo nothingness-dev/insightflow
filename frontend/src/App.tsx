@@ -5,7 +5,7 @@ import { AdminRoute, EmployeeRoute, GuestRoute } from './routes/Guards';
 import AdminLayout from './layouts/AdminLayout';
 import EmployeeLayout from './layouts/EmployeeLayout';
 
-// Pages
+
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminSurveyList from './pages/admin/SurveyList';
@@ -39,10 +39,10 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public */}
+          {}
           <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
 
-          {/* Admin */}
+          {}
           <Route path="/admin" element={<AdminWrapper><AdminDashboard /></AdminWrapper>} />
           <Route path="/admin/surveys" element={<AdminWrapper><AdminSurveyList /></AdminWrapper>} />
           <Route path="/admin/survey-progress" element={<AdminWrapper><SurveyProgressPage /></AdminWrapper>} />
@@ -53,11 +53,11 @@ export default function App() {
           <Route path="/admin/users" element={<AdminWrapper><UserManagement /></AdminWrapper>} />
           <Route path="/admin/activity" element={<AdminWrapper><ActivityCenter /></AdminWrapper>} />
 
-          {/* Employee */}
+          {}
           <Route path="/surveys" element={<EmployeeWrapper><EmployeeSurveyList /></EmployeeWrapper>} />
           <Route path="/surveys/:id" element={<EmployeeWrapper><EmployeeSurveyDetail /></EmployeeWrapper>} />
 
-          {/* Fallback */}
+          {}
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

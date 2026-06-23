@@ -11,7 +11,7 @@ const ThemeContext = createContext<ThemeContextType>({ theme: 'purple', setTheme
 
 export function useTheme() { return useContext(ThemeContext); }
 
-// Each theme maps to Tailwind color names used across the app
+
 export const THEMES: { key: Theme; label: string; bg: string; ring: string }[] = [
   { key: 'purple', label: 'بنفش',  bg: 'bg-purple-600', ring: 'ring-purple-400' },
   { key: 'blue',   label: 'آبی',   bg: 'bg-blue-600',   ring: 'ring-blue-400'   },
@@ -19,7 +19,7 @@ export const THEMES: { key: Theme; label: string; bg: string; ring: string }[] =
   { key: 'red',    label: 'قرمز',  bg: 'bg-red-600',    ring: 'ring-red-400'    },
 ];
 
-// CSS vars injected into :root per theme
+
 const THEME_VARS: Record<Theme, Record<string, string>> = {
   purple: {
     '--c-50':  '#faf5ff',
@@ -87,7 +87,7 @@ function applyTheme(theme: Theme) {
   const vars = THEME_VARS[theme];
   const root = document.documentElement;
   Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
-  // Apply background
+
   document.body.style.backgroundColor = vars['--c-bg'];
 }
 

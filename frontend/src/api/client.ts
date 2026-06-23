@@ -7,7 +7,7 @@ const api = axios.create({
   },
 });
 
-// Request interceptor - attach token
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   if (token) {
@@ -16,15 +16,13 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor - handle 401
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
-    // FIX #12: guard the refresh call itself — if /auth/refresh/ returns 401
-    // (expired/invalid refresh token) the interceptor must NOT retry it again,
-    // which would cause an infinite 401→retry→401→retry loop.
-    // We detect this by checking if the failing request IS the refresh endpoint.
+
+
     const isRefreshEndpoint = original?.url?.includes('/auth/refresh/');
     if (error.response?.status === 401 && !original._retry && !isRefreshEndpoint) {
       original._retry = true;

@@ -16,9 +16,9 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--c-bg)' }} dir="rtl">
       <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          {}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="w-8 h-8 theme-bg rounded-lg flex items-center justify-center">
               <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -27,11 +27,11 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
             <NavLink to="/surveys" className="text-sm font-bold text-slate-800">InsightFlow</NavLink>
           </div>
 
-          {/* Right side */}
-          <div className="flex items-center gap-3">
+          {}
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <ThemeSwitcher />
 
-            {/* Profile menu */}
+            {}
             <div className="relative">
               <button
                 onClick={() => setMenuOpen(o => !o)}
@@ -49,7 +49,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
               {menuOpen && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute left-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-40">
+                  <div className="absolute left-0 mt-2 w-52 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-40">
                     <div className="px-3 py-2 border-b border-gray-50">
                       <p className="text-sm font-medium text-gray-800 truncate">{user?.full_name}</p>
                       <p className="text-xs text-gray-400">{user?.username}</p>
@@ -79,11 +79,11 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="max-w-5xl mx-auto px-6 py-8">{children}</main>
+      <main className="responsive-page max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-8">{children}</main>
 
-      {/* Self-service password change */}
+      {}
       <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />
-      {/* Forced change on first login */}
+      {}
       <ChangePasswordModal open={!!user?.must_change_password} onClose={() => {}} forced />
     </div>
   );

@@ -69,7 +69,7 @@ function SummaryCard({
   accent: string;
 }) {
   return (
-    <div className="card p-5 flex items-center gap-4">
+    <div className="card p-4 sm:p-5 flex items-center gap-3 sm:gap-4">
       <div
         className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
         style={{ backgroundColor: accent }}
@@ -194,7 +194,7 @@ function SurveyProgressCard({ survey }: { survey: SurveyProgress }) {
 
   return (
     <article className="card overflow-hidden">
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -221,7 +221,7 @@ function SurveyProgressCard({ survey }: { survey: SurveyProgress }) {
 
         {survey.tracking_enabled ? (
           <>
-            <div className="mt-6 flex items-end justify-between gap-4">
+            <div className="mt-6 flex flex-col min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between gap-3">
               <div>
                 <p className={`text-3xl font-bold ${tone.text}`}>
                   {formatNumber(survey.completion_percentage)}٪
@@ -237,12 +237,12 @@ function SurveyProgressCard({ survey }: { survey: SurveyProgress }) {
               <ProgressBar percentage={survey.completion_percentage} />
             </div>
 
-            {/* Completion note */}
+            {}
             <p className="mt-2 text-[11px] text-gray-400">
               کارمند «تکمیل‌شده» یعنی به تمام سوال‌ها برای تمام افراد فعال پاسخ داده است.
             </p>
 
-            <dl className="mt-5 grid grid-cols-3 divide-x divide-x-reverse divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/70">
+            <dl className="mt-5 grid grid-cols-1 min-[420px]:grid-cols-3 divide-y min-[420px]:divide-y-0 min-[420px]:divide-x min-[420px]:divide-x-reverse divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/70">
               <div className="p-3 text-center">
                 <dt className="text-xs text-gray-400">تخصیص‌یافته</dt>
                 <dd className="mt-1 text-lg font-bold text-slate-700">{formatNumber(survey.assigned_employees)}</dd>
@@ -325,7 +325,7 @@ export default function SurveyProgressPage() {
   if (loading) return <PageLoader />;
 
   return (
-    <div>
+    <div className="responsive-page">
       <PageHeader
         title="پیشرفت نظرسنجی‌ها"
         subtitle="پیگیری میزان مشارکت کارکنان در هر نظرسنجی"

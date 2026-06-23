@@ -34,7 +34,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const Sidebar = ({ mobile = false }) => (
     <aside className={`flex flex-col h-full bg-white border-l border-gray-100 shadow-sm ${mobile ? 'w-full' : 'w-64'}`}>
-      {/* Logo */}
+      {}
       <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center theme-bg">
@@ -52,7 +52,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         )}
       </div>
 
-      {/* Nav */}
+      {}
       <nav className="flex-1 px-4 py-4 space-y-1">
         {navItems.map(item => (
           <NavLink
@@ -68,7 +68,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         ))}
       </nav>
 
-      {/* User + logout */}
+      {}
       <div className="px-4 py-4 border-t border-gray-100">
         <div className="flex items-center gap-3 px-2 py-2 mb-2">
           <div className="w-8 h-8 theme-bg-100 rounded-full flex items-center justify-center theme-text-700 text-sm font-bold">
@@ -91,33 +91,33 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--c-bg)' }} dir="rtl">
-      {/* Desktop sidebar */}
-      <div className="hidden md:flex">
+    <div className="flex h-[100dvh] overflow-hidden" style={{ backgroundColor: 'var(--c-bg)' }} dir="rtl">
+      {}
+      <div className="hidden lg:flex">
         <div className="w-64 h-full"><Sidebar /></div>
       </div>
 
-      {/* Mobile sidebar */}
+      {}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
-          <div className="absolute right-0 top-0 h-full w-72"><Sidebar mobile /></div>
+          <div className="absolute right-0 top-0 h-full w-[min(20rem,calc(100vw-2rem))] max-w-full"><Sidebar mobile /></div>
         </div>
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Topbar */}
-        <header className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between gap-4">
+        {}
+        <header className="bg-white border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-4">
-            <button className="md:hidden text-gray-500 hover:text-gray-700" onClick={() => setSidebarOpen(true)}>
+            <button aria-label="باز کردن منوی مدیریت" className="lg:hidden touch-target text-gray-500 hover:text-gray-700" onClick={() => setSidebarOpen(true)}>
               <MenuIcon />
             </button>
-            <p className="text-sm text-gray-400 hidden md:block">سامانه نظرسنجی سازمانی</p>
+            <p className="text-sm text-gray-400 hidden sm:block">سامانه نظرسنجی سازمانی</p>
           </div>
           <ThemeSwitcher />
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-7">{children}</main>
       </div>
 
       <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />

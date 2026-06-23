@@ -1,18 +1,5 @@
-/**
- * PersianDatePicker — fixed version
- *
- * BUGS FIXED:
- * 1. Time changes were lost when no date was selected yet (stale closure on `parsed`)
- * 2. Changing time after selecting a date used old parsed value instead of current hour/min state
- * 3. Timezone: we treat everything as LOCAL time — no UTC conversion.
- *    The ISO string emitted is "YYYY-MM-DDTHH:MM" (no Z, no offset) so the
- *    browser/server interprets it as local Tehran time.
- * 4. Day-click now always uses viewYear/viewMonth/selectedDay — never stale parsed.
- */
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-// ─── Jalali ↔ Gregorian ──────────────────────────────────────────────────────
 
 function g2j(gy: number, gm: number, gd: number): [number, number, number] {
   const leap = [0,31,59,90,120,151,181,212,243,273,304,334];
@@ -53,16 +40,16 @@ function monthLen(jy: number, jm: number): number {
   return [1,5,9,13,17,22,26,30].includes(r-1) ? 30 : 29;
 }
 
-// Emit ISO without timezone — browser/server treats as local time
+
 function emit(jy: number, jm: number, jd: number, h: number, m: number): string {
   const [gy,gm,gd] = j2g(jy,jm,jd);
   return `${gy}-${z(gm)}-${z(gd)}T${z(h)}:${z(m)}`;
 }
 
-// Parse an ISO-local string (no Z) as local time
+
 function parse(iso: string) {
   if (!iso) return null;
-  // "YYYY-MM-DDTHH:MM" — split manually to avoid any UTC interpretation
+
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
   if (!m) return null;
   const [gy,gm,gd,h,mn] = m.slice(1).map(Number);
@@ -97,25 +84,24 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
 
-  // ── Parse current value ───────────────────────────────────────────────────
+
   const parsed = parse(value);
 
-  // ── Calendar view (which month to show) ──────────────────────────────────
+
   const [ty,tm] = todayJ();
   const [viewY, setViewY] = useState(() => parsed?.jy ?? ty);
   const [viewM, setViewM] = useState(() => parsed?.jm ?? tm);
 
-  // ── Selected date (nullable until user clicks a day) ─────────────────────
-  // Stored as Jalali to avoid any conversion issues
+
   const [selY, setSelY] = useState<number|null>(() => parsed?.jy ?? null);
   const [selM, setSelM] = useState<number|null>(() => parsed?.jm ?? null);
   const [selD, setSelD] = useState<number|null>(() => parsed?.jd ?? null);
 
-  // ── Time — always kept in local component state ───────────────────────────
+
   const [hour, setHour] = useState(() => parsed?.h ?? 8);
   const [min,  setMin]  = useState(() => parsed?.m ?? 0);
 
-  // Sync from external value changes (e.g. form reset)
+
   useEffect(() => {
     const p = parse(value);
     if (p) {
@@ -127,7 +113,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
     }
   }, [value]);
 
-  // Close on outside click
+
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
@@ -136,18 +122,18 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // ── Emit whenever selection or time changes ───────────────────────────────
+
   const emitIfSelected = useCallback((sy: number|null, sm: number|null, sd: number|null, h: number, m: number) => {
     if (sy !== null && sm !== null && sd !== null) {
       onChange(emit(sy, sm, sd, h, m));
     }
   }, [onChange]);
 
-  // ── Calendar grid ─────────────────────────────────────────────────────────
+
   const totalDays  = monthLen(viewY, viewM);
   const [gy1,gm1,gd1] = j2g(viewY, viewM, 1);
-  const firstDow   = new Date(gy1, gm1-1, gd1).getDay(); // 0=Sun
-  const startOff   = (firstDow + 1) % 7; // Sat=0
+  const firstDow   = new Date(gy1, gm1-1, gd1).getDay();
+  const startOff   = (firstDow + 1) % 7;
 
   const clickDay = (day: number) => {
     setSelY(viewY); setSelM(viewM); setSelD(day);
@@ -172,7 +158,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
   const [ty2,tm2] = todayJ();
   const canPrev = !(minToday && (viewY<ty2 || (viewY===ty2 && viewM<=tm2)));
 
-  // Display string — always show what's actually selected + current time
+
   const display = (selY !== null && selM !== null && selD !== null)
     ? `${selY}/${z(selM)}/${z(selD)}   ${z(hour)}:${z(min)}`
     : '';
@@ -180,7 +166,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
   return (
     <div ref={containerRef} className="relative" dir="rtl">
 
-      {/* ── Trigger ── */}
+      {}
       <div
         onClick={() => setOpen(o => !o)}
         className={`input-field flex items-center justify-between cursor-pointer select-none
@@ -207,11 +193,11 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
         </div>
       </div>
 
-      {/* ── Dropdown ── */}
+      {}
       {open && (
-        <div className="absolute top-full mt-2 right-0 z-50 bg-white rounded-2xl shadow-2xl border border-purple-100 p-4 w-[300px] select-none">
+        <div className="absolute top-full mt-2 right-0 z-50 w-[min(300px,calc(100vw-2rem))] max-w-full bg-white rounded-2xl shadow-2xl border border-purple-100 p-3 sm:p-4 select-none">
 
-          {/* Month navigation */}
+          {}
           <div className="flex items-center justify-between mb-3">
             <button type="button" onClick={nextM}
               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-purple-50 text-gray-500 hover:text-purple-700 transition-colors">
@@ -230,14 +216,14 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
             </button>
           </div>
 
-          {/* Weekday headers */}
+          {}
           <div className="grid grid-cols-7 mb-1">
             {WDAYS.map(d => (
               <div key={d} className="text-center text-xs font-semibold text-purple-400 py-1">{d}</div>
             ))}
           </div>
 
-          {/* Day grid */}
+          {}
           <div className="grid grid-cols-7 gap-0.5">
             {Array.from({length: startOff}).map((_,i) => <div key={`e${i}`}/>)}
             {Array.from({length: totalDays}).map((_,i) => {
@@ -266,12 +252,12 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
             })}
           </div>
 
-          {/* Time picker */}
+          {}
           <div className="mt-4 pt-3 border-t border-gray-100">
             <p className="text-xs text-gray-400 text-center mb-2">زمان (ساعت : دقیقه)</p>
             <div className="flex items-center justify-center gap-4">
 
-              {/* Hour */}
+              {}
               <div className="flex flex-col items-center gap-1">
                 <button type="button" onClick={() => adjHour(1)}
                   className="w-8 h-8 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-lg leading-none transition-colors">
@@ -289,7 +275,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
 
               <span className="text-2xl font-bold text-purple-300 mb-5">:</span>
 
-              {/* Minute — steps of 5 */}
+              {}
               <div className="flex flex-col items-center gap-1">
                 <button type="button" onClick={() => adjMin(5)}
                   className="w-8 h-8 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-lg leading-none transition-colors">
@@ -307,7 +293,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
             </div>
           </div>
 
-          {/* Confirm */}
+          {}
           <button
             type="button"
             onClick={() => setOpen(false)}

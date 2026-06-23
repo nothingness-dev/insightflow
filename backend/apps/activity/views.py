@@ -1,11 +1,4 @@
-"""Activity Center API.
-
-All endpoints are admin-only and built for scale:
-  * The log table is ALWAYS paginated (server-side) — the full table is never
-    loaded into memory or returned at once.
-  * Search and filtering happen in the database via indexed columns.
-  * Stats / charts use bounded aggregate queries.
-"""
+   
 import datetime as dt
 import logging
 
@@ -48,7 +41,7 @@ def _parse_boundary(value, end_of_day=False):
         return None
     value = value.strip()
     parsed = None
-    # Try full datetime first, then date-only.
+
     for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
         try:
             parsed = dt.datetime.strptime(value, fmt)
@@ -132,7 +125,7 @@ class ActivityStatsView(APIView):
 
         now = timezone.localtime()
         start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        # Week starts on Saturday (Iranian calendar). weekday(): Mon=0..Sun=6 → Sat=5.
+
         days_since_saturday = (now.weekday() - 5) % 7
         start_of_week = start_of_today - dt.timedelta(days=days_since_saturday)
 
@@ -224,7 +217,6 @@ class ActivityChartsView(APIView):
         start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         window_start = start_of_today - dt.timedelta(days=days - 1)
 
-        # Daily volume (bucketed in Python to stay DB-agnostic / sqlite-safe).
         rows = (
             ActivityLog.objects
             .filter(created_at__gte=window_start)
@@ -244,7 +236,6 @@ class ActivityChartsView(APIView):
                 bucket['failed'] += 1
         daily = [buckets[(window_start + dt.timedelta(days=i)).date()] for i in range(days)]
 
-        # Breakdown by action type (all-time, top 10).
         by_action_rows = (
             ActivityLog.objects
             .values('action')
@@ -279,7 +270,7 @@ class ActivityFilterOptionsView(APIView):
             {'value': code, 'label': label, 'critical': code in CRITICAL_ACTIONS}
             for code, label in ACTION_LABELS.items()
         ]
-        # Actors that actually appear in the log (keeps the dropdown relevant).
+
         actor_ids = (
             ActivityLog.objects
             .filter(actor__isnull=False)
@@ -308,8 +299,7 @@ class ActivityExportView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        # NOTE: avoid the query param name 'format' — DRF reserves it for content
-        # negotiation and would 404 on an unknown value like 'csv'.
+
         export_format = (request.query_params.get('export_format') or 'csv').strip().lower()
         if export_format not in ('csv', 'excel', 'pdf'):
             return Response(
@@ -317,7 +307,6 @@ class ActivityExportView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Date range is optional — default to the last 30 days when not supplied.
         date_to = _parse_boundary(request.query_params.get('date_to'), end_of_day=True)
         if date_to is None:
             date_to = timezone.now()
@@ -332,11 +321,8 @@ class ActivityExportView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Reuse the same filter pipeline so optional search/action filters apply too.
         qs = build_activity_queryset(request.query_params)
 
-        # Import lazily and guard so a missing optional dependency degrades to a
-        # clean JSON error instead of a 500/HTML page.
         try:
             from .exports import export_activity_logs
             content, content_type, filename = export_activity_logs(qs, export_format, date_from, date_to)

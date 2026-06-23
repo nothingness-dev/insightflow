@@ -39,7 +39,7 @@ export default function UserManagement() {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
 
-  // Bulk import state
+
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
@@ -47,7 +47,7 @@ export default function UserManagement() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Delete all data state
+
   const [deleteAllModal, setDeleteAllModal] = useState(false);
   const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('');
   const [deletingAll, setDeletingAll] = useState(false);
@@ -225,22 +225,22 @@ export default function UserManagement() {
   };
 
   return (
-    <div>
+    <div className="responsive-page">
       <PageHeader
         title="مدیریت کارکنان"
         subtitle="ایجاد و مدیریت حساب‌های کاربری سازمان"
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col min-[420px]:flex-row items-stretch min-[420px]:items-center gap-2">
             <button
               onClick={() => { setImportModalOpen(true); setImportResult(null); setImportFile(null); }}
-              className="btn-secondary flex items-center gap-2"
+              className="btn-secondary w-full min-[420px]:w-auto flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
               آپلود فایل
             </button>
-            <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+            <button onClick={openCreate} className="btn-primary w-full min-[420px]:w-auto flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
               کاربر جدید
             </button>
@@ -250,7 +250,7 @@ export default function UserManagement() {
 
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="flex-1"><SearchInput value={search} onChange={handleSearchChange} placeholder="جستجو بر اساس نام یا نام کاربری..." /></div>
-        <select value={roleFilter} onChange={e => handleRoleChange(e.target.value)} className="input-field sm:w-36">
+        <select value={roleFilter} onChange={e => handleRoleChange(e.target.value)} className="input-field w-full sm:w-36">
           <option value="">همه نقش‌ها</option>
           <option value="admin">مدیر</option>
           <option value="employee">کارمند</option>
@@ -270,10 +270,10 @@ export default function UserManagement() {
       ) : (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="responsive-table w-full min-w-[700px] text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500">کاربر</th>
+                  <th className="text-right px-4 sm:px-6 py-3 text-xs font-semibold text-gray-500">کاربر</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 hidden md:table-cell">نقش</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 hidden md:table-cell">وضعیت</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 hidden lg:table-cell">تاریخ ایجاد</th>
@@ -283,7 +283,7 @@ export default function UserManagement() {
               <tbody className="divide-y divide-gray-50">
                 {users.map(user => (
                   <tr key={user.id} className="table-row">
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-[color:var(--c-100)] flex items-center justify-center text-[color:var(--c-700)] text-sm font-bold flex-shrink-0">
                           {user.full_name[0]}
@@ -302,7 +302,7 @@ export default function UserManagement() {
                     </td>
                     <td className="px-4 py-4 hidden lg:table-cell text-xs text-gray-400">{formatDate(user.created_at)}</td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-1 justify-end">
+                      <div className="flex flex-wrap items-center gap-1 justify-end whitespace-nowrap">
                         <button onClick={() => openEdit(user)} className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">ویرایش</button>
                         <button onClick={() => { setResetId(user.id); setNewPass(''); }} className="px-3 py-1.5 text-xs text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">رمز عبور</button>
                         <button
@@ -325,11 +325,11 @@ export default function UserManagement() {
             </table>
           </div>
           {totalUsers > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50/60">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-5 py-4 border-t border-gray-100 bg-gray-50/60">
               <p className="text-xs text-gray-500">
                 نمایش {((page - 1) * USERS_PER_PAGE) + 1} تا {Math.min(page * USERS_PER_PAGE, totalUsers)} از {totalUsers} کاربر
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"
                   onClick={() => setPage(current => Math.max(1, current - 1))}
@@ -355,9 +355,9 @@ export default function UserManagement() {
         </div>
       )}
 
-      {/* Danger zone */}
+      {}
       <div className="mt-10 border border-red-200 rounded-xl p-5 bg-red-50">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3">
           <div>
             <p className="font-semibold text-red-700 text-sm">ناحیه خطر</p>
             <p className="text-xs text-red-500 mt-0.5">حذف تمام نظرسنجی‌ها، افراد و امتیازها — غیرقابل بازگشت</p>
@@ -371,10 +371,10 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* Create/Edit Modal */}
+      {}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? 'ویرایش کاربر' : 'کاربر جدید'} size="md">
-        <form onSubmit={handleSave} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">نام و نام خانوادگی <span className="text-red-500">*</span></label>
               <input value={form.full_name} onChange={set('full_name')} className={`input-field ${errors.full_name ? 'border-red-400' : ''}`} placeholder="نام کامل" />
@@ -398,7 +398,7 @@ export default function UserManagement() {
               )}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">نقش</label>
               <select value={form.role} onChange={set('role')} className="input-field">
@@ -414,7 +414,7 @@ export default function UserManagement() {
             </div>
           </div>
           {!editUser && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">رمز عبور <span className="text-red-500">*</span></label>
                 <PasswordInput value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} placeholder="حداقل ۸ کاراکتر" error={!!errors.password} />
@@ -427,19 +427,19 @@ export default function UserManagement() {
               </div>
             </div>
           )}
-          <div className="flex gap-3 pt-2">
-            <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+            <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto flex items-center gap-2">
               {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
               {editUser ? 'ذخیره تغییرات' : 'ایجاد کاربر'}
             </button>
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">انصراف</button>
+            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary w-full sm:w-auto">انصراف</button>
           </div>
         </form>
       </Modal>
 
-      {/* Reset Password Modal */}
+      {}
       <Modal open={!!resetId} onClose={closeResetModal} title="تغییر رمز عبور" size="sm">
-        <div className="p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4">
           <p className="text-xs text-gray-500">کاربر در اولین ورود بعدی ملزم به تغییر این رمز خواهد بود.</p>
           <div>
             <label className="label">رمز عبور جدید</label>
@@ -450,11 +450,11 @@ export default function UserManagement() {
             <PasswordInput value={newPassConfirm} onChange={setNewPassConfirm} placeholder="رمز عبور جدید را دوباره وارد کنید" error={!!resetErr} />
           </div>
           {resetErr && <p className="text-xs text-red-500">{resetErr}</p>}
-          <div className="flex gap-3">
-            <button onClick={requestReset} disabled={resetting || !newPass || !newPassConfirm} className="btn-primary flex items-center gap-2">
+          <div className="flex flex-col-reverse sm:flex-row gap-3">
+            <button onClick={requestReset} disabled={resetting || !newPass || !newPassConfirm} className="btn-primary w-full sm:w-auto flex items-center gap-2">
               تغییر رمز
             </button>
-            <button onClick={closeResetModal} className="btn-secondary">انصراف</button>
+            <button onClick={closeResetModal} className="btn-secondary w-full sm:w-auto">انصراف</button>
           </div>
         </div>
       </Modal>
@@ -470,10 +470,10 @@ export default function UserManagement() {
         loading={resetting}
       />
 
-      {/* Bulk Import Modal */}
+      {}
       <Modal open={importModalOpen} onClose={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }} title="آپلود کاربران از فایل" size="lg">
-        <div className="p-6 space-y-5">
-          {/* Format guide */}
+        <div className="p-4 sm:p-6 space-y-5">
+          {}
           <div className="bg-gray-50 rounded-xl p-4 text-xs font-mono text-gray-600 leading-relaxed border border-gray-100">
             <p className="text-gray-400 mb-2 font-sans font-medium text-xs">فرمت فایل CSV یا TXT (هر خط یک کاربر):</p>
             <p>username,نام کامل,رمز عبور,نقش</p>
@@ -487,9 +487,9 @@ export default function UserManagement() {
             </div>
           </div>
 
-          {/* File drop zone */}
+          {}
           <div
-            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors
+            className={`border-2 border-dashed rounded-xl p-5 sm:p-8 text-center cursor-pointer transition-colors
               ${isDragging ? 'border-[color:var(--c-400)] bg-[color:var(--c-50)] scale-[1.01]' :
                 importFile ? 'border-[color:var(--c-300)] bg-[color:var(--c-50)]' :
                 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
@@ -541,7 +541,7 @@ export default function UserManagement() {
             )}
           </div>
 
-          {/* Import result */}
+          {}
           {importResult && (
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
@@ -607,7 +607,7 @@ export default function UserManagement() {
         </div>
       </Modal>
 
-      {/* Delete All Data Modal */}
+      {}
       <Modal open={deleteAllModal} onClose={() => setDeleteAllModal(false)} title="حذف تمام داده‌ها" size="sm">
         <div className="p-6 space-y-4">
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
@@ -641,7 +641,7 @@ export default function UserManagement() {
           </div>
         </div>
       </Modal>
-      {/* Delete User Confirmation Modal */}
+      {}
       <Modal open={!!deleteUserId} onClose={() => setDeleteUserId(null)} title="حذف کاربر" size="sm">
         <div className="p-6 space-y-4">
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">

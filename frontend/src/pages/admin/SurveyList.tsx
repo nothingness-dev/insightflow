@@ -28,7 +28,7 @@ export default function AdminSurveyList() {
     if (statusFilter) params.status = statusFilter;
     adminSurveyApi.list(params)
       .then(r => setSurveys(Array.isArray(r.data) ? r.data : (r.data as any).results || []))
-      // FIX #8: load errors were silently swallowed — user saw infinite spinner.
+
       .catch(err => { toast.error(getErrorMessage(err)); setSurveys([]); })
       .finally(() => setLoading(false));
   }, [search, statusFilter]);
@@ -89,12 +89,12 @@ export default function AdminSurveyList() {
   };
 
   return (
-    <div>
+    <div className="responsive-page">
       <PageHeader
         title="نظرسنجی‌ها"
         subtitle="مدیریت و پیگیری تمام نظرسنجی‌های سازمان"
         action={
-          <button onClick={() => navigate('/admin/surveys/new')} className="btn-primary flex items-center gap-2">
+          <button onClick={() => navigate('/admin/surveys/new')} className="btn-primary w-full sm:w-auto flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
@@ -103,7 +103,7 @@ export default function AdminSurveyList() {
         }
       />
 
-      {/* Filters */}
+      {}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="flex-1">
           <SearchInput value={search} onChange={setSearch} placeholder="جستجو در عنوان یا سوال..." />
@@ -111,7 +111,7 @@ export default function AdminSurveyList() {
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          className="input-field sm:w-44"
+          className="input-field w-full sm:w-44"
         >
           <option value="">همه وضعیت‌ها</option>
           <option value="draft">پیش‌نویس</option>
@@ -135,10 +135,10 @@ export default function AdminSurveyList() {
       ) : (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="responsive-table w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">عنوان</th>
+                  <th className="text-right px-4 sm:px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">عنوان</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">وضعیت</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">افراد</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">پاسخ‌ها</th>
@@ -149,7 +149,7 @@ export default function AdminSurveyList() {
               <tbody className="divide-y divide-gray-50">
                 {surveys.map(survey => (
                   <tr key={survey.id} className="table-row">
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-4">
                       <div>
                         <p className="font-medium text-slate-800">{survey.title}</p>
                         <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{survey.questions_count || survey.questions?.length || 0} سوال — {survey.questions?.[0]?.text || survey.question || 'بدون سوال'}</p>
@@ -161,7 +161,7 @@ export default function AdminSurveyList() {
                     <td className="px-4 py-4 hidden lg:table-cell text-gray-600">{survey.total_responses}</td>
                     <td className="px-4 py-4 hidden md:table-cell text-gray-500 text-xs">{formatDate(survey.created_at)}</td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-1 justify-end flex-wrap">
+                      <div className="flex items-center gap-1 justify-end flex-wrap whitespace-nowrap">
                         <Link
                           to={`/admin/surveys/${survey.id}`}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[color:var(--c-600)] hover:bg-[color:var(--c-50)] rounded-lg transition-colors"

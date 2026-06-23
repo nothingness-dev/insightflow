@@ -2,11 +2,11 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Admin dashboard
+                     
     path('admin/dashboard/', views.AdminDashboardView.as_view(), name='admin-dashboard'),
     path('admin/delete-all-data/', views.AdminDeleteAllDataView.as_view(), name='admin-delete-all-data'),
 
-    # Admin survey CRUD
+                       
     path('admin/surveys/', views.AdminSurveyListCreateView.as_view(), name='admin-survey-list'),
     path('admin/surveys/progress/', views.AdminSurveyProgressView.as_view(), name='admin-survey-progress'),
     path('admin/surveys/<int:pk>/', views.AdminSurveyDetailView.as_view(), name='admin-survey-detail'),
@@ -19,11 +19,11 @@ urlpatterns = [
     path('admin/surveys/<int:pk>/export/excel/', views.AdminSurveyExportExcelView.as_view(), name='admin-survey-export-excel'),
     path('admin/surveys/<int:pk>/export/pdf/', views.AdminSurveyExportPDFView.as_view(), name='admin-survey-export-pdf'),
 
-    # Admin people management
+                             
     path('admin/surveys/<int:survey_id>/people/', views.AdminPersonListCreateView.as_view(), name='admin-person-list'),
     path('admin/people/<int:pk>/', views.AdminPersonDetailView.as_view(), name='admin-person-detail'),
 
-    # Employee survey endpoints
+                               
     path('surveys/', views.EmployeeSurveyListView.as_view(), name='employee-survey-list'),
     path('surveys/<int:pk>/', views.EmployeeSurveyDetailView.as_view(), name='employee-survey-detail'),
     path('surveys/<int:survey_id>/people/<int:person_id>/rate/', views.EmployeeRatePersonView.as_view(), name='employee-rate-person'),

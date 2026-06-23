@@ -51,7 +51,7 @@ function PasswordField({ label, value, onChange, placeholder, autoFocus }: {
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Forced (first-login) mode: cannot be dismissed and shows an explanatory banner. */
+  
   forced?: boolean;
 }
 
@@ -79,7 +79,7 @@ export default function ChangePasswordModal({ open, onClose, forced = false }: P
     return Object.keys(e).length === 0;
   };
 
-  // First click validates and opens the double-check confirmation.
+
   const handleSubmit = () => {
     if (validate()) setConfirmOpen(true);
   };
@@ -105,7 +105,7 @@ export default function ChangePasswordModal({ open, onClose, forced = false }: P
   };
 
   const handleClose = () => {
-    if (forced || submitting) return; // cannot dismiss while forced or submitting
+    if (forced || submitting) return;
     reset();
     onClose();
   };
@@ -113,7 +113,7 @@ export default function ChangePasswordModal({ open, onClose, forced = false }: P
   return (
     <>
       <Modal open={open} onClose={handleClose} title={forced ? undefined : 'تغییر رمز عبور'} size="sm">
-        <div className="p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4">
           {forced && (
             <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
               <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -140,11 +140,11 @@ export default function ChangePasswordModal({ open, onClose, forced = false }: P
             placeholder="رمز عبور جدید را دوباره وارد کنید" />
           {errors.confirm && <p className="text-xs text-red-500 -mt-2">{errors.confirm}</p>}
 
-          <div className="flex gap-3 pt-1">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
             {!forced && (
-              <button onClick={handleClose} className="btn-secondary flex-1" disabled={submitting}>انصراف</button>
+              <button onClick={handleClose} className="btn-secondary w-full sm:flex-1" disabled={submitting}>انصراف</button>
             )}
-            <button onClick={handleSubmit} className="btn-primary flex-1" disabled={submitting}>
+            <button onClick={handleSubmit} className="btn-primary w-full sm:flex-1" disabled={submitting}>
               تغییر رمز عبور
             </button>
           </div>

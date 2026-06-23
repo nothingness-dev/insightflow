@@ -18,9 +18,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(username.trim(), password);
-      // FIX #16: don't read user back from localStorage after login() — that relies
-      // on a side effect that may not be committed yet in strict mode. Instead read
-      // from the AuthContext state which login() updates synchronously.
+
+
       const savedUser = localStorage.getItem('user');
       const loggedInUser = savedUser ? JSON.parse(savedUser) : null;
       navigate(loggedInUser?.role === 'admin' ? '/admin' : '/surveys', { replace: true });
@@ -30,12 +29,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, var(--c-50) 100%)' }} dir="rtl">
+    <div className="min-h-[100dvh] flex items-center justify-center p-3 sm:p-4" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, var(--c-50) 100%)' }} dir="rtl">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
 
-          {/* Header */}
-          <div className="px-8 py-8 text-center" style={{ backgroundColor: 'var(--c-600)' }}>
+          {}
+          <div className="px-5 sm:px-8 py-6 sm:py-8 text-center" style={{ backgroundColor: 'var(--c-600)' }}>
             <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -45,8 +44,8 @@ export default function LoginPage() {
             <p className="text-white/70 text-sm mt-1">برای ادامه وارد شوید</p>
           </div>
 
-          {/* Form */}
-          <div className="px-8 py-8">
+          {}
+          <div className="px-5 sm:px-8 py-6 sm:py-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="label">نام کاربری</label>
@@ -92,7 +91,7 @@ export default function LoginPage() {
             </form>
           </div>
         </div>
-        <p className="text-center text-xs text-gray-400 mt-6">سامانه نظرسنجی سازمانی — محرمانه و امن</p>
+        <p className="text-center text-xs text-gray-400 mt-5 sm:mt-6 px-2">سامانه نظرسنجی سازمانی</p>
       </motion.div>
     </div>
   );

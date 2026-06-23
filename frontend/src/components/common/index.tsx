@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ─── Password input with show/hide toggle ───────────────────────────
+
 interface PasswordInputProps {
   value: string;
   onChange: (v: string) => void;
@@ -45,7 +45,7 @@ export function PasswordInput({ value, onChange, placeholder, autoFocus, error }
   );
 }
 
-// ─── Modal ───────────────────────────────────────────────
+
 interface ModalProps {
   open: boolean;
   onClose: () => void;
@@ -66,7 +66,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -80,10 +80,10 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            className={`relative bg-white rounded-xl shadow-2xl w-full ${sizeClass} border border-gray-100`}
+            className={`relative bg-white rounded-xl shadow-2xl w-full ${sizeClass} max-h-[calc(100dvh-1.5rem)] overflow-y-auto border border-gray-100`}
           >
             {title && (
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
                 <h2 className="text-base font-semibold text-slate-800">{title}</h2>
                 <button
                   onClick={onClose}
@@ -103,7 +103,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
   );
 }
 
-// ─── Confirm Modal ────────────────────────────────────────
+
 interface ConfirmModalProps {
   open: boolean;
   onClose: () => void;
@@ -132,7 +132,7 @@ export function ConfirmModal({ open, onClose, onConfirm, title, message, confirm
         </div>
         <h3 className="text-base font-semibold text-center text-slate-800 mb-2">{title}</h3>
         <p className="text-sm text-gray-500 text-center mb-6 leading-relaxed">{message}</p>
-        <div className="flex gap-3">
+        <div className="flex flex-col-reverse sm:flex-row gap-3">
           <button onClick={onClose} className="btn-secondary flex-1" disabled={loading}>انصراف</button>
           <button
             onClick={onConfirm}
@@ -152,7 +152,7 @@ export function ConfirmModal({ open, onClose, onConfirm, title, message, confirm
   );
 }
 
-// ─── Status Badge ─────────────────────────────────────────
+
 export function StatusBadge({ status, expired }: { status: string; expired?: boolean }) {
   if (expired && status === 'published') {
     return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">مهلت به پایان رسیده</span>;
@@ -166,7 +166,7 @@ export function StatusBadge({ status, expired }: { status: string; expired?: boo
   return <span className={cfg.className}>{cfg.label}</span>;
 }
 
-// ─── Skeleton ─────────────────────────────────────────────
+
 export function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`skeleton ${className}`} />;
 }
@@ -181,7 +181,7 @@ export function CardSkeleton() {
   );
 }
 
-// ─── Empty State ──────────────────────────────────────────
+
 interface EmptyStateProps {
   title: string;
   description?: string;
@@ -206,7 +206,7 @@ export function EmptyState({ title, description, action, icon }: EmptyStateProps
   );
 }
 
-// ─── Page Header ──────────────────────────────────────────
+
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
@@ -215,17 +215,17 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
   return (
-    <div className="flex items-start justify-between mb-6">
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
       <div>
         <h1 className="page-title">{title}</h1>
         {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
       </div>
-      {action && <div className="flex-shrink-0">{action}</div>}
+      {action && <div className="w-full sm:w-auto flex-shrink-0">{action}</div>}
     </div>
   );
 }
 
-// ─── Spinner ──────────────────────────────────────────────
+
 export function Spinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const s = { sm: 'w-4 h-4', md: 'w-6 h-6', lg: 'w-8 h-8' }[size];
   return <div className={`${s} border-2 border-[color:var(--c-600)] border-t-transparent rounded-full animate-spin`} />;
@@ -239,7 +239,7 @@ export function PageLoader() {
   );
 }
 
-// ─── Search input ─────────────────────────────────────────
+
 interface SearchProps {
   value: string;
   onChange: (v: string) => void;

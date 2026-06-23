@@ -11,7 +11,7 @@ function StatCard({ label, value, bgColor, iconColor, icon }: {
   bgColor: string; iconColor: string; icon: React.ReactNode;
 }) {
   return (
-    <div className="card p-5 flex items-center gap-4">
+    <div className="card p-3 sm:p-5 flex items-center gap-3 sm:gap-4">
       <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: bgColor }}>
         <span style={{ color: iconColor }}>{icon}</span>
       </div>
@@ -47,18 +47,18 @@ export default function AdminDashboard() {
   const UIcon = () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 
   return (
-    <div>
+    <div className="responsive-page">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="page-title">داشبورد مدیریت</h1>
           <p className="text-sm text-gray-500 mt-1">خلاصه وضعیت سامانه نظرسنجی</p>
         </div>
-        <Link to="/admin/survey-progress" className="btn-secondary self-start">
+        <Link to="/admin/survey-progress" className="btn-secondary w-full sm:w-auto self-start">
           پیگیری پیشرفت نظرسنجی‌ها
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <StatCard label="کل نظرسنجی‌ها"  value={stats.total_surveys}     bgColor="var(--c-50)"  iconColor="var(--c-600)" icon={<SIcon />} />
         <StatCard label="پیش‌نویس"        value={stats.draft_surveys}     bgColor="#f9fafb"      iconColor="#6b7280"     icon={<DIcon />} />
         <StatCard label="منتشر شده"       value={stats.published_surveys} bgColor="#ecfdf5"      iconColor="#059669"     icon={<PIcon />} />
@@ -68,7 +68,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="card">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
           <h2 className="section-title">آخرین نظرسنجی‌ها</h2>
           <Link to="/admin/surveys" className="text-sm font-medium transition-colors" style={{ color: 'var(--c-600)' }}
             onMouseEnter={e => (e.currentTarget.style.color = 'var(--c-700)')}
@@ -77,15 +77,15 @@ export default function AdminDashboard() {
           </Link>
         </div>
         {recent_surveys.length === 0
-          ? <div className="px-6 py-10 text-center text-gray-400 text-sm">هنوز نظرسنجی‌ای ایجاد نشده است</div>
+          ? <div className="px-4 sm:px-6 py-10 text-center text-gray-400 text-sm">هنوز نظرسنجی‌ای ایجاد نشده است</div>
           : <div className="divide-y divide-gray-50">
               {recent_surveys.map((survey: Survey) => (
-                <div key={survey.id} className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                <div key={survey.id} className="px-4 sm:px-6 py-4 flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 hover:bg-gray-50 transition-colors">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-800 truncate">{survey.title}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{formatDate(survey.created_at)}</p>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-3 flex-shrink-0 self-start min-[420px]:self-auto">
                     <StatusBadge status={survey.status} />
                     <Link to={`/admin/surveys/${survey.id}`} className="text-xs hover:underline" style={{ color: 'var(--c-600)' }}>جزئیات</Link>
                   </div>

@@ -36,7 +36,6 @@ def calculate_survey_results(survey, request=None):
     active_questions_count = len(questions)
     required_answers = active_people_count * active_questions_count
 
-    # ── find voters who answered every active person × every active question ──
     if required_answers > 0:
         completed_voter_ids = list(
             Rating.objects
@@ -53,7 +52,6 @@ def calculate_survey_results(survey, request=None):
     else:
         completed_voter_ids = []
 
-    # All subsequent queries are scoped to completed voters only
     base_qs = Rating.objects.filter(
         survey=survey,
         person__is_active=True,
@@ -127,7 +125,7 @@ def calculate_survey_results(survey, request=None):
                 'responses_count': q_agg.get('score_count') or 0,
                 'votes_count': q_agg.get('voters_count') or 0,
                 'comments_count': len(comments_by_person_question.get((person.id, question.id), [])),
-                # comments omitted here — fetched lazily via comments endpoint
+
             })
 
         results.append({
@@ -141,15 +139,11 @@ def calculate_survey_results(survey, request=None):
             'votes_count': voter_counts.get(person.id, 0),
             'scored_answers_count': person_score_agg.get('score_count') or 0,
             'comments_count': len(comments_by_person.get(person.id, [])),
-            # comments omitted — fetched lazily via comments endpoint
+
             'question_results': question_results,
             'display_order': person.display_order,
         })
 
-    # FIX #7: people with no scores (None) must sort LAST, not above scores of 0.
-    # Old code: -(None → -1) = +1 which ranked unscored people above scores of 0.
-    # Fix: use a tuple sort key where None scores are pushed to the bottom via (1, 0)
-    # while real scores are (0, -score) so higher scores rank first.
     results.sort(key=lambda x: (
         (1, 0) if x['average_score'] is None else (0, -x['average_score']),
         -(x['votes_count']),
@@ -250,8 +244,6 @@ def validate_question_answers(questions, submitted_answers):
         elif question.comment_required and not comment:
             raise ValueError('ثبت توضیح برای یکی از سوال‌ها الزامی است.')
 
-        # Even when both controls are optional, the question itself may not be
-        # empty. At least one enabled answer field must contain data.
         enabled_has_value = False
         if question.has_score and score is not None:
             enabled_has_value = True
