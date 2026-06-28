@@ -13,6 +13,8 @@ const createEmptyQuestion = (displayOrder: number): SurveyQuestionInput => ({
   score_required: true,
   has_comment: false,
   comment_required: false,
+  has_emoji: false,
+  emoji_required: false,
   display_order: displayOrder,
   is_active: true,
 });
@@ -53,6 +55,8 @@ export default function SurveyForm() {
                 score_required: q.has_score ? q.score_required : false,
                 has_comment: q.has_comment,
                 comment_required: q.has_comment ? q.comment_required : false,
+                has_emoji: q.has_emoji,
+                emoji_required: q.has_emoji ? q.emoji_required : false,
                 display_order: q.display_order ?? index,
                 is_active: true,
               }))
@@ -81,14 +85,17 @@ export default function SurveyForm() {
 
     form.questions.forEach((question, index) => {
       if (!question.text.trim()) e[`question_${index}`] = 'متن سوال الزامی است';
-      if (!question.has_score && !question.has_comment) {
-        e[`question_type_${index}`] = 'هر سوال باید حداقل امتیاز عددی یا توضیح متنی داشته باشد';
+      if (!question.has_score && !question.has_comment && !question.has_emoji) {
+        e[`question_type_${index}`] = 'هر سوال باید حداقل یک نوع پاسخ (امتیاز عددی، امتیاز ایموجی یا توضیح متنی) داشته باشد';
       }
       if (!question.has_score && question.score_required) {
         e[`question_type_${index}`] = 'وقتی امتیاز غیرفعال است، نمی‌تواند الزامی باشد';
       }
       if (!question.has_comment && question.comment_required) {
         e[`question_type_${index}`] = 'وقتی توضیح غیرفعال است، نمی‌تواند الزامی باشد';
+      }
+      if (!question.has_emoji && question.emoji_required) {
+        e[`question_type_${index}`] = 'وقتی امتیاز ایموجی غیرفعال است، نمی‌تواند الزامی باشد';
       }
     });
 
@@ -106,6 +113,7 @@ export default function SurveyForm() {
       help_text: question.help_text.trim(),
       score_required: question.has_score ? question.score_required : false,
       comment_required: question.has_comment ? question.comment_required : false,
+      emoji_required: question.has_emoji ? question.emoji_required : false,
       display_order: index,
       is_active: true,
     })),
@@ -146,6 +154,7 @@ export default function SurveyForm() {
         const next = { ...question, ...patch };
         if (!next.has_score) next.score_required = false;
         if (!next.has_comment) next.comment_required = false;
+        if (!next.has_emoji) next.emoji_required = false;
         return next;
       }),
     }));
@@ -241,7 +250,7 @@ export default function SurveyForm() {
                   placeholder="راهنمای اختیاری برای این سوال"
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
                   <div className="rounded-xl bg-white border border-gray-100 p-3">
                     <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                       <input
@@ -267,6 +276,27 @@ export default function SurveyForm() {
                     <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                       <input
                         type="checkbox"
+                        checked={question.has_emoji}
+                        onChange={e => updateQuestion(index, { has_emoji: e.target.checked })}
+                      />
+                      امتیاز ایموجی (بد تا عالی)
+                    </label>
+                    {question.has_emoji && (
+                      <label className="flex items-center gap-2 text-xs text-gray-500 mt-3">
+                        <input
+                          type="checkbox"
+                          checked={question.emoji_required}
+                          onChange={e => updateQuestion(index, { emoji_required: e.target.checked })}
+                        />
+                        امتیاز ایموجی الزامی باشد
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl bg-white border border-gray-100 p-3">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
                         checked={question.has_comment}
                         onChange={e => updateQuestion(index, { has_comment: e.target.checked })}
                       />
@@ -284,6 +314,7 @@ export default function SurveyForm() {
                     )}
                   </div>
                 </div>
+
 
                 {errors[`question_type_${index}`] && <p className="text-xs text-red-500 mt-2">{errors[`question_type_${index}`]}</p>}
               </div>

@@ -17,6 +17,8 @@ export interface SurveyQuestion {
   score_required: boolean;
   has_comment: boolean;
   comment_required: boolean;
+  has_emoji: boolean;
+  emoji_required: boolean;
   display_order: number;
   is_active?: boolean;
   created_at?: string;
@@ -30,6 +32,8 @@ export interface SurveyQuestionInput {
   score_required: boolean;
   has_comment: boolean;
   comment_required: boolean;
+  has_emoji: boolean;
+  emoji_required: boolean;
   display_order: number;
   is_active?: boolean;
 }
@@ -72,6 +76,8 @@ export interface SurveyPerson {
   has_rated?: boolean;
 }
 
+export type EmojiRatingValue = 'bad' | 'average' | 'good' | 'excellent';
+
 export interface QuestionResult {
   question_id: number;
   question_text: string;
@@ -79,11 +85,19 @@ export interface QuestionResult {
   score_required: boolean;
   has_comment: boolean;
   comment_required: boolean;
+  has_emoji: boolean;
+  emoji_required: boolean;
   average_score: number | null;
   total_score: number;
   responses_count: number;
   votes_count: number;
   comments: string[];
+  comments_count?: number;
+  average_emoji_numeric?: number | null;
+  average_emoji_label?: string | null;
+  emoji_responses_count?: number;
+  emoji_votes_count?: number;
+  emoji_breakdown?: Record<EmojiRatingValue, number>;
 }
 
 export interface ResultComment {
@@ -104,6 +118,7 @@ export interface PersonResult {
   votes_count: number;
   scored_answers_count?: number;
   comments: ResultComment[];
+  comments_count?: number;
   question_results: QuestionResult[];
 }
 

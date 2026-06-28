@@ -1,6 +1,6 @@
 # InsightFlow
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.1.0-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-success)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Backend](https://img.shields.io/badge/backend-Django%20REST%20Framework-092E20)
@@ -50,13 +50,13 @@
 ## ویژگی‌های اصلی
 
 ### 👨‍💼 پنل مدیریت
-- ساخت نظرسنجی با **سوالات چندگانه** (هر سوال می‌تواند امتیاز عددی، توضیح متنی یا هر دو داشته باشد)
+- ساخت نظرسنجی با **سوالات چندگانه** (هر سوال می‌تواند امتیاز عددی، امتیاز ایموجی (بد/متوسط/خوب/عالی)، توضیح متنی، یا هر ترکیبی از این سه داشته باشد)
 - افزودن افراد ارزیابی‌شونده با عکس، سمت و واحد سازمانی
 - **ورود گروهی کارکنان** از طریق فایل CSV
 - انتشار، بستن و تکثیر نظرسنجی‌ها
 - مشاهده **پیشرفت پر شدن** نظرسنجی به‌صورت زنده (چه کسانی هنوز پاسخ نداده‌اند)
-- مشاهده **نتایج ناشناس** با رتبه‌بندی، میانگین هر سوال و نظرات متنی
-- خروجی **PDF**، **Excel** و **CSV** از نتایج
+- مشاهده **نتایج ناشناس** با رتبه‌بندی، میانگین هر سوال، توزیع امتیاز ایموجی و نظرات متنی
+- خروجی **PDF**، **Excel** و **CSV** از نتایج (شامل امتیاز عددی، امتیاز ایموجی و نظرات متنی)
 - **مرکز فعالیت‌ها** — لاگ ممیزی کامل با فیلتر، جستجو و خروجی
 
 ### 👩‍⚕️ پنل کارمند
@@ -67,7 +67,7 @@
 
 ### 🛡️ امنیت
 - احراز هویت JWT با **blacklist** کردن توکن هنگام خروج
-- رمزهای عبور هاش‌شده
+- رمزهای عبور هاش‌شده — بدون محدودیت یا قانون پیچیدگی خاص (هر طول و ترکیبی پذیرفته می‌شود؛ انتخاب رمز قوی به‌عهده مدیر/کارمند است)
 - محدودیت نوع و حجم فایل آپلودی
 - هیچ اطلاعات رأی‌دهنده‌ای در نتایج ذخیره نمی‌شود
 - **لاگ ممیزی** هر عملیات حساس
@@ -319,13 +319,13 @@ Most organizations still rely on Excel files, paper forms, or fragmented tools f
 ## Features
 
 ### 👨‍💼 Admin Panel
-- Create surveys with **multiple questions** — each question can have a numeric score (1–10), a text comment, or both
+- Create surveys with **multiple questions** — each question can have a numeric score (1–10), an emoji rating (بد/متوسط/خوب/عالی — bad/average/good/excellent), a text comment, or any combination of the three
 - Add evaluated people with photo, job title, and department
 - **Bulk import employees** from a CSV file
 - Publish, close, and duplicate surveys
 - Live **participation progress** — see exactly who hasn't voted yet
-- View **anonymous results** — per-person rankings, per-question averages, and text comments
-- Export results as **PDF**, **Excel**, and **CSV**
+- View **anonymous results** — per-person rankings, per-question averages, emoji rating breakdowns, and text comments
+- Export results as **PDF**, **Excel**, and **CSV** (including numeric scores, emoji ratings, and text comments)
 - **Activity Center** — full audit log with filters, search, and export
 
 ### 👩‍⚕️ Employee Panel
@@ -336,7 +336,7 @@ Most organizations still rely on Excel files, paper forms, or fragmented tools f
 
 ### 🛡️ Security
 - JWT authentication with token **blacklisting on logout**
-- Passwords are hashed
+- Passwords are hashed — no length or complexity requirements are enforced (any length or character mix is accepted; choosing a strong password is left to the admin/employee)
 - Upload type and size restrictions enforced
 - No voter identity stored in results
 - Every sensitive operation is **audit-logged**

@@ -29,6 +29,27 @@ function scoreGrade(v: number | null) {
   return 'عالی';
 }
 
+const EMOJI_VISUALS: Record<string, { color: string; bg: string }> = {
+  'بد':    { color: '#ef4444', bg: '#fef2f2' },
+  'متوسط': { color: '#f59e0b', bg: '#fffbeb' },
+  'خوب':   { color: '#84cc16', bg: '#f7fee7' },
+  'عالی':  { color: '#10b981', bg: '#f0fdf4' },
+};
+
+function emojiVisual(label?: string | null) {
+  return (label && EMOJI_VISUALS[label]) || { color: '#94a3b8', bg: '#f8fafc' };
+}
+
+function EmojiPill({ label, size = 'md' }: { label?: string | null; size?: 'sm' | 'md' | 'lg' }) {
+  const sizes = { sm: 'text-sm px-2.5 py-0.5', md: 'text-base px-3 py-1', lg: 'text-xl px-4 py-2' };
+  const { color, bg } = emojiVisual(label);
+  return (
+    <span className={`font-bold rounded-lg ${sizes[size]}`} style={{ background: bg, color }}>
+      {label || '—'}
+    </span>
+  );
+}
+
 
 function ScorePill({ value, size = 'md' }: { value: number | null; size?: 'sm' | 'md' | 'lg' }) {
   const sizes = { sm: 'text-sm px-2.5 py-0.5', md: 'text-base px-3 py-1', lg: 'text-2xl px-4 py-2' };
@@ -157,6 +178,28 @@ function TabOverview({ results, survey }: { results: PersonResult[]; survey: any
   ], [scored]);
   const maxBucket = Math.max(...buckets.map(b => b.count), 1);
 
+  const emojiBuckets = useMemo(() => {
+    const totals: Record<string, number> = { bad: 0, average: 0, good: 0, excellent: 0 };
+    let hasAnyEmojiQuestion = false;
+    for (const r of results) {
+      for (const q of r.question_results || []) {
+        if (!q.has_emoji) continue;
+        hasAnyEmojiQuestion = true;
+        if (q.emoji_breakdown) {
+          for (const key of EMOJI_ORDER) totals[key] += q.emoji_breakdown[key] ?? 0;
+        }
+      }
+    }
+    if (!hasAnyEmojiQuestion) return null;
+    return EMOJI_ORDER.map(key => ({
+      label: EMOJI_KEY_TO_LABEL[key],
+      color: emojiVisual(EMOJI_KEY_TO_LABEL[key]).color,
+      count: totals[key],
+    }));
+  }, [results]);
+  const maxEmojiBucket = emojiBuckets ? Math.max(...emojiBuckets.map(b => b.count), 1) : 1;
+  const totalEmojiResponses = emojiBuckets ? emojiBuckets.reduce((s, b) => s + b.count, 0) : 0;
+
   return (
     <div className="space-y-4">
       {}
@@ -175,7 +218,7 @@ function TabOverview({ results, survey }: { results: PersonResult[]; survey: any
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className={`grid grid-cols-1 ${emojiBuckets ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-4`}>
         {}
         <div className="card p-5">
           <p className="text-sm font-semibold text-slate-700 mb-4">توزیع امتیازات</p>
@@ -196,6 +239,27 @@ function TabOverview({ results, survey }: { results: PersonResult[]; survey: any
             <span>{fa(results.length - scored.length)} نفر بدون امتیاز</span>
           </div>
         </div>
+
+        {emojiBuckets && (
+          <div className="card p-5">
+            <p className="text-sm font-semibold text-slate-700 mb-4">توزیع امتیاز ایموجی</p>
+            <div className="flex items-end gap-2" style={{ height: 100 }}>
+              {emojiBuckets.map((b, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                  <span className="text-xs font-bold" style={{ color: b.color }}>
+                    {b.count > 0 ? fa(b.count) : ''}
+                  </span>
+                  <div className="w-full rounded-t-md"
+                    style={{ height: Math.max(4, (b.count / maxEmojiBucket) * 72), background: b.color, opacity: 0.85 }} />
+                  <span className="text-[11px] text-slate-400">{b.label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center justify-between text-xs text-slate-400 border-t border-slate-100 pt-3">
+              <span>{fa(totalEmojiResponses)} پاسخ ایموجی ثبت شده</span>
+            </div>
+          </div>
+        )}
 
         {}
         <div className="card p-5">
@@ -233,23 +297,41 @@ interface QStat {
   question_text: string;
   has_score: boolean;
   has_comment: boolean;
+  has_emoji: boolean;
   avg: number | null;
   responses: number;
   comments_count: number;
+  emoji_avg_numeric: number | null;
+  emoji_avg_label: string | null;
+  emoji_responses: number;
+  emoji_breakdown: Record<string, number>;
+}
+
+const EMOJI_NUM_TO_LABEL: Record<number, string> = { 1: 'بد', 2: 'متوسط', 3: 'خوب', 4: 'عالی' };
+const EMOJI_ORDER = ['bad', 'average', 'good', 'excellent'] as const;
+const EMOJI_KEY_TO_LABEL: Record<string, string> = { bad: 'بد', average: 'متوسط', good: 'خوب', excellent: 'عالی' };
+
+function emojiLabelFromNumeric(value: number | null): string | null {
+  if (value == null) return null;
+  const rounded = Math.min(4, Math.max(1, Math.round(value)));
+  return EMOJI_NUM_TO_LABEL[rounded];
 }
 
 function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId: number }) {
   const stats = useMemo<QStat[]>(() => {
     const map = new Map<number, QStat>();
     const acc = new Map<number, { sum: number; n: number }>();
+    const emojiAcc = new Map<number, { sum: number; n: number }>();
 
     for (const p of results) {
       for (const q of p.question_results || []) {
         if (!map.has(q.question_id)) {
           map.set(q.question_id, {
             question_id: q.question_id, question_text: q.question_text,
-            has_score: q.has_score, has_comment: q.has_comment,
+            has_score: q.has_score, has_comment: q.has_comment, has_emoji: !!q.has_emoji,
             avg: null, responses: 0, comments_count: 0,
+            emoji_avg_numeric: null, emoji_avg_label: null, emoji_responses: 0,
+            emoji_breakdown: { bad: 0, average: 0, good: 0, excellent: 0 },
           });
         }
         const s = map.get(q.question_id)!;
@@ -259,11 +341,29 @@ function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId
           const prev = acc.get(q.question_id) ?? { sum: 0, n: 0 };
           acc.set(q.question_id, { sum: prev.sum + q.average_score * q.responses_count, n: prev.n + q.responses_count });
         }
+        const emojiCount = q.emoji_responses_count ?? 0;
+        s.emoji_responses += emojiCount;
+        if (q.average_emoji_numeric != null && emojiCount > 0) {
+          const prev = emojiAcc.get(q.question_id) ?? { sum: 0, n: 0 };
+          emojiAcc.set(q.question_id, { sum: prev.sum + q.average_emoji_numeric * emojiCount, n: prev.n + emojiCount });
+        }
+        if (q.emoji_breakdown) {
+          for (const key of EMOJI_ORDER) {
+            s.emoji_breakdown[key] += q.emoji_breakdown[key] ?? 0;
+          }
+        }
       }
     }
     for (const [id, { sum, n }] of acc) {
       const s = map.get(id);
       if (s && n > 0) s.avg = Math.round((sum / n) * 100) / 100;
+    }
+    for (const [id, { sum, n }] of emojiAcc) {
+      const s = map.get(id);
+      if (s && n > 0) {
+        s.emoji_avg_numeric = Math.round((sum / n) * 100) / 100;
+        s.emoji_avg_label = emojiLabelFromNumeric(s.emoji_avg_numeric);
+      }
     }
     return Array.from(map.values()).sort((a, b) => {
       if (a.avg == null && b.avg == null) return 0;
@@ -291,7 +391,7 @@ function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-700 leading-relaxed mb-3">{q.question_text}</p>
 
-                {q.has_score ? (
+                {q.has_score && (
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-2.5 rounded-full overflow-hidden bg-slate-100">
                       <div className="h-full rounded-full transition-all duration-700"
@@ -302,7 +402,30 @@ function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId
                     </span>
                     <span className="text-xs text-slate-400 flex-shrink-0 hidden sm:inline">{fa(q.responses)} پاسخ</span>
                   </div>
-                ) : (
+                )}
+
+                {q.has_emoji && (
+                  <div className={q.has_score ? 'mt-3' : ''}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {EMOJI_ORDER.map(key => {
+                        const count = q.emoji_breakdown[key] || 0;
+                        const label = EMOJI_KEY_TO_LABEL[key];
+                        const { color, bg } = emojiVisual(label);
+                        const isTop = q.emoji_avg_label === label && count > 0;
+                        return (
+                          <span key={key}
+                            className="text-[11px] font-bold px-2 py-1 rounded-lg flex items-center gap-1"
+                            style={{ background: bg, color, boxShadow: isTop ? `0 0 0 2px ${color}` : undefined }}>
+                            {label} · {fa(count)}
+                          </span>
+                        );
+                      })}
+                      <span className="text-xs text-slate-400">{fa(q.emoji_responses)} پاسخ</span>
+                    </div>
+                  </div>
+                )}
+
+                {!q.has_score && !q.has_emoji && (
                   <p className="text-xs text-slate-400">سوال متنی</p>
                 )}
 
@@ -321,6 +444,14 @@ function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId
                   </span>
                 </div>
               )}
+              {!q.has_score && q.has_emoji && (
+                <div className="flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center"
+                  style={{ background: emojiVisual(q.emoji_avg_label).bg }}>
+                  <span className="text-sm font-bold leading-none text-center" style={{ color: emojiVisual(q.emoji_avg_label).color }}>
+                    {q.emoji_avg_label || '—'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -335,9 +466,13 @@ function QuestionRow({ q, surveyId, personId }: { q: QuestionResult; surveyId: n
     <div className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
       <div className="flex-1 min-w-0">
         <p className="text-xs text-slate-500 leading-relaxed mb-1.5">{q.question_text}</p>
-        {q.has_score
-          ? <Bar value={q.average_score} h={4} showLabel />
-          : <p className="text-xs text-slate-400">متنی</p>}
+        {q.has_score && <Bar value={q.average_score} h={4} showLabel />}
+        {q.has_emoji && (
+          <p className={q.has_score ? 'mt-1.5' : ''}>
+            <EmojiPill label={q.average_emoji_label} size="sm" />
+          </p>
+        )}
+        {!q.has_score && !q.has_emoji && <p className="text-xs text-slate-400">متنی</p>}
         <LazyComments surveyId={surveyId} personId={personId} questionId={q.question_id}
           total={q.comments_count ?? q.comments?.length ?? 0} />
       </div>
@@ -345,6 +480,12 @@ function QuestionRow({ q, surveyId, personId }: { q: QuestionResult; surveyId: n
         <span className="flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-md"
           style={{ background: scoreBg(q.average_score), color: scoreColor(q.average_score) }}>
           {q.average_score != null ? q.average_score.toFixed(1) : '—'}
+        </span>
+      )}
+      {!q.has_score && q.has_emoji && (
+        <span className="flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-md"
+          style={{ background: emojiVisual(q.average_emoji_label).bg, color: emojiVisual(q.average_emoji_label).color }}>
+          {q.average_emoji_label || '—'}
         </span>
       )}
     </div>

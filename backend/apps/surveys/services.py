@@ -1,8 +1,37 @@
 from collections import defaultdict
 
 from django.db import transaction
-from django.db.models import Sum, Count, Avg, F, Q
+from django.db.models import Sum, Count, Avg, F, Q, Case, When, Value, IntegerField
 from .models import Survey, SurveyQuestion, SurveyPerson, Rating
+
+
+EMOJI_NUMERIC_MAP = {
+    Rating.EMOJI_BAD: 1,
+    Rating.EMOJI_AVERAGE: 2,
+    Rating.EMOJI_GOOD: 3,
+    Rating.EMOJI_EXCELLENT: 4,
+}
+
+EMOJI_NUMERIC_TO_LABEL = {v: k for k, v in EMOJI_NUMERIC_MAP.items()}
+
+
+def _emoji_numeric_annotation():
+    """Map the emoji_rating CharField to an integer (بد=1 ... عالی=4) so it can
+    be aggregated (Avg/Sum) the same way numeric scores are."""
+    return Case(
+        *[When(emoji_rating=key, then=Value(value)) for key, value in EMOJI_NUMERIC_MAP.items()],
+        default=None,
+        output_field=IntegerField(),
+    )
+
+
+def emoji_label_for_numeric(value):
+    """Round a 1-4 average back to the nearest emoji label (بد/متوسط/خوب/عالی)."""
+    if value is None:
+        return None
+    rounded = max(1, min(4, round(value)))
+    key = EMOJI_NUMERIC_TO_LABEL[rounded]
+    return dict(Rating.EMOJI_CHOICES)[key]
 
 
 def _photo_url_for(person, request=None):
@@ -85,6 +114,28 @@ def calculate_survey_results(survey, request=None):
         )
     }
 
+    emoji_question_aggregates = {
+        (row['person_id'], row['question_id']): row
+        for row in base_qs
+        .filter(emoji_rating__isnull=False)
+        .annotate(emoji_numeric=_emoji_numeric_annotation())
+        .values('person_id', 'question_id')
+        .annotate(
+            emoji_avg=Avg('emoji_numeric'),
+            emoji_count=Count('id'),
+            emoji_voters_count=Count('voter_id', distinct=True),
+        )
+    }
+
+    emoji_counts_by_question_choice = defaultdict(lambda: defaultdict(int))
+    for row in (
+        base_qs
+        .filter(emoji_rating__isnull=False)
+        .values('person_id', 'question_id', 'emoji_rating')
+        .annotate(choice_count=Count('id'))
+    ):
+        emoji_counts_by_question_choice[(row['person_id'], row['question_id'])][row['emoji_rating']] = row['choice_count']
+
     voter_counts = {
         row['person_id']: row['voters_count']
         for row in base_qs
@@ -113,6 +164,9 @@ def calculate_survey_results(survey, request=None):
 
         for question in questions:
             q_agg = question_aggregates.get((person.id, question.id), {})
+            emoji_agg = emoji_question_aggregates.get((person.id, question.id), {})
+            emoji_avg_numeric = emoji_agg.get('emoji_avg')
+            emoji_breakdown = emoji_counts_by_question_choice.get((person.id, question.id), {})
             question_results.append({
                 'question_id': question.id,
                 'question_text': question.text,
@@ -120,12 +174,20 @@ def calculate_survey_results(survey, request=None):
                 'score_required': question.score_required,
                 'has_comment': question.has_comment,
                 'comment_required': question.comment_required,
+                'has_emoji': question.has_emoji,
+                'emoji_required': question.emoji_required,
                 'average_score': round(q_agg['avg'], 2) if q_agg.get('avg') is not None else None,
                 'total_score': q_agg.get('total') or 0,
                 'responses_count': q_agg.get('score_count') or 0,
                 'votes_count': q_agg.get('voters_count') or 0,
                 'comments_count': len(comments_by_person_question.get((person.id, question.id), [])),
-
+                'average_emoji_numeric': round(emoji_avg_numeric, 2) if emoji_avg_numeric is not None else None,
+                'average_emoji_label': emoji_label_for_numeric(emoji_avg_numeric),
+                'emoji_responses_count': emoji_agg.get('emoji_count') or 0,
+                'emoji_votes_count': emoji_agg.get('emoji_voters_count') or 0,
+                'emoji_breakdown': {
+                    key: emoji_breakdown.get(key, 0) for key, _label in Rating.EMOJI_CHOICES
+                },
             })
 
         results.append({
@@ -187,6 +249,8 @@ def duplicate_survey(source_survey, created_by):
                 score_required=question.score_required,
                 has_comment=question.has_comment,
                 comment_required=question.comment_required,
+                has_emoji=question.has_emoji,
+                emoji_required=question.emoji_required,
                 display_order=question.display_order,
                 is_active=question.is_active,
             )
@@ -232,12 +296,18 @@ def validate_question_answers(questions, submitted_answers):
     for question in questions:
         answer = answers_by_question[question.id]
         score = answer.get('score')
+        emoji_rating = answer.get('emoji_rating') or None
         comment = (answer.get('comment') or '').strip()
 
         if not question.has_score:
             score = None
         elif question.score_required and score is None:
             raise ValueError('ثبت امتیاز برای یکی از سوال‌ها الزامی است.')
+
+        if not question.has_emoji:
+            emoji_rating = None
+        elif question.emoji_required and not emoji_rating:
+            raise ValueError('ثبت امتیاز ایموجی برای یکی از سوال‌ها الزامی است.')
 
         if not question.has_comment:
             comment = ''
@@ -247,6 +317,8 @@ def validate_question_answers(questions, submitted_answers):
         enabled_has_value = False
         if question.has_score and score is not None:
             enabled_has_value = True
+        if question.has_emoji and emoji_rating:
+            enabled_has_value = True
         if question.has_comment and comment:
             enabled_has_value = True
         if not enabled_has_value:
@@ -255,6 +327,7 @@ def validate_question_answers(questions, submitted_answers):
         validated.append({
             'question': question,
             'score': score,
+            'emoji_rating': emoji_rating,
             'comment': comment or None,
         })
 

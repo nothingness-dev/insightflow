@@ -396,9 +396,6 @@ class UserBulkImportView(APIView):
             if len(full_name) > full_name_max_length:
                 errors.append({'line': line_number, 'error': 'نام کامل بیش از حد طولانی است.'})
                 continue
-            if len(password) < 8:
-                errors.append({'line': line_number, 'error': 'رمز عبور باید حداقل ۸ کاراکتر باشد.'})
-                continue
             if username in seen_usernames:
                 skipped.append({
                     'line': line_number,

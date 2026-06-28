@@ -356,6 +356,9 @@ class AdminSurveyExportCSVView(APIView):
             if q.has_score:
                 headers.append(f"میانگین: {q.text}")
                 headers.append(f"تعداد پاسخ: {q.text}")
+            if q.has_emoji:
+                headers.append(f"امتیاز ایموجی: {q.text}")
+                headers.append(f"تعداد پاسخ ایموجی: {q.text}")
             if q.has_comment:
                 headers.append(f"تعداد نظرات: {q.text}")
         writer.writerow(headers)
@@ -373,6 +376,9 @@ class AdminSurveyExportCSVView(APIView):
                 if q.has_score:
                     row.append(item.get('average_score') if item.get('average_score') is not None else '')
                     row.append(item.get('responses_count') or 0)
+                if q.has_emoji:
+                    row.append(item.get('average_emoji_label') or '')
+                    row.append(item.get('emoji_responses_count') or 0)
                 if q.has_comment:
 
                     row.append(len(comments_map.get((r['person_id'], q.id), [])))
@@ -380,13 +386,15 @@ class AdminSurveyExportCSVView(APIView):
 
         writer.writerow([])
         writer.writerow(['تحلیل سوال‌به‌سوال'])
-        writer.writerow(['#', 'متن سوال', 'میانگین کل', 'کیفیت', 'تعداد پاسخ', 'تعداد نظرات متنی'])
+        writer.writerow(['#', 'متن سوال', 'میانگین کل', 'کیفیت', 'تعداد پاسخ', 'امتیاز ایموجی', 'تعداد پاسخ ایموجی', 'تعداد نظرات متنی'])
         for idx, q in enumerate(questions_meta, 1):
             writer.writerow([
                 idx, q['text'],
                 q['avg'] if q['avg'] is not None else ('متنی' if not q['has_score'] else ''),
                 score_grade(q['avg']) if q['has_score'] else '—',
                 q['responses'] if q['has_score'] else '—',
+                q['emoji_avg_label'] if q['has_emoji'] else '—',
+                q['emoji_responses'] if q['has_emoji'] else '—',
                 q['comments'] if q['has_comment'] else '—',
             ])
 
@@ -395,6 +403,13 @@ class AdminSurveyExportCSVView(APIView):
         writer.writerow(['دسته', 'تعداد افراد'])
         for label, count, _color in summary['distribution']:
             writer.writerow([label, count])
+
+        if summary['emoji_distribution']:
+            writer.writerow([])
+            writer.writerow(['توزیع امتیاز ایموجی'])
+            writer.writerow(['دسته', 'تعداد پاسخ'])
+            for label, count, _color in summary['emoji_distribution']:
+                writer.writerow([label, count])
 
         if ds['comments_flat']:
             writer.writerow([])
@@ -459,6 +474,25 @@ class AdminSurveyExportExcelView(APIView):
             if score < 4:     return Font(color='EF4444', bold=True, size=10)
             if score < 7:     return Font(color='F59E0B', bold=True, size=10)
             return             Font(color='10B981', bold=True, size=10)
+
+        EMOJI_FILL_COLORS = {
+            Rating.EMOJI_BAD: 'FEF2F2',
+            Rating.EMOJI_AVERAGE: 'FFFBEB',
+            Rating.EMOJI_GOOD: 'F7FEE7',
+            Rating.EMOJI_EXCELLENT: 'F0FDF4',
+        }
+        EMOJI_FONT_COLORS = {
+            Rating.EMOJI_BAD: 'EF4444',
+            Rating.EMOJI_AVERAGE: 'F59E0B',
+            Rating.EMOJI_GOOD: '84CC16',
+            Rating.EMOJI_EXCELLENT: '10B981',
+        }
+
+        def emoji_fill(emoji_key):
+            return PatternFill('solid', fgColor=EMOJI_FILL_COLORS.get(emoji_key, 'F8FAFC'))
+
+        def emoji_font(emoji_key):
+            return Font(color=EMOJI_FONT_COLORS.get(emoji_key, '94A3B8'), bold=True, size=10)
 
         def style_header_row(ws, row_num, fill, font, height=22):
             ws.row_dimensions[row_num].height = height
@@ -549,6 +583,30 @@ class AdminSurveyExportExcelView(APIView):
         ws0.column_dimensions['C'].width = 14
         ws0.column_dimensions['D'].width = 22
 
+        if summary['emoji_distribution']:
+            emoji_title_row = rr + 1
+            ws0.merge_cells(start_row=emoji_title_row, start_column=1, end_row=emoji_title_row, end_column=4)
+            ws0.cell(row=emoji_title_row, column=1, value='توزیع امتیاز ایموجی')
+            ws0.cell(row=emoji_title_row, column=1).font = TITLE_FONT
+            ws0.cell(row=emoji_title_row, column=1).alignment = RIGHT
+            emoji_hdr = emoji_title_row + 1
+            ws0.cell(row=emoji_hdr, column=1, value='دسته')
+            ws0.cell(row=emoji_hdr, column=2, value='تعداد پاسخ')
+            ws0.cell(row=emoji_hdr, column=3, value='درصد')
+            style_header_row(ws0, emoji_hdr, HEADER_FILL, HEADER_FONT)
+            emoji_total = sum(c for _l, c, _col in summary['emoji_distribution']) or 1
+            er = emoji_hdr + 1
+            for label, count, color in summary['emoji_distribution']:
+                ws0.cell(row=er, column=1, value=label).alignment = RIGHT
+                cc = ws0.cell(row=er, column=2, value=count); cc.alignment = CENTER
+                pc = ws0.cell(row=er, column=3, value=f'{round(count / emoji_total * 100)}٪'); pc.alignment = CENTER
+                chip = ws0.cell(row=er, column=1)
+                chip.fill = PatternFill('solid', fgColor=color.lstrip('#').upper())
+                chip.font = Font(color='FFFFFF', bold=True, size=10)
+                for c_ in range(1, 4):
+                    ws0.cell(row=er, column=c_).border = BORDER
+                er += 1
+
         ws1 = wb.create_sheet('نتایج فردی')
         ws1.sheet_view.rightToLeft = True
 
@@ -561,6 +619,9 @@ class AdminSurveyExportExcelView(APIView):
             if q.has_score:
                 q_headers.append(f"میانگین\n{q.text}")
                 q_headers.append(f"تعداد پاسخ\n{q.text}")
+            if q.has_emoji:
+                q_headers.append(f"امتیاز ایموجی\n{q.text}")
+                q_headers.append(f"تعداد پاسخ ایموجی\n{q.text}")
             if q.has_comment:
                 q_headers.append(f"تعداد نظرات\n{q.text}")
         ncols += len(q_headers)
@@ -587,6 +648,9 @@ class AdminSurveyExportExcelView(APIView):
                     q_avg = item.get('average_score')
                     row.append(round(q_avg, 2) if q_avg is not None else '')
                     row.append(item.get('responses_count') or 0)
+                if q.has_emoji:
+                    row.append(item.get('average_emoji_label') or '')
+                    row.append(item.get('emoji_responses_count') or 0)
                 if q.has_comment:
                     row.append(len(comments_map.get((r['person_id'], q.id), [])))
             ws1.append(row)
@@ -607,6 +671,12 @@ class AdminSurveyExportExcelView(APIView):
                     cell = ws1.cell(row=data_row, column=offset + 1)
                     cell.fill = score_fill(q_avg_val); cell.font = score_font(q_avg_val)
                     offset += 2
+                if q.has_emoji:
+                    q_emoji_label = by_q.get(q.id, {}).get('average_emoji_label')
+                    emoji_key = next((k for k, label in Rating.EMOJI_CHOICES if label == q_emoji_label), None)
+                    cell = ws1.cell(row=data_row, column=offset + 1)
+                    cell.fill = emoji_fill(emoji_key); cell.font = emoji_font(emoji_key)
+                    offset += 2
                 if q.has_comment:
                     offset += 1
 
@@ -620,34 +690,40 @@ class AdminSurveyExportExcelView(APIView):
         ws2 = wb.create_sheet('تحلیل سوال‌ها')
         ws2.sheet_view.rightToLeft = True
         ws2.append([f'تحلیل سوال‌به‌سوال: {survey.title}'])
-        ws2.merge_cells('A1:F1')
+        ws2.merge_cells('A1:H1')
         ws2['A1'].font = TITLE_FONT
         ws2['A1'].alignment = RIGHT
         ws2.row_dimensions[1].height = 26
         ws2.append([])
-        ws2.append(['#', 'متن سوال', 'میانگین کل', 'کیفیت', 'تعداد پاسخ', 'تعداد نظرات متنی'])
+        ws2.append(['#', 'متن سوال', 'میانگین کل', 'کیفیت', 'تعداد پاسخ', 'امتیاز ایموجی', 'تعداد پاسخ ایموجی', 'تعداد نظرات متنی'])
         style_header_row(ws2, 3, HEADER_FILL, HEADER_FONT)
         for idx, q in enumerate(questions_meta, 1):
             q_avg = q['avg']
+            q_emoji_label = q['emoji_avg_label']
             ws2.append([
                 idx, q['text'],
                 q_avg if q_avg is not None else 'متنی',
                 score_grade(q_avg) if q['has_score'] else '—',
                 q['responses'] if q['has_score'] else '—',
+                q_emoji_label if q['has_emoji'] else '—',
+                q['emoji_responses'] if q['has_emoji'] else '—',
                 q['comments'] if q['has_comment'] else '—',
             ])
             row_num = ws2.max_row
             ws2.row_dimensions[row_num].height = 20
             for col_idx, cell in enumerate(ws2[row_num], 1):
                 cell.border = BORDER
-                cell.alignment = CENTER if col_idx in (1, 3, 4, 5, 6) else RIGHT
+                cell.alignment = CENTER if col_idx in (1, 3, 4, 5, 6, 7, 8) else RIGHT
                 if col_idx == 3 and isinstance(cell.value, (int, float)):
                     cell.fill = score_fill(q_avg); cell.font = score_font(q_avg)
                 elif col_idx == 4 and q['has_score']:
                     cell.font = score_font(q_avg)
+                elif col_idx == 6 and q['has_emoji']:
+                    emoji_key = next((k for k, label in Rating.EMOJI_CHOICES if label == q_emoji_label), None)
+                    cell.fill = emoji_fill(emoji_key); cell.font = emoji_font(emoji_key)
         ws2.freeze_panes = 'A4'
-        ws2.auto_filter.ref = 'A3:F3'
-        for col, w in (('A', 6), ('B', 46), ('C', 14), ('D', 12), ('E', 14), ('F', 16)):
+        ws2.auto_filter.ref = 'A3:H3'
+        for col, w in (('A', 6), ('B', 40), ('C', 12), ('D', 10), ('E', 12), ('F', 12), ('G', 14), ('H', 14)):
             ws2.column_dimensions[col].width = w
 
         if ds['comments_flat']:
@@ -903,6 +979,7 @@ class EmployeeRatePersonView(APIView):
             submitted_answers = [{
                 'question_id': questions[0].id,
                 'score': serializer.validated_data.get('score'),
+                'emoji_rating': serializer.validated_data.get('emoji_rating'),
                 'comment': serializer.validated_data.get('comment'),
             }]
 
@@ -920,6 +997,7 @@ class EmployeeRatePersonView(APIView):
                         question=item['question'],
                         voter=request.user,
                         score=item['score'],
+                        emoji_rating=item.get('emoji_rating'),
                         comment=item['comment'],
                         ip_address=get_client_ip(request),
                         user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],

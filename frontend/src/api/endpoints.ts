@@ -1,5 +1,5 @@
 import api from './client';
-import { ActivityCharts, ActivityCriticalPanel, ActivityFilterOptions, ActivityLog, ActivityLogFilters, ActivityStats, BulkImportResult, DashboardStats, MyRatings, PaginatedResponse, Survey, SurveyPerson, SurveyProgressDashboard, SurveyQuestionInput, SurveyResults, User } from '../types';
+import { ActivityCharts, ActivityCriticalPanel, ActivityFilterOptions, ActivityLog, ActivityLogFilters, ActivityStats, BulkImportResult, DashboardStats, EmojiRatingValue, MyRatings, PaginatedResponse, Survey, SurveyPerson, SurveyProgressDashboard, SurveyQuestionInput, SurveyResults, User } from '../types';
 
 
 export const authApi = {
@@ -121,7 +121,7 @@ export const employeeApi = {
     api.get<Survey[]>('/surveys/'),
   survey: (id: number) =>
     api.get(`/surveys/${id}/`),
-  rate: (surveyId: number, personId: number, answers: { question_id: number; score?: number | null; comment?: string | null }[]) =>
+  rate: (surveyId: number, personId: number, answers: { question_id: number; score?: number | null; emoji_rating?: EmojiRatingValue | null; comment?: string | null }[]) =>
     api.post(`/surveys/${surveyId}/people/${personId}/rate/`, { answers }),
   myRatings: (surveyId: number) =>
     api.get<MyRatings>(`/surveys/${surveyId}/my-ratings/`),

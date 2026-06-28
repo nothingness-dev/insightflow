@@ -1,4 +1,4 @@
-# Generated for InsightFlow initial schema.
+# Generated for insightflow initial schema.
 
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator

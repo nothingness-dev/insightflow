@@ -23,25 +23,30 @@ class SurveyQuestionSerializer(serializers.ModelSerializer):
         model = SurveyQuestion
         fields = [
             'id', 'survey', 'text', 'help_text', 'has_score', 'score_required',
-            'has_comment', 'comment_required', 'display_order', 'is_active', 'created_at'
+            'has_comment', 'comment_required', 'has_emoji', 'emoji_required',
+            'display_order', 'is_active', 'created_at'
         ]
         read_only_fields = ['id', 'survey', 'created_at']
 
     def validate(self, attrs):
         has_score = attrs.get('has_score', getattr(self.instance, 'has_score', True))
         has_comment = attrs.get('has_comment', getattr(self.instance, 'has_comment', False))
+        has_emoji = attrs.get('has_emoji', getattr(self.instance, 'has_emoji', False))
         score_required = attrs.get('score_required', getattr(self.instance, 'score_required', True))
         comment_required = attrs.get('comment_required', getattr(self.instance, 'comment_required', False))
+        emoji_required = attrs.get('emoji_required', getattr(self.instance, 'emoji_required', False))
         text = attrs.get('text', getattr(self.instance, 'text', '')).strip()
 
         if not text:
             raise serializers.ValidationError({'text': 'متن سوال الزامی است.'})
-        if not has_score and not has_comment:
-            raise serializers.ValidationError('هر سوال باید حداقل امتیاز عددی یا توضیح متنی داشته باشد.')
+        if not has_score and not has_comment and not has_emoji:
+            raise serializers.ValidationError('هر سوال باید حداقل یک نوع پاسخ (امتیاز عددی، امتیاز ایموجی یا توضیح متنی) داشته باشد.')
         if score_required and not has_score:
             raise serializers.ValidationError({'score_required': 'وقتی امتیاز عددی غیرفعال است، الزامی بودن امتیاز مجاز نیست.'})
         if comment_required and not has_comment:
             raise serializers.ValidationError({'comment_required': 'وقتی توضیح متنی غیرفعال است، الزامی بودن توضیح مجاز نیست.'})
+        if emoji_required and not has_emoji:
+            raise serializers.ValidationError({'emoji_required': 'وقتی امتیاز ایموجی غیرفعال است، الزامی بودن آن مجاز نیست.'})
         return attrs
 
 
@@ -50,7 +55,8 @@ class SurveyQuestionPublicSerializer(serializers.ModelSerializer):
         model = SurveyQuestion
         fields = [
             'id', 'text', 'help_text', 'has_score', 'score_required',
-            'has_comment', 'comment_required', 'display_order'
+            'has_comment', 'comment_required', 'has_emoji', 'emoji_required',
+            'display_order'
         ]
 
 
@@ -176,6 +182,8 @@ class SurveyCreateUpdateSerializer(serializers.ModelSerializer):
                 'score_required': True,
                 'has_comment': True,
                 'comment_required': False,
+                'has_emoji': False,
+                'emoji_required': False,
                 'display_order': 0,
                 'is_active': True,
             }]
@@ -205,6 +213,8 @@ class SurveyCreateUpdateSerializer(serializers.ModelSerializer):
                 'score_required': True,
                 'has_comment': True,
                 'comment_required': False,
+                'has_emoji': False,
+                'emoji_required': False,
                 'display_order': 0,
                 'is_active': True,
             }])
@@ -240,6 +250,7 @@ class SurveyCreateUpdateSerializer(serializers.ModelSerializer):
 class QuestionAnswerCreateSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
     score = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(1), MaxValueValidator(10)])
+    emoji_rating = serializers.ChoiceField(choices=Rating.EMOJI_CHOICES, required=False, allow_null=True)
     comment = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=1000)
 
 
@@ -247,12 +258,13 @@ class RatingCreateSerializer(serializers.Serializer):
     answers = QuestionAnswerCreateSerializer(many=True, required=False)
                                                                                
     score = serializers.IntegerField(required=False, allow_null=True, validators=[MinValueValidator(1), MaxValueValidator(10)])
+    emoji_rating = serializers.ChoiceField(choices=Rating.EMOJI_CHOICES, required=False, allow_null=True)
     comment = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=1000)
 
     def validate(self, attrs):
         if attrs.get('answers'):
             return attrs
-        if 'score' in attrs or 'comment' in attrs:
+        if 'score' in attrs or 'comment' in attrs or 'emoji_rating' in attrs:
             return attrs
         raise serializers.ValidationError({'answers': 'پاسخ به سوال‌ها الزامی است.'})
 

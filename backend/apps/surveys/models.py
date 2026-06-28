@@ -72,6 +72,8 @@ class SurveyQuestion(models.Model):
     score_required = models.BooleanField(default=True, verbose_name='امتیاز عددی الزامی است')
     has_comment = models.BooleanField(default=False, verbose_name='دارای توضیح متنی')
     comment_required = models.BooleanField(default=False, verbose_name='توضیح متنی الزامی است')
+    has_emoji = models.BooleanField(default=False, verbose_name='دارای امتیاز ایموجی')
+    emoji_required = models.BooleanField(default=False, verbose_name='امتیاز ایموجی الزامی است')
     display_order = models.PositiveIntegerField(default=0, verbose_name='ترتیب نمایش')
     is_active = models.BooleanField(default=True, verbose_name='فعال')
     created_at = models.DateTimeField(default=timezone.now, verbose_name='تاریخ ایجاد')
@@ -108,6 +110,18 @@ class SurveyPerson(models.Model):
 
 
 class Rating(models.Model):
+    EMOJI_BAD = 'bad'
+    EMOJI_AVERAGE = 'average'
+    EMOJI_GOOD = 'good'
+    EMOJI_EXCELLENT = 'excellent'
+
+    EMOJI_CHOICES = [
+        (EMOJI_BAD, 'بد'),
+        (EMOJI_AVERAGE, 'متوسط'),
+        (EMOJI_GOOD, 'خوب'),
+        (EMOJI_EXCELLENT, 'عالی'),
+    ]
+
     survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='ratings', verbose_name='نظرسنجی')
     person = models.ForeignKey(SurveyPerson, on_delete=models.CASCADE, related_name='ratings', verbose_name='شخص')
     question = models.ForeignKey(
@@ -122,6 +136,10 @@ class Rating(models.Model):
         null=True, blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(10)],
         verbose_name='امتیاز'
+    )
+    emoji_rating = models.CharField(
+        max_length=20, choices=EMOJI_CHOICES, null=True, blank=True,
+        verbose_name='امتیاز ایموجی'
     )
     comment = models.TextField(
         blank=True, null=True,
@@ -141,5 +159,10 @@ class Rating(models.Model):
         ]
 
     def __str__(self):
-        value = self.score if self.score is not None else 'متنی'
+        if self.score is not None:
+            value = self.score
+        elif self.emoji_rating:
+            value = self.get_emoji_rating_display()
+        else:
+            value = 'متنی'
         return f"پاسخ {value} برای {self.person.full_name}"

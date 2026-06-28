@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from django.contrib.auth.password_validation import validate_password
 from .models import User
 
 
@@ -26,7 +25,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, validators=[validate_password])
+    password = serializers.CharField(write_only=True)
     password_confirm = serializers.CharField(write_only=True)
 
     class Meta:
@@ -53,7 +52,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
 
 class PasswordResetSerializer(serializers.Serializer):
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(write_only=True)
     new_password_confirm = serializers.CharField(write_only=True)
 
     def validate(self, data):
@@ -66,7 +65,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     """Self-service password change. The acting user supplies their current
     password plus a new password (twice). Used by both admins and employees."""
     current_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(write_only=True)
     new_password_confirm = serializers.CharField(write_only=True)
 
     def validate_current_password(self, value):

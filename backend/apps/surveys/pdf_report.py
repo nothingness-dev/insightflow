@@ -83,6 +83,21 @@ def _score_palette(v):
     return colors.HexColor('#10b981'), colors.HexColor('#f0fdf4')
 
 
+_EMOJI_PALETTE = {
+    'bad':       (colors.HexColor('#ef4444'), colors.HexColor('#fef2f2')),
+    'average':   (colors.HexColor('#f59e0b'), colors.HexColor('#fffbeb')),
+    'good':      (colors.HexColor('#84cc16'), colors.HexColor('#f7fee7')),
+    'excellent': (colors.HexColor('#10b981'), colors.HexColor('#f0fdf4')),
+}
+
+
+def _emoji_palette(key):
+    return _EMOJI_PALETTE.get(key, (colors.HexColor('#94a3b8'), colors.HexColor('#f8fafc')))
+
+
+_EMOJI_LABEL_TO_KEY = {'بد': 'bad', 'متوسط': 'average', 'خوب': 'good', 'عالی': 'excellent'}
+
+
 def _score_grade(v):
     if v is None:
         return '—'
@@ -261,6 +276,32 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
         ]))
         story.append(dist_table)
 
+    emoji_distribution = summary.get('emoji_distribution') or []
+    if emoji_distribution:
+        story.append(P('توزیع امتیاز ایموجی', 'h2'))
+        emoji_total = sum(d[1] for d in emoji_distribution) or 1
+        emoji_rows = []
+        for label, count, col in emoji_distribution:
+            pct = count / emoji_total
+            bar = Table([['']], colWidths=[max(2, pct * (content_w * 0.5))], rowHeights=[12])
+            bar.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(col)),
+                ('LINEBELOW', (0, 0), (-1, -1), 0, colors.white),
+            ]))
+            emoji_rows.append([
+                Paragraph(_rtlp(f'{_fa_num(count)} پاسخ ({_fa_num(pct * 100)}٪)'), styles['muted']),
+                bar,
+                Paragraph(_rtlp(label), styles['cell']),
+            ])
+        emoji_dist_table = Table(emoji_rows, colWidths=[content_w * 0.22, content_w * 0.55, content_w * 0.23])
+        emoji_dist_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        story.append(emoji_dist_table)
+
     story.append(P('رتبه‌بندی افراد', 'h2'))
     header = [P('رتبه', 'th'), P('نام و نام خانوادگی', 'th'), P('واحد', 'th'),
               P('سمت', 'th'), P('میانگین', 'th'), P('کیفیت', 'th'), P('رأی', 'th')]
@@ -299,7 +340,7 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
 
     story.append(P('تحلیل سوال‌به‌سوال', 'h2'))
     qheader = [P('#', 'th'), P('متن سوال', 'th'), P('میانگین کل', 'th'),
-               P('تعداد پاسخ', 'th'), P('نظرات متنی', 'th')]
+               P('تعداد پاسخ', 'th'), P('امتیاز ایموجی', 'th'), P('نظرات متنی', 'th')]
     qdata = [qheader]
     qstyle = [
         ('BACKGROUND', (0, 0), (-1, 0), _INK),
@@ -312,20 +353,27 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
     for idx, q in enumerate(questions_meta, 1):
         av = q['avg']
         fg, bg = _score_palette(av)
+        emoji_label = q.get('emoji_avg_label')
+        has_emoji_value = bool(q.get('has_emoji') and emoji_label)
+        emoji_fg, emoji_bg = _emoji_palette(_EMOJI_LABEL_TO_KEY.get(emoji_label))
+        emoji_cell_style = ParagraphStyle('qem', parent=styles['cellc'], textColor=emoji_fg, fontName='Vazir-Bold')
         qdata.append([
             Paragraph(_rtlp(_fa_num(idx)), styles['cellc']),
             Paragraph(_rtlp(q['text']), styles['cell']),
             Paragraph(_rtlp(_fa_num(av, 2) if av is not None else 'متنی'),
                       ParagraphStyle('qsc', parent=styles['cellc'], textColor=fg, fontName='Vazir-Bold')),
             Paragraph(_rtlp(_fa_num(q['responses']) if q['has_score'] else '—'), styles['cellc']),
+            Paragraph(_rtlp(emoji_label) if has_emoji_value else _rtlp('—'), emoji_cell_style if has_emoji_value else styles['cellc']),
             Paragraph(_rtlp(_fa_num(q['comments']) if q['has_comment'] else '—'), styles['cellc']),
         ])
         ri = len(qdata) - 1
         if av is not None:
             qstyle.append(('BACKGROUND', (2, ri), (2, ri), bg))
+        if has_emoji_value:
+            qstyle.append(('BACKGROUND', (4, ri), (4, ri), emoji_bg))
     qtable = Table(
         qdata,
-        colWidths=[content_w * x for x in (0.07, 0.49, 0.16, 0.14, 0.14)],
+        colWidths=[content_w * x for x in (0.06, 0.40, 0.14, 0.12, 0.14, 0.14)],
         repeatRows=1,
     )
     qtable.setStyle(TableStyle(qstyle))

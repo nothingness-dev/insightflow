@@ -1,8 +1,9 @@
 # Docker Deployment Notes
 
-This project is designed to run as four services:
+This project is designed to run as five services:
 
 - `db`: PostgreSQL 15
+- `redis`: Redis 7 — cache layer for dashboard stats, survey results, and activity log views
 - `backend`: Django REST API served by Gunicorn
 - `frontend`: React/Vite production build served by `serve`
 - `nginx`: reverse proxy for `/`, `/api/`, `/static/`, and `/media/`
@@ -20,6 +21,7 @@ docker compose up --build -d
 docker compose logs backend
 docker compose logs frontend
 docker compose logs nginx
+docker compose logs redis
 ```
 
 ## Rebuild after changes

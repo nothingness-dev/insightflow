@@ -571,3 +571,104 @@ class EmployeeSurveyListTests(APITestCase):
         self.assertEqual(published_item['total_people'], 1)
         self.assertEqual(published_item['total_questions'], 1)
         self.assertEqual(published_item['my_votes_count'], 0)
+
+
+class EmojiRatingQuestionTests(APITestCase):
+    """Covers the emoji rating question type (بد/متوسط/خوب/عالی)."""
+
+    def setUp(self):
+        self.admin = create_admin(username='admin_emoji')
+        self.employee = create_employee(username='employee_emoji')
+        self.survey = Survey.objects.create(
+            title='نظرسنجی ایموجی',
+            description='تست امتیاز ایموجی',
+            status=Survey.STATUS_PUBLISHED,
+            created_by=self.admin,
+        )
+        self.person = create_person(self.survey, full_name='فرد ایموجی')
+        self.emoji_question = SurveyQuestion.objects.create(
+            survey=self.survey,
+            text='کیفیت خدمات را ارزیابی کنید؟',
+            has_score=False,
+            score_required=False,
+            has_comment=False,
+            comment_required=False,
+            has_emoji=True,
+            emoji_required=True,
+            display_order=0,
+        )
+
+    def authenticate(self, user, password):
+        response = self.client.post('/api/auth/login/', {'username': user.username, 'password': password})
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
+
+    def test_question_serializer_requires_at_least_one_answer_type(self):
+        from apps.surveys.serializers import SurveyQuestionSerializer
+        serializer = SurveyQuestionSerializer(data={
+            'text': 'سوال بدون نوع پاسخ',
+            'has_score': False,
+            'has_comment': False,
+            'has_emoji': False,
+        })
+        self.assertFalse(serializer.is_valid())
+
+    def test_question_serializer_accepts_emoji_only_question(self):
+        from apps.surveys.serializers import SurveyQuestionSerializer
+        serializer = SurveyQuestionSerializer(data={
+            'text': 'سوال فقط ایموجی',
+            'has_score': False,
+            'has_comment': False,
+            'has_emoji': True,
+            'emoji_required': True,
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_employee_must_submit_emoji_rating_when_required(self):
+        self.authenticate(self.employee, 'EmpPass@1')
+        response = self.client.post(
+            f'/api/surveys/{self.survey.id}/people/{self.person.id}/rate/',
+            {'answers': [{'question_id': self.emoji_question.id}]},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Rating.objects.count(), 0)
+
+    def test_employee_can_submit_emoji_rating(self):
+        self.authenticate(self.employee, 'EmpPass@1')
+        response = self.client.post(
+            f'/api/surveys/{self.survey.id}/people/{self.person.id}/rate/',
+            {'answers': [{'question_id': self.emoji_question.id, 'emoji_rating': 'good'}]},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        rating = Rating.objects.get(question=self.emoji_question)
+        self.assertEqual(rating.emoji_rating, 'good')
+        self.assertIsNone(rating.score)
+
+    def test_employee_cannot_submit_invalid_emoji_choice(self):
+        self.authenticate(self.employee, 'EmpPass@1')
+        response = self.client.post(
+            f'/api/surveys/{self.survey.id}/people/{self.person.id}/rate/',
+            {'answers': [{'question_id': self.emoji_question.id, 'emoji_rating': 'amazing'}]},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Rating.objects.count(), 0)
+
+    def test_results_include_emoji_breakdown(self):
+        Rating.objects.create(
+            survey=self.survey,
+            person=self.person,
+            question=self.emoji_question,
+            voter=self.employee,
+            emoji_rating='excellent',
+        )
+
+        self.authenticate(self.admin, 'AdminPass@1')
+        response = self.client.get(f'/api/admin/surveys/{self.survey.id}/results/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result = response.data['results'][0]
+        question_result = result['question_results'][0]
+        self.assertEqual(question_result['average_emoji_label'], 'عالی')
+        self.assertEqual(question_result['emoji_breakdown']['excellent'], 1)

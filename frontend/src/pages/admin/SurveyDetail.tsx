@@ -182,6 +182,11 @@ export default function SurveyDetail() {
                       امتیاز ۱ تا ۱۰ {question.score_required ? 'الزامی' : 'اختیاری'}
                     </span>
                   )}
+                  {question.has_emoji && (
+                    <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                      امتیاز ایموجی {question.emoji_required ? 'الزامی' : 'اختیاری'}
+                    </span>
+                  )}
                   {question.has_comment && (
                     <span className="px-2 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-100">
                       توضیح متنی {question.comment_required ? 'الزامی' : 'اختیاری'}

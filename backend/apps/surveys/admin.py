@@ -17,8 +17,9 @@ class SurveyAdmin(admin.ModelAdmin):
 
 @admin.register(SurveyQuestion)
 class SurveyQuestionAdmin(admin.ModelAdmin):
-    list_display = ['text', 'survey', 'has_score', 'score_required', 'has_comment', 'comment_required', 'is_active']
-    list_filter = ['survey', 'has_score', 'has_comment', 'is_active']
+    list_display = ['text', 'survey', 'has_score', 'score_required', 'has_comment', 'comment_required',
+                     'has_emoji', 'emoji_required', 'is_active']
+    list_filter = ['survey', 'has_score', 'has_comment', 'has_emoji', 'is_active']
     search_fields = ['text', 'survey__title']
 
 
@@ -30,7 +31,7 @@ class SurveyPersonAdmin(admin.ModelAdmin):
 
 @admin.register(Rating)
 class RatingAdmin(admin.ModelAdmin):
-    list_display = ['person', 'question', 'survey', 'score', 'created_at']
-    list_filter = ['survey', 'question', 'score']
+    list_display = ['person', 'question', 'survey', 'score', 'emoji_rating', 'created_at']
+    list_filter = ['survey', 'question', 'score', 'emoji_rating']
                                                        
     exclude = ['voter', 'ip_address', 'user_agent']

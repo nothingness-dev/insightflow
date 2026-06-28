@@ -337,20 +337,47 @@ export default function ActivityCenter() {
 
 function DailyChart({ data }: { data: { date: string; total: number; failed: number }[] }) {
   const max = Math.max(1, ...data.map(d => d.total));
+  const CHART_HEIGHT = 160; // px — matches h-40
+
   return (
-    <div className="flex items-end gap-1.5 h-40">
+    <div className="flex items-end gap-1.5" style={{ height: CHART_HEIGHT }}>
       {data.map(d => {
-        const h = Math.round((d.total / max) * 100);
-        const failedH = d.total > 0 ? Math.round((d.failed / d.total) * h) : 0;
-        const label = new Date(d.date).toLocaleDateString('fa-IR', { month: 'numeric', day: 'numeric' });
+        const successCount = d.total - d.failed;
+        const barPx   = Math.max(d.total > 0 ? 6 : 0, Math.round((d.total / max) * (CHART_HEIGHT - 24)));
+        const failPx  = d.total > 0 ? Math.round((d.failed / d.total) * barPx) : 0;
+        const succPx  = barPx - failPx;
+        const label   = new Date(d.date).toLocaleDateString('fa-IR', { month: 'numeric', day: 'numeric' });
         return (
-          <div key={d.date} className="flex-1 flex flex-col items-center justify-end group" title={`${label} — ${d.total} فعالیت (${d.failed} ناموفق)`}>
-            <span className="text-[10px] text-gray-400 mb-1 opacity-0 group-hover:opacity-100 transition-opacity">{d.total}</span>
-            <div className="w-full rounded-t-md bg-indigo-100 relative overflow-hidden" style={{ height: `${Math.max(4, h)}%` }}>
-              <div className="absolute inset-x-0 top-0 bg-indigo-500" style={{ height: `${100 - (failedH / Math.max(1, h)) * 100}%` }} />
-              {failedH > 0 && <div className="absolute inset-x-0 bottom-0 bg-red-400" style={{ height: `${(failedH / Math.max(1, h)) * 100}%` }} />}
-            </div>
-            <span className="text-[9px] text-gray-300 mt-1 truncate w-full text-center">{label}</span>
+          <div
+            key={d.date}
+            className="flex-1 flex flex-col items-center justify-end group"
+            style={{ height: CHART_HEIGHT }}
+            title={`${label} — ${d.total} فعالیت · ${successCount} موفق · ${d.failed} ناموفق`}
+          >
+            {/* hover count badge */}
+            <span className="text-[10px] text-gray-400 mb-1 opacity-0 group-hover:opacity-100 transition-opacity leading-none">
+              {d.total > 0 ? d.total : ''}
+            </span>
+
+            {/* bar */}
+            {d.total > 0 ? (
+              <div className="w-full flex flex-col justify-end rounded-t-md overflow-hidden" style={{ height: barPx }}>
+                {succPx > 0 && (
+                  <div className="w-full bg-indigo-500" style={{ height: succPx }} />
+                )}
+                {failPx > 0 && (
+                  <div className="w-full bg-red-400" style={{ height: failPx }} />
+                )}
+              </div>
+            ) : (
+              /* zero-activity day: faint placeholder line */
+              <div className="w-full bg-gray-100 rounded-t-sm" style={{ height: 4 }} />
+            )}
+
+            {/* date label */}
+            <span className="text-[9px] text-gray-300 mt-1 truncate w-full text-center leading-none">
+              {label}
+            </span>
           </div>
         );
       })}

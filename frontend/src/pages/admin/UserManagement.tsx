@@ -158,7 +158,7 @@ export default function UserManagement() {
   };
 
   const requestReset = () => {
-    if (newPass.length < 8) { setResetErr('رمز عبور باید حداقل ۸ کاراکتر باشد.'); return; }
+    if (!newPass) { setResetErr('رمز عبور را وارد کنید.'); return; }
     if (newPass !== newPassConfirm) { setResetErr('تکرار رمز عبور مطابقت ندارد.'); return; }
     setResetErr(''); setResetConfirmOpen(true);
   };
@@ -417,7 +417,7 @@ export default function UserManagement() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">رمز عبور <span className="text-red-500">*</span></label>
-                <PasswordInput value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} placeholder="حداقل ۸ کاراکتر" error={!!errors.password} />
+                <PasswordInput value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} placeholder="رمز عبور" error={!!errors.password} />
                 {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
               </div>
               <div>
@@ -443,7 +443,7 @@ export default function UserManagement() {
           <p className="text-xs text-gray-500">کاربر در اولین ورود بعدی ملزم به تغییر این رمز خواهد بود.</p>
           <div>
             <label className="label">رمز عبور جدید</label>
-            <PasswordInput value={newPass} onChange={setNewPass} placeholder="حداقل ۸ کاراکتر" autoFocus error={!!resetErr} />
+            <PasswordInput value={newPass} onChange={setNewPass} placeholder="رمز عبور جدید" autoFocus error={!!resetErr} />
           </div>
           <div>
             <label className="label">تکرار رمز عبور</label>

@@ -72,7 +72,6 @@ export default function ChangePasswordModal({ open, onClose, forced = false }: P
     const e: Record<string, string> = {};
     if (!current) e.current = 'رمز عبور فعلی را وارد کنید.';
     if (!next) e.next = 'رمز عبور جدید را وارد کنید.';
-    else if (next.length < 8) e.next = 'رمز عبور باید حداقل ۸ کاراکتر باشد.';
     else if (next === current) e.next = 'رمز جدید باید با رمز فعلی متفاوت باشد.';
     if (confirmPass !== next) e.confirm = 'تکرار رمز عبور مطابقت ندارد.';
     setErrors(e);
@@ -133,7 +132,7 @@ export default function ChangePasswordModal({ open, onClose, forced = false }: P
           {errors.current && <p className="text-xs text-red-500 -mt-2">{errors.current}</p>}
 
           <PasswordField label="رمز عبور جدید" value={next} onChange={setNext}
-            placeholder="حداقل ۸ کاراکتر" />
+            placeholder="رمز عبور جدید" />
           {errors.next && <p className="text-xs text-red-500 -mt-2">{errors.next}</p>}
 
           <PasswordField label="تکرار رمز عبور" value={confirmPass} onChange={setConfirmPass}

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { employeeApi } from '../../api/endpoints';
-import { SurveyPerson, SurveyQuestion } from '../../types';
+import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../../types';
 import { PageLoader, Modal } from '../../components/common/index';
 import { getErrorMessage } from '../../utils/helpers';
 import { motion } from 'framer-motion';
@@ -20,14 +20,76 @@ interface SurveyDetailData {
 
 type DraftAnswer = {
   score: number | null;
+  emoji_rating: EmojiRatingValue | null;
   comment: string;
 };
 
 function getQuestionTypeLabel(question: SurveyQuestion) {
   const parts: string[] = [];
   if (question.has_score) parts.push(`امتیاز ${question.score_required ? 'الزامی' : 'اختیاری'}`);
+  if (question.has_emoji) parts.push(`ایموجی ${question.emoji_required ? 'الزامی' : 'اختیاری'}`);
   if (question.has_comment) parts.push(`توضیح ${question.comment_required ? 'الزامی' : 'اختیاری'}`);
   return parts.join(' + ');
+}
+
+const BadFaceIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-7 h-7 sm:w-8 sm:h-8" fill="none">
+    <circle cx="12" cy="12" r="9.25" fill="currentColor" opacity="0.16" />
+    <circle cx="8.6" cy="10" r="1.15" fill="currentColor" />
+    <circle cx="15.4" cy="10" r="1.15" fill="currentColor" />
+    <path d="M8.3 15.5c1-1.2 2.2-1.8 3.7-1.8s2.7.6 3.7 1.8" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
+  </svg>
+);
+const AverageFaceIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-7 h-7 sm:w-8 sm:h-8" fill="none">
+    <circle cx="12" cy="12" r="9.25" fill="currentColor" opacity="0.16" />
+    <circle cx="8.6" cy="10" r="1.15" fill="currentColor" />
+    <circle cx="15.4" cy="10" r="1.15" fill="currentColor" />
+    <path d="M8.3 14.8h7.4" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
+  </svg>
+);
+const GoodFaceIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-7 h-7 sm:w-8 sm:h-8" fill="none">
+    <circle cx="12" cy="12" r="9.25" fill="currentColor" opacity="0.16" />
+    <circle cx="8.6" cy="10" r="1.15" fill="currentColor" />
+    <circle cx="15.4" cy="10" r="1.15" fill="currentColor" />
+    <path d="M8.3 14c1 1 2.2 1.5 3.7 1.5s2.7-.5 3.7-1.5" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
+  </svg>
+);
+const ExcellentFaceIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-7 h-7 sm:w-8 sm:h-8" fill="none">
+    <circle cx="12" cy="12" r="9.25" fill="currentColor" opacity="0.16" />
+    <path d="M7.7 9.6c.5-.5 1-.7 1.6-.7s1.1.2 1.6.7M13.1 9.6c.5-.5 1-.7 1.6-.7s1.1.2 1.6.7" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
+    <path d="M7.8 13.6c1.1 1.5 2.5 2.3 4.2 2.3s3.1-.8 4.2-2.3" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
+  </svg>
+);
+
+const EMOJI_OPTIONS: { value: EmojiRatingValue; label: string; Icon: () => JSX.Element; selectedClass: string; idleClass: string }[] = [
+  { value: 'bad', label: 'بد', Icon: BadFaceIcon, selectedClass: 'bg-red-500 border-red-500 text-white shadow-lg scale-105', idleClass: 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' },
+  { value: 'average', label: 'متوسط', Icon: AverageFaceIcon, selectedClass: 'bg-amber-500 border-amber-500 text-white shadow-lg scale-105', idleClass: 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' },
+  { value: 'good', label: 'خوب', Icon: GoodFaceIcon, selectedClass: 'bg-lime-500 border-lime-500 text-white shadow-lg scale-105', idleClass: 'bg-lime-50 border-lime-200 text-lime-700 hover:bg-lime-100' },
+  { value: 'excellent', label: 'عالی', Icon: ExcellentFaceIcon, selectedClass: 'bg-emerald-500 border-emerald-500 text-white shadow-lg scale-105', idleClass: 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' },
+];
+
+function EmojiRatingPicker({ value, onChange }: { value: EmojiRatingValue | null; onChange: (v: EmojiRatingValue) => void }) {
+  return (
+    <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+      {EMOJI_OPTIONS.map(opt => {
+        const selected = value === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={`flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border-2 text-xs font-bold transition-all duration-150 ${selected ? opt.selectedClass : opt.idleClass}`}
+          >
+            <opt.Icon />
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function PersonCard({ person, onRate, disabled }: {
@@ -98,7 +160,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
   onClose: () => void;
   person: (SurveyPerson & { has_rated: boolean }) | null;
   questions: SurveyQuestion[];
-  onSubmit: (answers: { question_id: number; score?: number | null; comment?: string | null }[]) => void;
+  onSubmit: (answers: { question_id: number; score?: number | null; emoji_rating?: EmojiRatingValue | null; comment?: string | null }[]) => void;
   submitting: boolean;
 }) {
   const [answers, setAnswers] = useState<Record<number, DraftAnswer>>({});
@@ -108,7 +170,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
     if (!open) return;
     const initial: Record<number, DraftAnswer> = {};
     questions.forEach(question => {
-      initial[question.id] = { score: null, comment: '' };
+      initial[question.id] = { score: null, emoji_rating: null, comment: '' };
     });
     setAnswers(initial);
     setLocalErrors({});
@@ -129,7 +191,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
     setAnswers(current => ({
       ...current,
       [questionId]: {
-        ...(current[questionId] || { score: null, comment: '' }),
+        ...(current[questionId] || { score: null, emoji_rating: null, comment: '' }),
         ...patch,
       },
     }));
@@ -143,20 +205,25 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
   const validate = () => {
     const nextErrors: Record<number, string> = {};
     for (const question of questions) {
-      const answer = answers[question.id] || { score: null, comment: '' };
+      const answer = answers[question.id] || { score: null, emoji_rating: null, comment: '' };
       const comment = answer.comment.trim();
       const hasScoreValue = question.has_score && answer.score !== null;
+      const hasEmojiValue = question.has_emoji && answer.emoji_rating !== null;
       const hasCommentValue = question.has_comment && comment.length > 0;
 
       if (question.has_score && question.score_required && answer.score === null) {
         nextErrors[question.id] = 'انتخاب امتیاز برای این سوال الزامی است.';
         continue;
       }
+      if (question.has_emoji && question.emoji_required && answer.emoji_rating === null) {
+        nextErrors[question.id] = 'انتخاب امتیاز ایموجی برای این سوال الزامی است.';
+        continue;
+      }
       if (question.has_comment && question.comment_required && !comment) {
         nextErrors[question.id] = 'نوشتن توضیح برای این سوال الزامی است.';
         continue;
       }
-      if (!hasScoreValue && !hasCommentValue) {
+      if (!hasScoreValue && !hasEmojiValue && !hasCommentValue) {
         nextErrors[question.id] = 'این سوال نباید خالی بماند.';
       }
     }
@@ -169,6 +236,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
     onSubmit(questions.map(question => ({
       question_id: question.id,
       score: question.has_score ? answers[question.id]?.score ?? null : null,
+      emoji_rating: question.has_emoji ? answers[question.id]?.emoji_rating ?? null : null,
       comment: question.has_comment ? answers[question.id]?.comment?.trim() || null : null,
     })));
   };
@@ -199,7 +267,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
 
             <div className="space-y-4 mb-5">
               {questions.map((question, index) => {
-                const answer = answers[question.id] || { score: null, comment: '' };
+                const answer = answers[question.id] || { score: null, emoji_rating: null, comment: '' };
                 return (
                   <div key={question.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
                     <div className="mb-3">
@@ -227,6 +295,18 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
                             </button>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {question.has_emoji && (
+                      <div className="mb-4">
+                        <p className="text-xs text-gray-500 mb-2">
+                          امتیاز کیفی {question.emoji_required ? <span className="text-red-500">*</span> : <span className="text-gray-400">(اختیاری)</span>}
+                        </p>
+                        <EmojiRatingPicker
+                          value={answer.emoji_rating}
+                          onChange={v => updateAnswer(question.id, { emoji_rating: v })}
+                        />
                       </div>
                     )}
 
@@ -293,7 +373,7 @@ export default function EmployeeSurveyDetail() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleSubmitRating = async (answers: { question_id: number; score?: number | null; comment?: string | null }[]) => {
+  const handleSubmitRating = async (answers: { question_id: number; score?: number | null; emoji_rating?: EmojiRatingValue | null; comment?: string | null }[]) => {
     if (!ratingPerson) return;
     setSubmitting(true);
     try {

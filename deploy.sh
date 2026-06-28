@@ -26,9 +26,31 @@ until [ "$(docker inspect --format='{{.State.Health.Status}}' \
 done
 
 echo "   Backend is healthy."
+
+# ── Install daily backup cron job ─────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BACKUP_SCRIPT="$SCRIPT_DIR/backup.sh"
+CRON_JOB="0 2 * * * $BACKUP_SCRIPT >> /var/log/insightflow_backup.log 2>&1"
+
+chmod +x "$BACKUP_SCRIPT"
+
+# Add the cron job only if it isn't already there
+if ! crontab -l 2>/dev/null | grep -qF "$BACKUP_SCRIPT"; then
+    (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
+    echo "==> Backup cron job installed (runs daily at 02:00)"
+else
+    echo "==> Backup cron job already installed"
+fi
+
+mkdir -p /opt/insightflow/backups
+
 echo ""
 echo "============================================================"
 echo " InsightFlow is running!"
 echo " Open:  http://$(hostname -I | awk '{print $1}')"
 echo " Admin: use the credentials from your .env file"
+echo ""
+echo " Backups: daily at 02:00 → /opt/insightflow/backups/"
+echo "   Run now:     ./backup.sh"
+echo "   List/restore: ./backup.sh --restore"
 echo "============================================================"

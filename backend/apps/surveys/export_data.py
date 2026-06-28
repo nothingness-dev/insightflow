@@ -4,12 +4,20 @@ from collections import defaultdict
 from django.db.models import Count
 
 from .models import Rating
-from .services import calculate_survey_results
+from .services import calculate_survey_results, emoji_label_for_numeric
 
 
 PDF_MAX_COMMENTS_PER_QUESTION = 6
 PDF_MAX_TOTAL_COMMENTS = 120
 EXCEL_CELL_LIMIT = 32_000                                                
+
+EMOJI_LABELS = dict(Rating.EMOJI_CHOICES)
+EMOJI_COLORS = {
+    Rating.EMOJI_BAD: '#ef4444',
+    Rating.EMOJI_AVERAGE: '#f59e0b',
+    Rating.EMOJI_GOOD: '#84cc16',
+    Rating.EMOJI_EXCELLENT: '#10b981',
+}
 
 
 def score_grade(v):
@@ -36,6 +44,27 @@ def distribution_buckets(results):
         ('متوسط (۴ تا ۷)',   _count(lambda v: v is not None and 4 <= v < 7), '#f59e0b'),
         ('ضعیف (کمتر از ۴)', _count(lambda v: v is not None and v < 4),      '#ef4444'),
         ('بدون امتیاز',      _count(lambda v: v is None),                    '#94a3b8'),
+    ]
+    return [b for b in buckets if b[1] > 0]
+
+
+def emoji_distribution_buckets(questions, results):
+    """Return [(label, count, hex_color)] for emoji-rating choices across all
+    emoji-type questions, omitting empty buckets."""
+    totals = defaultdict(int)
+    emoji_question_ids = {q.id for q in questions if q.has_emoji}
+    if not emoji_question_ids:
+        return []
+    for r in results:
+        for q in r.get('question_results', []):
+            if q['question_id'] not in emoji_question_ids:
+                continue
+            breakdown = q.get('emoji_breakdown') or {}
+            for choice, count in breakdown.items():
+                totals[choice] += count
+    buckets = [
+        (EMOJI_LABELS[choice], totals.get(choice, 0), EMOJI_COLORS[choice])
+        for choice, _label in Rating.EMOJI_CHOICES
     ]
     return [b for b in buckets if b[1] > 0]
 
@@ -80,14 +109,19 @@ def build_export_dataset(survey, request=None):
     questions_meta = []
     for q in questions:
         scores, total_resps = [], 0
+        emoji_numeric_values, emoji_total_resps = [], 0
         for r in results:
             by_q = {item['question_id']: item for item in r.get('question_results', [])}
             item = by_q.get(q.id, {})
             if item.get('average_score') is not None and item.get('responses_count', 0) > 0:
                 scores.extend([item['average_score']] * item['responses_count'])
                 total_resps += item['responses_count']
+            if item.get('average_emoji_numeric') is not None and item.get('emoji_responses_count', 0) > 0:
+                emoji_numeric_values.extend([item['average_emoji_numeric']] * item['emoji_responses_count'])
+                emoji_total_resps += item['emoji_responses_count']
         total_comments = sum(len(comments_map.get((r['person_id'], q.id), [])) for r in results)
         q_avg = round(sum(scores) / len(scores), 2) if scores else None
+        emoji_avg_numeric = round(sum(emoji_numeric_values) / len(emoji_numeric_values), 2) if emoji_numeric_values else None
         questions_meta.append({
             'id': q.id,
             'text': q.text,
@@ -96,6 +130,10 @@ def build_export_dataset(survey, request=None):
             'comments': total_comments,
             'has_score': q.has_score,
             'has_comment': q.has_comment,
+            'has_emoji': q.has_emoji,
+            'emoji_avg_numeric': emoji_avg_numeric if q.has_emoji else None,
+            'emoji_avg_label': emoji_label_for_numeric(emoji_avg_numeric) if q.has_emoji else None,
+            'emoji_responses': emoji_total_resps,
         })
 
     comments_flat = [
@@ -120,6 +158,7 @@ def build_export_dataset(survey, request=None):
         'worst': scored_results[-1]['average_score'] if scored_results else None,
         'total_comments': len(comments_flat),
         'distribution': distribution_buckets(results),
+        'emoji_distribution': emoji_distribution_buckets(questions, results),
     }
 
     return {

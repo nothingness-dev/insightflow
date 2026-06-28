@@ -1,5 +1,36 @@
 # Changelog
 
+## [2.1.0] — 2026-06-28
+
+### Added
+- **Emoji rating question type** (بد / متوسط / خوب / عالی) — a third answer type for survey
+  questions, alongside the existing numeric score (1–10) and text comment. Each question can
+  independently enable any combination of the three types and mark each one required or optional.
+  - `SurveyQuestion.has_emoji` / `emoji_required` and `Rating.emoji_rating` (new DB columns,
+    migration `surveys/0008_emoji_rating`).
+  - Employee voting screen shows a 4-option picker (بد/متوسط/خوب/عالی) with a colored
+    background per option (red/amber/lime/green) and a minimal face icon.
+  - Admin results (overview, per-question breakdown, per-person drawer) display emoji
+    averages and the full بد/متوسط/خوب/عالی breakdown alongside numeric scores and comments.
+  - PDF, Excel, and CSV exports include emoji averages, response counts, and an emoji
+    distribution section, matching the existing score-distribution treatment.
+
+### Changed
+- **No password length or complexity requirements** — removed all Django
+  `AUTH_PASSWORD_VALIDATORS` (minimum length, similarity, common-password, numeric-only) and
+  every `validate_password` call in account serializers (create user, reset password, change
+  password). Removed the hardcoded 8-character minimum in the bulk CSV/TXT user import and
+  the matching client-side length checks/placeholders in the change-password modal and user
+  management screens. Any non-empty password is now accepted; choosing a strong one is left
+  to the admin/employee.
+
+### Migrations
+- `surveys/0008_emoji_rating` — adds `has_emoji`, `emoji_required` to `SurveyQuestion` and
+  `emoji_rating` to `Rating`. Purely additive (new nullable/defaulted columns); no existing
+  data is modified. Run `python manage.py migrate` after deploying.
+
+---
+
 ## [2.0.0] — 2026-06-21
 
 ### Security

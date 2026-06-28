@@ -1,4 +1,4 @@
-"""Rate-limiting throttle classes for InsightFlow.
+"""Rate-limiting throttle classes for insightflow.
 
 These extend DRF's built-in throttles so the login endpoint gets a tighter
 per-IP limit than general API traffic, protecting against credential stuffing
