@@ -16,8 +16,6 @@ EMOJI_NUMERIC_TO_LABEL = {v: k for k, v in EMOJI_NUMERIC_MAP.items()}
 
 
 def _emoji_numeric_annotation():
-    """Map the emoji_rating CharField to an integer (بد=1 ... عالی=4) so it can
-    be aggregated (Avg/Sum) the same way numeric scores are."""
     return Case(
         *[When(emoji_rating=key, then=Value(value)) for key, value in EMOJI_NUMERIC_MAP.items()],
         default=None,
@@ -26,7 +24,6 @@ def _emoji_numeric_annotation():
 
 
 def emoji_label_for_numeric(value):
-    """Round a 1-4 average back to the nearest emoji label (بد/متوسط/خوب/عالی)."""
     if value is None:
         return None
     rounded = max(1, min(4, round(value)))
@@ -50,13 +47,19 @@ def _comment_payload(rating):
     }
 
 
-def calculate_survey_results(survey, request=None):
-    """Calculate anonymous multi-question survey results.
+def _get_participant_key(rating):
+    """Return a unique key for a participant — voter_id or 'anon:{token}'."""
+    if rating.voter_id is not None:
+        return ('voter', rating.voter_id)
+    return ('anon', rating.anonymous_token)
 
-    Only votes from voters who have fully completed the survey (answered every
-    active question for every active person) are counted.  Partial voters are
-    excluded from all aggregates and comments so that incomplete submissions do
-    not skew averages or expose identifiable partial data.
+
+def calculate_survey_results(survey, request=None):
+    """Calculate survey results, counting both authenticated and anonymous participants.
+
+    A participant is complete when they've answered every active question for
+    every active person. Anonymous participants are identified by anonymous_token.
+    Both types are treated identically for counting and aggregation.
     """
     people = list(survey.people.filter(is_active=True).order_by('display_order', 'created_at'))
     questions = list(survey.questions.filter(is_active=True).order_by('display_order', 'created_at'))
@@ -64,6 +67,8 @@ def calculate_survey_results(survey, request=None):
     active_people_count = len(people)
     active_questions_count = len(questions)
     required_answers = active_people_count * active_questions_count
+    completed_voter_ids = []
+    completed_anon_tokens = []
 
     if required_answers > 0:
         completed_voter_ids = list(
@@ -72,21 +77,52 @@ def calculate_survey_results(survey, request=None):
                 survey=survey,
                 person__is_active=True,
                 question__is_active=True,
+                voter__isnull=False,
             )
             .values('voter_id')
             .annotate(answered_count=Count('id', distinct=True))
             .filter(answered_count=required_answers)
             .values_list('voter_id', flat=True)
         )
-    else:
-        completed_voter_ids = []
-
+        completed_anon_tokens = list(
+            Rating.objects
+            .filter(
+                survey=survey,
+                person__is_active=True,
+                question__is_active=True,
+                anonymous_token__isnull=False,
+            )
+            .values('anonymous_token')
+            .annotate(answered_count=Count('id', distinct=True))
+            .filter(answered_count=required_answers)
+            .values_list('anonymous_token', flat=True)
+        )
     base_qs = Rating.objects.filter(
         survey=survey,
         person__is_active=True,
         question__is_active=True,
-        voter_id__in=completed_voter_ids,
+    ).filter(
+        Q(voter_id__in=completed_voter_ids) |
+        Q(anonymous_token__in=completed_anon_tokens)
     )
+    voter_counts_raw = (
+        base_qs
+        .filter(voter__isnull=False)
+        .values('person_id')
+        .annotate(v_count=Count('voter_id', distinct=True))
+    )
+    anon_counts_raw = (
+        base_qs
+        .filter(anonymous_token__isnull=False)
+        .values('person_id')
+        .annotate(a_count=Count('anonymous_token', distinct=True))
+    )
+    voter_counts = {row['person_id']: row['v_count'] for row in voter_counts_raw}
+    anon_counts = {row['person_id']: row['a_count'] for row in anon_counts_raw}
+    combined_voter_counts = {
+        pid: voter_counts.get(pid, 0) + anon_counts.get(pid, 0)
+        for pid in set(list(voter_counts.keys()) + list(anon_counts.keys()))
+    }
 
     scored_aggregates = {
         row['person_id']: row
@@ -97,7 +133,6 @@ def calculate_survey_results(survey, request=None):
             total=Sum('score'),
             score_count=Count('id'),
             avg=Avg('score'),
-            voters_count=Count('voter_id', distinct=True),
         )
     }
 
@@ -110,7 +145,6 @@ def calculate_survey_results(survey, request=None):
             total=Sum('score'),
             score_count=Count('id'),
             avg=Avg('score'),
-            voters_count=Count('voter_id', distinct=True),
         )
     }
 
@@ -123,7 +157,6 @@ def calculate_survey_results(survey, request=None):
         .annotate(
             emoji_avg=Avg('emoji_numeric'),
             emoji_count=Count('id'),
-            emoji_voters_count=Count('voter_id', distinct=True),
         )
     }
 
@@ -135,13 +168,6 @@ def calculate_survey_results(survey, request=None):
         .annotate(choice_count=Count('id'))
     ):
         emoji_counts_by_question_choice[(row['person_id'], row['question_id'])][row['emoji_rating']] = row['choice_count']
-
-    voter_counts = {
-        row['person_id']: row['voters_count']
-        for row in base_qs
-        .values('person_id')
-        .annotate(voters_count=Count('voter_id', distinct=True))
-    }
 
     comments_by_person = defaultdict(list)
     comments_by_person_question = defaultdict(list)
@@ -179,12 +205,12 @@ def calculate_survey_results(survey, request=None):
                 'average_score': round(q_agg['avg'], 2) if q_agg.get('avg') is not None else None,
                 'total_score': q_agg.get('total') or 0,
                 'responses_count': q_agg.get('score_count') or 0,
-                'votes_count': q_agg.get('voters_count') or 0,
+                'votes_count': combined_voter_counts.get(person.id, 0),
                 'comments_count': len(comments_by_person_question.get((person.id, question.id), [])),
                 'average_emoji_numeric': round(emoji_avg_numeric, 2) if emoji_avg_numeric is not None else None,
                 'average_emoji_label': emoji_label_for_numeric(emoji_avg_numeric),
                 'emoji_responses_count': emoji_agg.get('emoji_count') or 0,
-                'emoji_votes_count': emoji_agg.get('emoji_voters_count') or 0,
+                'emoji_votes_count': combined_voter_counts.get(person.id, 0),
                 'emoji_breakdown': {
                     key: emoji_breakdown.get(key, 0) for key, _label in Rating.EMOJI_CHOICES
                 },
@@ -198,10 +224,9 @@ def calculate_survey_results(survey, request=None):
             'role_title': person.role_title,
             'average_score': round(person_score_agg['avg'], 2) if person_score_agg.get('avg') is not None else None,
             'total_score': person_score_agg.get('total') or 0,
-            'votes_count': voter_counts.get(person.id, 0),
+            'votes_count': combined_voter_counts.get(person.id, 0),
             'scored_answers_count': person_score_agg.get('score_count') or 0,
             'comments_count': len(comments_by_person.get(person.id, [])),
-
             'question_results': question_results,
             'display_order': person.display_order,
         })
@@ -336,11 +361,8 @@ def validate_question_answers(questions, submitted_answers):
 
 def calculate_survey_progress():
     """
-    Build progress data for every survey without per-survey database queries.
-
-    Every active employee is treated as an implicit participant once a survey
-    has been published or closed. A participant is complete only after saving
-    an answer row for every active person × active question in that survey.
+    Build progress data for every survey.
+    Tracks authenticated employees only (anonymous participants have no user account).
     """
     from apps.accounts.models import User
 
@@ -356,10 +378,22 @@ def calculate_survey_progress():
         .annotate(
             active_people_count=Count('people', filter=Q(people__is_active=True), distinct=True),
             active_questions_count=Count('questions', filter=Q(questions__is_active=True), distinct=True),
+            anon_participant_count=Count(
+                'hash_links__anonymous_participant_count',
+                filter=Q(hash_links__is_active=True),
+                distinct=False,
+            ),
         )
         .order_by('-created_at')
         .values('id', 'title', 'status', 'active_people_count', 'active_questions_count')
     )
+    from .models import SurveyHashLink
+    anon_totals = {
+        row['survey_id']: row['total']
+        for row in SurveyHashLink.objects
+        .values('survey_id')
+        .annotate(total=Sum('anonymous_participant_count'))
+    }
 
     tracked_survey_ids = [
         survey['id']
@@ -375,6 +409,7 @@ def calculate_survey_progress():
             survey_id__in=tracked_survey_ids,
             voter__role='employee',
             voter__is_active=True,
+            voter__isnull=False,
             person__is_active=True,
             question__is_active=True,
             person__survey_id=F('survey_id'),
@@ -411,6 +446,7 @@ def calculate_survey_progress():
         )
         assigned_employees = employee_count if tracking_enabled else 0
         completed_employees = len(completed_ids)
+        anonymous_participants = anon_totals.get(survey['id'], 0) if tracking_enabled else 0
         pending_users = (
             [employee for employee in active_employees if employee['id'] not in completed_ids]
             if tracking_enabled
@@ -432,6 +468,7 @@ def calculate_survey_progress():
             'tracking_enabled': tracking_enabled,
             'assigned_employees': assigned_employees,
             'completed_employees': completed_employees,
+            'anonymous_participants': anonymous_participants,
             'pending_employees': pending_employees,
             'completion_percentage': completion_percentage,
             'pending_users': pending_users,
@@ -439,6 +476,7 @@ def calculate_survey_progress():
 
     total_assigned_responses = sum(item['assigned_employees'] for item in progress_items)
     total_completed_responses = sum(item['completed_employees'] for item in progress_items)
+    total_anonymous_participants = sum(item['anonymous_participants'] for item in progress_items)
     total_pending_responses = sum(item['pending_employees'] for item in progress_items)
 
     return {
@@ -446,6 +484,7 @@ def calculate_survey_progress():
             'total_surveys': len(progress_items),
             'total_assigned_responses': total_assigned_responses,
             'total_completed_responses': total_completed_responses,
+            'total_anonymous_participants': total_anonymous_participants,
             'total_pending_responses': total_pending_responses,
             'overall_completion_percentage': (
                 round((total_completed_responses / total_assigned_responses) * 100, 1)

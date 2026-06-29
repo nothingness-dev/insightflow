@@ -51,7 +51,7 @@ export default function AdminDashboard() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="page-title">داشبورد مدیریت</h1>
-          <p className="text-sm text-gray-500 mt-1">خلاصه وضعیت سامانه نظرسنجی</p>
+          <p className="text-sm text-gray-500 mt-1">خلاصه وضعیت سامانه نظرسنجی سازمانی</p>
         </div>
         <Link to="/admin/survey-progress" className="btn-secondary w-full sm:w-auto self-start">
           پیگیری پیشرفت نظرسنجی‌ها

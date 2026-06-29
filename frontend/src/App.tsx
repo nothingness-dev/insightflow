@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
@@ -6,17 +7,22 @@ import AdminLayout from './layouts/AdminLayout';
 import EmployeeLayout from './layouts/EmployeeLayout';
 
 
-import LoginPage from './pages/LoginPage';
-import AdminDashboard from './pages/admin/Dashboard';
-import AdminSurveyList from './pages/admin/SurveyList';
-import SurveyForm from './pages/admin/SurveyForm';
-import SurveyDetail from './pages/admin/SurveyDetail';
-import SurveyResults from './pages/admin/SurveyResults';
-import UserManagement from './pages/admin/UserManagement';
-import SurveyProgressPage from './pages/admin/SurveyProgress';
-import ActivityCenter from './pages/admin/ActivityCenter';
-import EmployeeSurveyList from './pages/employee/SurveyList';
-import EmployeeSurveyDetail from './pages/employee/SurveyDetail';
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
+const AdminSurveyList = lazy(() => import('./pages/admin/SurveyList'));
+const SurveyForm = lazy(() => import('./pages/admin/SurveyForm'));
+const SurveyDetail = lazy(() => import('./pages/admin/SurveyDetail'));
+const SurveyResults = lazy(() => import('./pages/admin/SurveyResults'));
+const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
+const SurveyProgressPage = lazy(() => import('./pages/admin/SurveyProgress'));
+const ActivityCenter = lazy(() => import('./pages/admin/ActivityCenter'));
+const EmployeeSurveyList = lazy(() => import('./pages/employee/SurveyList'));
+const EmployeeSurveyDetail = lazy(() => import('./pages/employee/SurveyDetail'));
+const AnonymousSurvey = lazy(() => import('./pages/AnonymousSurvey'));
+
+function PageFallback() {
+  return <div className="min-h-screen bg-slate-50" />;
+}
 
 function AdminWrapper({ children }: { children: React.ReactNode }) {
   return (
@@ -38,12 +44,10 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          {}
-          <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
-
-          {}
-          <Route path="/admin" element={<AdminWrapper><AdminDashboard /></AdminWrapper>} />
+        <Suspense fallback={<PageFallback />}>
+          <Routes>
+<Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+<Route path="/admin" element={<AdminWrapper><AdminDashboard /></AdminWrapper>} />
           <Route path="/admin/surveys" element={<AdminWrapper><AdminSurveyList /></AdminWrapper>} />
           <Route path="/admin/survey-progress" element={<AdminWrapper><SurveyProgressPage /></AdminWrapper>} />
           <Route path="/admin/surveys/new" element={<AdminWrapper><SurveyForm /></AdminWrapper>} />
@@ -52,15 +56,13 @@ export default function App() {
           <Route path="/admin/surveys/:id/results" element={<AdminWrapper><SurveyResults /></AdminWrapper>} />
           <Route path="/admin/users" element={<AdminWrapper><UserManagement /></AdminWrapper>} />
           <Route path="/admin/activity" element={<AdminWrapper><ActivityCenter /></AdminWrapper>} />
-
-          {}
-          <Route path="/surveys" element={<EmployeeWrapper><EmployeeSurveyList /></EmployeeWrapper>} />
+<Route path="/surveys" element={<EmployeeWrapper><EmployeeSurveyList /></EmployeeWrapper>} />
           <Route path="/surveys/:id" element={<EmployeeWrapper><EmployeeSurveyDetail /></EmployeeWrapper>} />
-
-          {}
-          <Route path="/" element={<Navigate to="/login" replace />} />
+<Route path="/s/:token" element={<AnonymousSurvey />} />
+<Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </BrowserRouter>
 
       <Toaster

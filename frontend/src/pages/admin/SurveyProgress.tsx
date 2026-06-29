@@ -236,22 +236,24 @@ function SurveyProgressCard({ survey }: { survey: SurveyProgress }) {
             <div className="mt-3">
               <ProgressBar percentage={survey.completion_percentage} />
             </div>
-
-            {}
-            <p className="mt-2 text-[11px] text-gray-400">
+<p className="mt-2 text-[11px] text-gray-400">
               کارمند «تکمیل‌شده» یعنی به تمام سوال‌ها برای تمام افراد فعال پاسخ داده است.
             </p>
 
-            <dl className="mt-5 grid grid-cols-1 min-[420px]:grid-cols-3 divide-y min-[420px]:divide-y-0 min-[420px]:divide-x min-[420px]:divide-x-reverse divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/70">
+            <dl className="mt-5 grid grid-cols-2 min-[420px]:grid-cols-4 divide-y-0 divide-x min-[420px]:divide-x divide-x-reverse min-[420px]:divide-x-reverse divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/70">
               <div className="p-3 text-center">
                 <dt className="text-xs text-gray-400">تخصیص‌یافته</dt>
                 <dd className="mt-1 text-lg font-bold text-slate-700">{formatNumber(survey.assigned_employees)}</dd>
               </div>
               <div className="p-3 text-center">
-                <dt className="text-xs text-gray-400">تکمیل‌شده</dt>
+                <dt className="text-xs text-gray-400">کارمند تکمیل</dt>
                 <dd className="mt-1 text-lg font-bold text-emerald-600">{formatNumber(survey.completed_employees)}</dd>
               </div>
-              <div className="p-3 text-center">
+              <div className="p-3 text-center border-t min-[420px]:border-t-0 border-gray-100">
+                <dt className="text-xs text-gray-400">ناشناس تکمیل</dt>
+                <dd className="mt-1 text-lg font-bold text-indigo-600">{formatNumber(survey.anonymous_participants)}</dd>
+              </div>
+              <div className="p-3 text-center border-t min-[420px]:border-t-0 border-gray-100">
                 <dt className="text-xs text-gray-400">در انتظار</dt>
                 <dd className="mt-1 text-lg font-bold text-amber-600">{formatNumber(survey.pending_employees)}</dd>
               </div>
@@ -276,7 +278,14 @@ function SurveyProgressCard({ survey }: { survey: SurveyProgress }) {
             className="w-full px-5 py-3.5 flex items-center justify-between text-sm font-medium text-slate-600 hover:bg-gray-50 transition-colors"
             aria-expanded={expanded}
           >
-            <span>کارکنان در انتظار ({formatNumber(survey.pending_employees)})</span>
+            <span className="flex items-center gap-3">
+              <span>کارکنان در انتظار ({formatNumber(survey.pending_employees)})</span>
+              {survey.anonymous_participants > 0 && (
+                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
+                  {formatNumber(survey.anonymous_participants)} ناشناس ✓
+                </span>
+              )}
+            </span>
             <svg
               className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
               fill="none"
@@ -349,7 +358,7 @@ export default function SurveyProgressPage() {
         </div>
       ) : (
         <>
-          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
             <SummaryCard
               label="کل نظرسنجی‌ها"
               value={formatNumber(data.summary.total_surveys)}
@@ -363,10 +372,16 @@ export default function SurveyProgressPage() {
               icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>}
             />
             <SummaryCard
-              label="کل پاسخ‌های تکمیل‌شده"
+              label="کارمندان تکمیل‌شده"
               value={formatNumber(data.summary.total_completed_responses)}
               accent="#ecfdf5"
               icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m9 12 2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>}
+            />
+            <SummaryCard
+              label="شرکت‌کنندگان ناشناس"
+              value={formatNumber(data.summary.total_anonymous_participants)}
+              accent="#eef2ff"
+              icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>}
             />
             <SummaryCard
               label="نرخ تکمیل کلی"

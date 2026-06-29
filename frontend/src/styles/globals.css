@@ -125,11 +125,7 @@
 ::-webkit-scrollbar-thumb { background: var(--c-scrollbar); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--c-scrollbar-hover); }
 
-/* --------------------------------------------------------------------------
-   Responsive foundation
-   Covers common mobile (320–480px), tablet (768px), laptop (1024px), and
-   desktop viewports without changing application data or API behavior.
-   -------------------------------------------------------------------------- */
+
 
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
@@ -151,7 +147,7 @@
     overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scrollbar-gutter: stable both-edges;
-    /* Ensure the scroll container is self-contained */
+    
     contain: inline-size;
   }
 

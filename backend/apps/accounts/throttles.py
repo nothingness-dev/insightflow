@@ -1,4 +1,4 @@
-"""Rate-limiting throttle classes for insightflow.
+"""Rate-limiting throttle classes for InsightFlow.
 
 These extend DRF's built-in throttles so the login endpoint gets a tighter
 per-IP limit than general API traffic, protecting against credential stuffing
@@ -14,3 +14,8 @@ class LoginRateThrottle(AnonRateThrottle):
     The scope key 'login' maps to DEFAULT_THROTTLE_RATES['login'] in settings.
     """
     scope = 'login'
+
+
+class AnonymousSurveyRateThrottle(AnonRateThrottle):
+    """Tighter limit for public anonymous survey endpoints."""
+    scope = 'anonymous_survey'

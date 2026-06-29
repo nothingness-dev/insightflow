@@ -202,8 +202,7 @@ function TabOverview({ results, survey }: { results: PersonResult[]; survey: any
 
   return (
     <div className="space-y-4">
-      {}
-      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3">
+<div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'میانگین کل', value: avg != null ? avg.toFixed(1) : '—', sub: scoreGrade(avg), color: scoreColor(avg), bg: scoreBg(avg) },
           { label: 'رأی‌دهندگان', value: fa(maxVoters), sub: 'نفر شرکت‌کننده', color: '#6366f1', bg: '#eef2ff' },
@@ -219,8 +218,7 @@ function TabOverview({ results, survey }: { results: PersonResult[]; survey: any
       </div>
 
       <div className={`grid grid-cols-1 ${emojiBuckets ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-4`}>
-        {}
-        <div className="card p-5">
+<div className="card p-5">
           <p className="text-sm font-semibold text-slate-700 mb-4">توزیع امتیازات</p>
           <div className="flex items-end gap-2" style={{ height: 100 }}>
             {buckets.map((b, i) => (
@@ -260,9 +258,7 @@ function TabOverview({ results, survey }: { results: PersonResult[]; survey: any
             </div>
           </div>
         )}
-
-        {}
-        <div className="card p-5">
+<div className="card p-5">
           <p className="text-sm font-semibold text-slate-700 mb-4">سکوی برتر</p>
           {top3.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-6">هنوز نتیجه‌ای ثبت نشده</p>
@@ -383,8 +379,7 @@ function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId
         {stats.map((q, i) => (
           <div key={q.question_id} className="p-5">
             <div className="flex items-start gap-3">
-              {}
-              <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-bold text-slate-400 flex-shrink-0 mt-0.5">
+<div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-bold text-slate-400 flex-shrink-0 mt-0.5">
                 {(i + 1).toLocaleString('fa-IR')}
               </div>
 
@@ -431,9 +426,7 @@ function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId
 
                 <LazyComments surveyId={surveyId} questionId={q.question_id} total={q.comments_count} />
               </div>
-
-              {}
-              {q.has_score && (
+{q.has_score && (
                 <div className="flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center"
                   style={{ background: scoreBg(q.avg) }}>
                   <span className="text-lg font-bold leading-none" style={{ color: scoreColor(q.avg) }}>
@@ -499,8 +492,7 @@ function PersonRow({ r, surveyId, expanded, onToggle }: {
 
   return (
     <div className={`border-b border-slate-100 last:border-0 transition-colors ${expanded ? 'bg-slate-50/70' : 'hover:bg-slate-50/50'}`}>
-      {}
-      <button
+<button
         type="button"
         onClick={hasDetail ? onToggle : undefined}
         className={`w-full flex items-center gap-3 px-5 py-4 text-right ${hasDetail ? 'cursor-pointer' : 'cursor-default'}`}
@@ -530,9 +522,7 @@ function PersonRow({ r, surveyId, expanded, onToggle }: {
           )}
         </div>
       </button>
-
-      {}
-      {expanded && hasDetail && (
+{expanded && hasDetail && (
         <div className="px-5 pb-5">
           <div className="bg-white rounded-xl border border-slate-100 p-4">
             {(r.question_results?.length ?? 0) > 0 && (
@@ -585,8 +575,7 @@ function TabPeople({ results, surveyId }: { results: PersonResult[]; surveyId: n
 
   return (
     <div>
-      {}
-      <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-2 mb-3">
+<div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-2 mb-3">
         <div className="flex-1 relative">
           <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -701,17 +690,14 @@ export default function SurveyResultsPage() {
 
   return (
     <div className="responsive-page max-w-4xl">
-      {}
-      <div className="flex flex-wrap items-center gap-1.5 text-sm text-slate-400 mb-5">
+<div className="flex flex-wrap items-center gap-1.5 text-sm text-slate-400 mb-5">
         <Link to="/admin/surveys" className="hover:text-slate-600 transition-colors">نظرسنجی‌ها</Link>
         <span>/</span>
         <Link to={`/admin/surveys/${id}`} className="hover:text-slate-600 transition-colors truncate max-w-[160px]">{survey.title}</Link>
         <span>/</span>
         <span className="text-slate-700">نتایج</span>
       </div>
-
-      {}
-      <div className="card p-4 sm:p-5 mb-5">
+<div className="card p-4 sm:p-5 mb-5">
         <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between gap-3 sm:gap-4">
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-slate-800 truncate">{survey.title}</h1>
@@ -757,8 +743,7 @@ export default function SurveyResultsPage() {
         </div>
       ) : (
         <>
-          {}
-          <div className="flex gap-1 border-b border-slate-200 mb-5 overflow-x-auto">
+<div className="flex gap-1 border-b border-slate-200 mb-5 overflow-x-auto">
             {TABS.map(t => (
               <button key={t.id} type="button" onClick={() => setTab(t.id)}
                 className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${

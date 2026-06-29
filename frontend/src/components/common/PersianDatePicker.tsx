@@ -165,9 +165,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
 
   return (
     <div ref={containerRef} className="relative" dir="rtl">
-
-      {}
-      <div
+<div
         onClick={() => setOpen(o => !o)}
         className={`input-field flex items-center justify-between cursor-pointer select-none
           ${hasError ? 'border-red-400 focus:ring-red-400' : ''}`}
@@ -192,13 +190,9 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
           </svg>
         </div>
       </div>
-
-      {}
-      {open && (
+{open && (
         <div className="absolute top-full mt-2 right-0 z-50 w-[min(300px,calc(100vw-2rem))] max-w-full bg-white rounded-2xl shadow-2xl border border-purple-100 p-3 sm:p-4 select-none">
-
-          {}
-          <div className="flex items-center justify-between mb-3">
+<div className="flex items-center justify-between mb-3">
             <button type="button" onClick={nextM}
               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-purple-50 text-gray-500 hover:text-purple-700 transition-colors">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -215,16 +209,12 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
               </svg>
             </button>
           </div>
-
-          {}
-          <div className="grid grid-cols-7 mb-1">
+<div className="grid grid-cols-7 mb-1">
             {WDAYS.map(d => (
               <div key={d} className="text-center text-xs font-semibold text-purple-400 py-1">{d}</div>
             ))}
           </div>
-
-          {}
-          <div className="grid grid-cols-7 gap-0.5">
+<div className="grid grid-cols-7 gap-0.5">
             {Array.from({length: startOff}).map((_,i) => <div key={`e${i}`}/>)}
             {Array.from({length: totalDays}).map((_,i) => {
               const day = i + 1;
@@ -251,14 +241,10 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
               );
             })}
           </div>
-
-          {}
-          <div className="mt-4 pt-3 border-t border-gray-100">
+<div className="mt-4 pt-3 border-t border-gray-100">
             <p className="text-xs text-gray-400 text-center mb-2">زمان (ساعت : دقیقه)</p>
             <div className="flex items-center justify-center gap-4">
-
-              {}
-              <div className="flex flex-col items-center gap-1">
+<div className="flex flex-col items-center gap-1">
                 <button type="button" onClick={() => adjHour(1)}
                   className="w-8 h-8 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-lg leading-none transition-colors">
                   ＋
@@ -274,9 +260,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
               </div>
 
               <span className="text-2xl font-bold text-purple-300 mb-5">:</span>
-
-              {}
-              <div className="flex flex-col items-center gap-1">
+<div className="flex flex-col items-center gap-1">
                 <button type="button" onClick={() => adjMin(5)}
                   className="w-8 h-8 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-lg leading-none transition-colors">
                   ＋
@@ -292,9 +276,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
               </div>
             </div>
           </div>
-
-          {}
-          <button
+<button
             type="button"
             onClick={() => setOpen(false)}
             className="mt-4 w-full py-2.5 text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors shadow-sm"

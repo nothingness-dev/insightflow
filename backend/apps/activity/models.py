@@ -1,17 +1,10 @@
-   
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
 
 class ActivityActions:
-    """Canonical action codes recorded in the audit log.
-
-    Keep these stable — they are stored in the database and referenced by the
-    frontend filter dropdown.
-    """
-
-          
+    """Canonical action codes recorded in the audit log."""
     LOGIN = 'login'
     LOGIN_FAILED = 'login_failed'
     LOGOUT = 'logout'
@@ -24,27 +17,23 @@ class ActivityActions:
     USER_ACTIVATE = 'user_activate'
     USER_DEACTIVATE = 'user_deactivate'
     BULK_IMPORT = 'bulk_employee_import'
-
-             
     SURVEY_CREATE = 'survey_create'
     SURVEY_EDIT = 'survey_edit'
     SURVEY_DELETE = 'survey_delete'
     SURVEY_DUPLICATE = 'survey_duplicate'
     SURVEY_PUBLISH = 'survey_publish'
     SURVEY_CLOSE = 'survey_close'
-
-               
     QUESTION_ADD = 'question_add'
     QUESTION_EDIT = 'question_edit'
     QUESTION_DELETE = 'question_delete'
-
-             
     EXPORT_CSV = 'export_csv'
     EXPORT_EXCEL = 'export_excel'
     EXPORT_PDF = 'export_pdf'
-
-                 
     DELETE_ALL_DATA = 'delete_all_data'
+    HASH_LINK_CREATE = 'hash_link_create'
+    HASH_LINK_DELETE = 'hash_link_delete'
+    HASH_LINK_TOGGLE = 'hash_link_toggle'
+    ANONYMOUS_VOTE = 'anonymous_vote'
 
 
 ACTION_LABELS = {
@@ -72,6 +61,10 @@ ACTION_LABELS = {
     ActivityActions.EXPORT_EXCEL: 'خروجی Excel',
     ActivityActions.EXPORT_PDF: 'خروجی PDF',
     ActivityActions.DELETE_ALL_DATA: 'حذف تمام داده‌ها',
+    ActivityActions.HASH_LINK_CREATE: 'ایجاد لینک هش',
+    ActivityActions.HASH_LINK_DELETE: 'حذف لینک هش',
+    ActivityActions.HASH_LINK_TOGGLE: 'تغییر وضعیت لینک هش',
+    ActivityActions.ANONYMOUS_VOTE: 'رأی ناشناس',
 }
 
 ACTION_CHOICES = [(code, label) for code, label in ACTION_LABELS.items()]
@@ -84,6 +77,7 @@ CRITICAL_ACTIONS = {
     ActivityActions.SURVEY_DELETE,
     ActivityActions.BULK_IMPORT,
     ActivityActions.DELETE_ALL_DATA,
+    ActivityActions.HASH_LINK_DELETE,
 }
 
 
@@ -96,7 +90,7 @@ class ActivityLog(models.Model):
     ]
 
     action = models.CharField(
-        max_length=40, choices=ACTION_CHOICES, db_index=True, verbose_name='نوع فعالیت'
+        max_length=40, db_index=True, verbose_name='نوع فعالیت'
     )
 
     actor = models.ForeignKey(
@@ -138,7 +132,7 @@ class ActivityLog(models.Model):
         ]
 
     def __str__(self):
-        return f'{self.get_action_display()} · {self.actor_username or "—"} · {self.created_at:%Y-%m-%d %H:%M}'
+        return f'{self.action_label} · {self.actor_username or "—"} · {self.created_at:%Y-%m-%d %H:%M}'
 
     @property
     def action_label(self):

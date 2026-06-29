@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
 from .models import User
 
 
@@ -35,6 +36,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         if data['password'] != data.pop('password_confirm'):
             raise serializers.ValidationError({'password_confirm': 'رمزهای عبور مطابقت ندارند.'})
+        validate_password(data['password'])
         return data
 
     def create(self, validated_data):
@@ -58,6 +60,7 @@ class PasswordResetSerializer(serializers.Serializer):
     def validate(self, data):
         if data['new_password'] != data['new_password_confirm']:
             raise serializers.ValidationError({'new_password_confirm': 'رمزهای عبور مطابقت ندارند.'})
+        validate_password(data['new_password'])
         return data
 
 
@@ -79,4 +82,5 @@ class ChangePasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError({'new_password_confirm': 'رمزهای عبور مطابقت ندارند.'})
         if data['current_password'] == data['new_password']:
             raise serializers.ValidationError({'new_password': 'رمز عبور جدید باید با رمز فعلی متفاوت باشد.'})
+        validate_password(data['new_password'], self.context['request'].user)
         return data

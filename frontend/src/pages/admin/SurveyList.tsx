@@ -102,9 +102,7 @@ export default function AdminSurveyList() {
           </button>
         }
       />
-
-      {}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+<div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="flex-1">
           <SearchInput value={search} onChange={setSearch} placeholder="جستجو در عنوان یا سوال..." />
         </div>

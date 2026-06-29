@@ -1,7 +1,7 @@
 ## Summary / خلاصه
 
-<!-- Describe what this PR does in 1-2 sentences -->
-<!-- تغییرات این PR را در ۱-۲ جمله توضیح دهید -->
+
+
 
 ## Type of change / نوع تغییر
 
@@ -13,7 +13,7 @@
 
 ## Related issue / Issue مرتبط
 
-Closes #<!-- issue number -->
+Closes #
 
 ## Testing / تست
 
@@ -23,4 +23,4 @@ Closes #<!-- issue number -->
 
 ## Screenshots (if UI change) / تصاویر (در صورت تغییر رابط کاربری)
 
-<!-- Before / After screenshots -->
+

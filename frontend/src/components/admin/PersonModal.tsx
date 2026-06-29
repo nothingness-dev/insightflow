@@ -98,8 +98,7 @@ export default function PersonModal({ open, onClose, onSaved, surveyId, person }
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? 'ویرایش فرد' : 'افزودن فرد'} size="md">
       <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
-        {}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+<div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div
             className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center cursor-pointer border-2 border-dashed border-gray-200 hover:border-[color:var(--c-400)] transition-colors flex-shrink-0"
             onClick={() => fileRef.current?.click()}
@@ -120,9 +119,7 @@ export default function PersonModal({ open, onClose, onSaved, surveyId, person }
             <input ref={fileRef} type="file" className="hidden" accept="image/jpeg,image/png,image/webp" onChange={handleFile} />
           </div>
         </div>
-
-        {}
-        <div>
+<div>
           <label className="label">نام و نام خانوادگی <span className="text-red-500">*</span></label>
           <input type="text" value={form.full_name} onChange={set('full_name')} className={`input-field ${errors.full_name ? 'border-red-400' : ''}`} placeholder="مثال: علی رضایی" />
           {errors.full_name && <p className="text-xs text-red-500 mt-1">{errors.full_name}</p>}

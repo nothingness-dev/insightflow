@@ -38,6 +38,7 @@ export default function SurveyForm() {
     questions: [createEmptyQuestion(0)],
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [surveyStatus, setSurveyStatus] = useState<string>('draft');
 
   useEffect(() => {
     if (!isEdit) return;
@@ -67,6 +68,7 @@ export default function SurveyForm() {
               },
             ];
 
+        setSurveyStatus(s.status || 'draft');
         setForm({
           title: s.title,
           description: s.description,
@@ -103,21 +105,29 @@ export default function SurveyForm() {
     return Object.keys(e).length === 0;
   };
 
-  const payload = () => ({
-    title: form.title.trim(),
-    description: form.description.trim(),
-    results_visibility: form.results_visibility,
-    questions: form.questions.map((question, index) => ({
-      ...question,
-      text: question.text.trim(),
-      help_text: question.help_text.trim(),
-      score_required: question.has_score ? question.score_required : false,
-      comment_required: question.has_comment ? question.comment_required : false,
-      emoji_required: question.has_emoji ? question.emoji_required : false,
-      display_order: index,
-      is_active: true,
-    })),
-  });
+  const isDraft = surveyStatus === 'draft';
+
+  const payload = () => {
+    const base = {
+      title: form.title.trim(),
+      description: form.description.trim(),
+      results_visibility: form.results_visibility,
+    };
+    if (!isDraft) return base;
+    return {
+      ...base,
+      questions: form.questions.map((question, index) => ({
+        ...question,
+        text: question.text.trim(),
+        help_text: question.help_text.trim(),
+        score_required: question.has_score ? question.score_required : false,
+        comment_required: question.has_comment ? question.comment_required : false,
+        emoji_required: question.has_emoji ? question.emoji_required : false,
+        display_order: index,
+        is_active: true,
+      })),
+    };
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -186,7 +196,7 @@ export default function SurveyForm() {
     <div className="responsive-page max-w-3xl">
       <PageHeader
         title={isEdit ? 'ویرایش نظرسنجی' : 'نظرسنجی جدید'}
-        subtitle={isEdit ? 'اطلاعات و سوال‌های نظرسنجی را ویرایش کنید' : 'سوال‌های چندگانه برای همه افراد نظرسنجی تعریف کنید'}
+        subtitle={isEdit ? (isDraft ? 'اطلاعات و سوال‌های نظرسنجی را ویرایش کنید' : 'فقط عنوان و توضیحات قابل ویرایش است. سوال‌ها و افراد در حالت منتشرشده قفل هستند.') : 'سوال‌های چندگانه برای همه افراد نظرسنجی تعریف کنید'}
       />
 
       <form onSubmit={handleSubmit} className="card p-4 sm:p-6 space-y-6">
@@ -209,6 +219,7 @@ export default function SurveyForm() {
           />
         </div>
 
+        {isDraft && (
         <div className="border-t border-gray-100 pt-5">
           <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 mb-4">
             <div>
@@ -321,6 +332,8 @@ export default function SurveyForm() {
             ))}
           </div>
         </div>
+
+        )}
 
         <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
           <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto flex items-center gap-2">

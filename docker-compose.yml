@@ -65,6 +65,7 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_BASE_URL=/api
+        - VITE_PUBLIC_BASE_URL=${VITE_PUBLIC_BASE_URL:-}
     restart: unless-stopped
     expose:
       - "3000"

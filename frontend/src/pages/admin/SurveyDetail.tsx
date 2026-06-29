@@ -6,6 +6,7 @@ import { StatusBadge, PageLoader, ConfirmModal } from '../../components/common/i
 import { formatDateTime, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import PersonModal from '../../components/admin/PersonModal';
+import HashLinksPanel from '../../components/admin/HashLinksPanel';
 
 export default function SurveyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -90,15 +91,12 @@ export default function SurveyDetail() {
 
   return (
     <div className="responsive-page max-w-4xl">
-      {}
-      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-400 mb-5">
+<div className="flex flex-wrap items-center gap-2 text-sm text-gray-400 mb-5">
         <Link to="/admin/surveys" className="hover:text-gray-600">نظرسنجی‌ها</Link>
         <span>/</span>
         <span className="text-gray-700">{survey.title}</span>
       </div>
-
-      {}
-      <div className="card p-4 sm:p-6 mb-5">
+<div className="card p-4 sm:p-6 mb-5">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2">
@@ -115,7 +113,7 @@ export default function SurveyDetail() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t border-gray-100">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t border-gray-100">
           <div>
             <p className="text-xs text-gray-400">افراد</p>
             <p className="text-lg font-semibold text-slate-700">{survey.people_count}</p>
@@ -125,13 +123,15 @@ export default function SurveyDetail() {
             <p className="text-lg font-semibold text-slate-700">{survey.questions_count || survey.questions?.length || 0}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400">پاسخ‌ها</p>
+            <p className="text-xs text-gray-400">شرکت‌کنندگان (کاربر)</p>
             <p className="text-lg font-semibold text-slate-700">{survey.total_responses}</p>
           </div>
+          <div>
+            <p className="text-xs text-gray-400">شرکت‌کنندگان ناشناس</p>
+            <p className="text-lg font-semibold text-emerald-700">{survey.anonymous_participants_count ?? 0}</p>
+          </div>
         </div>
-
-        {}
-        <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-gray-100">
+<div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-gray-100">
           {survey.status === 'draft' && (
             <>
               <Link to={`/admin/surveys/${id}/edit`} className="btn-secondary text-sm">ویرایش</Link>
@@ -157,9 +157,7 @@ export default function SurveyDetail() {
           </button>
         </div>
       </div>
-
-      {}
-      <div className="card p-4 sm:p-6 mb-5">
+<div className="card p-4 sm:p-6 mb-5">
         <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 mb-4">
           <h2 className="font-bold text-slate-800">سوال‌های نظرسنجی</h2>
           {survey.status === 'draft' && (
@@ -200,12 +198,10 @@ export default function SurveyDetail() {
           <p className="text-sm text-gray-400">هنوز سوالی برای این نظرسنجی تعریف نشده است.</p>
         )}
       </div>
-
-      {}
-      <div className="card">
+<div className="card">
         <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
           <h2 className="section-title">افراد نظرسنجی</h2>
-          {survey.status !== 'closed' && (
+          {survey.status === 'draft' && (
             <button
               onClick={() => setPersonModal({ open: true })}
               className="btn-primary text-sm flex items-center gap-2"
@@ -221,7 +217,7 @@ export default function SurveyDetail() {
         {people.length === 0 ? (
           <div className="py-12 text-center text-gray-400 text-sm">
             <p className="mb-3">هنوز فردی اضافه نشده است</p>
-            {survey.status !== 'closed' && (
+            {survey.status === 'draft' && (
               <button onClick={() => setPersonModal({ open: true })} className="btn-primary text-sm">افزودن اولین فرد</button>
             )}
           </div>
@@ -229,8 +225,7 @@ export default function SurveyDetail() {
           <div className="divide-y divide-gray-50">
             {people.map(person => (
               <div key={person.id} className="px-4 sm:px-6 py-4 flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-3 sm:gap-4 hover:bg-gray-50 transition-colors">
-                {}
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+<div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
                   {person.photo_url ? (
                     <img src={person.photo_url} alt={person.full_name} className="w-full h-full object-cover" />
                   ) : (
@@ -239,16 +234,14 @@ export default function SurveyDetail() {
                     </div>
                   )}
                 </div>
-                {}
-                <div className="flex-1 min-w-0">
+<div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-800 text-sm">{person.full_name}</p>
                   <p className="text-xs text-gray-400">{[person.role_title, person.department].filter(Boolean).join(' — ')}</p>
                   {!person.is_active && (
                     <span className="text-xs text-red-500 font-medium">غیرفعال</span>
                   )}
                 </div>
-                {}
-                {survey.status !== 'closed' && (
+{survey.status === 'draft' && (
                   <div className="flex flex-wrap items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => setPersonModal({ open: true, person })}
@@ -269,9 +262,8 @@ export default function SurveyDetail() {
           </div>
         )}
       </div>
-
-      {}
-      <PersonModal
+<HashLinksPanel surveyId={surveyId} surveyStatus={survey.status} />
+<PersonModal
         open={personModal.open}
         onClose={() => setPersonModal({ open: false })}
         onSaved={handlePersonSaved}

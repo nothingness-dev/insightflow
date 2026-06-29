@@ -9,12 +9,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from apps.accounts.permissions import IsAdminUser, IsEmployeeUser
+from apps.accounts.throttles import AnonymousSurveyRateThrottle
 
-from .models import Survey, SurveyQuestion, SurveyPerson, Rating
+from .models import Survey, SurveyQuestion, SurveyPerson, Rating, SurveyHashLink, AnonymousParticipation
 from .serializers import (
     SurveySerializer, SurveyCreateUpdateSerializer, SurveyPersonSerializer,
     SurveyPersonPublicSerializer, SurveyPublicSerializer, RatingCreateSerializer,
-    SurveyProgressDashboardSerializer
+    SurveyProgressDashboardSerializer, SurveyHashLinkSerializer
 )
 from .services import calculate_survey_results, duplicate_survey, calculate_survey_progress, validate_question_answers
 from apps.activity.models import ActivityActions
@@ -112,6 +113,10 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         if instance.status == Survey.STATUS_CLOSED:
             return Response({'detail': 'نظرسنجی بسته شده قابل ویرایش نیست.'}, status=status.HTTP_400_BAD_REQUEST)
+        if instance.status != Survey.STATUS_DRAFT:
+            data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+            data.pop('questions', None)
+            request._full_data = data
 
         before_texts = {q.id: q.text for q in instance.questions.all()}
         before_active = set(instance.questions.filter(is_active=True).values_list('id', flat=True))
@@ -835,6 +840,9 @@ class AdminPersonListCreateView(generics.ListCreateAPIView):
         except Survey.DoesNotExist:
             from rest_framework.exceptions import NotFound
             raise NotFound('نظرسنجی یافت نشد.')
+        if survey.status != Survey.STATUS_DRAFT:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('افزودن فرد فقط در حالت پیش‌نویس امکان‌پذیر است.')
         serializer.save(survey=survey)
 
 
@@ -843,9 +851,21 @@ class AdminPersonDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SurveyPersonSerializer
     queryset = SurveyPerson.objects.all()
 
+    def _check_draft(self, instance):
+        if instance.survey.status != Survey.STATUS_DRAFT:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('ویرایش یا حذف فرد فقط در حالت پیش‌نویس امکان‌پذیر است.')
+
     def update(self, request, *args, **kwargs):
         kwargs['partial'] = True
+        instance = self.get_object()
+        self._check_draft(instance)
         return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self._check_draft(instance)
+        return super().destroy(request, *args, **kwargs)
 
 
 
@@ -1230,20 +1250,30 @@ class AdminSurveyCommentsView(APIView):
         if required > 0:
             completed_voter_ids = list(
                 Rating.objects
-                .filter(survey=survey, person__is_active=True, question__is_active=True)
+                .filter(survey=survey, person__is_active=True, question__is_active=True, voter__isnull=False)
                 .values('voter_id')
                 .annotate(answered_count=Count('id', distinct=True))
                 .filter(answered_count=required)
                 .values_list('voter_id', flat=True)
             )
+            completed_anon_tokens = list(
+                Rating.objects
+                .filter(survey=survey, person__is_active=True, question__is_active=True, anonymous_token__isnull=False)
+                .values('anonymous_token')
+                .annotate(answered_count=Count('id', distinct=True))
+                .filter(answered_count=required)
+                .values_list('anonymous_token', flat=True)
+            )
         else:
             completed_voter_ids = []
+            completed_anon_tokens = []
 
         qs = Rating.objects.filter(
             survey=survey,
             person__is_active=True,
             question__is_active=True,
-            voter_id__in=completed_voter_ids,
+        ).filter(
+            Q(voter_id__in=completed_voter_ids) | Q(anonymous_token__in=completed_anon_tokens)
         ).exclude(comment__isnull=True).exclude(comment__exact='')
 
         if person_id:
@@ -1266,4 +1296,330 @@ class AdminSurveyCommentsView(APIView):
                 {'comment': row['comment'], 'question_text': row['question__text']}
                 for row in comments_page
             ],
+        })
+
+
+
+class AdminHashLinkListCreateView(APIView):
+    """List all hash links for a survey, or create a new one."""
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, survey_id):
+        try:
+            survey = Survey.objects.get(pk=survey_id)
+        except Survey.DoesNotExist:
+            return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
+
+        links = survey.hash_links.all().order_by('-created_at')
+        serializer = SurveyHashLinkSerializer(links, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, survey_id):
+        try:
+            survey = Survey.objects.get(pk=survey_id)
+        except Survey.DoesNotExist:
+            return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
+
+        label = (request.data.get('label') or '').strip()
+        link = SurveyHashLink.objects.create(survey=survey, label=label)
+
+        log_activity(
+            ActivityActions.HASH_LINK_CREATE,
+            request=request,
+            description=f'ایجاد لینک هش برای نظرسنجی «{survey.title}»',
+            target_type='survey',
+            target_id=survey.id,
+            target_repr=survey.title,
+            metadata={'token': link.token, 'label': label},
+        )
+        invalidate_dashboard()
+        return Response(SurveyHashLinkSerializer(link).data, status=status.HTTP_201_CREATED)
+
+
+class AdminHashLinkDetailView(APIView):
+    """Update (label/active) or delete a specific hash link."""
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, pk):
+        try:
+            link = SurveyHashLink.objects.select_related('survey').get(pk=pk)
+        except SurveyHashLink.DoesNotExist:
+            return Response({'detail': 'لینک هش یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
+
+        old_active = link.is_active
+        if 'label' in request.data:
+            link.label = (request.data['label'] or '').strip()
+        if 'is_active' in request.data:
+            link.is_active = bool(request.data['is_active'])
+        link.save()
+
+        if old_active != link.is_active:
+            state = 'فعال' if link.is_active else 'غیرفعال'
+            log_activity(
+                ActivityActions.HASH_LINK_TOGGLE,
+                request=request,
+                description=f'لینک هش نظرسنجی «{link.survey.title}» {state} شد',
+                target_type='survey',
+                target_id=link.survey.id,
+                target_repr=link.survey.title,
+                metadata={'token': link.token, 'is_active': link.is_active},
+            )
+
+        return Response(SurveyHashLinkSerializer(link).data)
+
+    def delete(self, request, pk):
+        try:
+            link = SurveyHashLink.objects.select_related('survey').get(pk=pk)
+        except SurveyHashLink.DoesNotExist:
+            return Response({'detail': 'لینک هش یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
+
+        survey = link.survey
+        token = link.token
+        link.delete()
+
+        log_activity(
+            ActivityActions.HASH_LINK_DELETE,
+            request=request,
+            description=f'حذف لینک هش نظرسنجی «{survey.title}»',
+            target_type='survey',
+            target_id=survey.id,
+            target_repr=survey.title,
+            metadata={'token': token},
+        )
+        invalidate_dashboard()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class AnonymousSurveyDetailView(APIView):
+    """Return survey detail for an anonymous participant using a hash token.
+    Also returns ip_locked=True when this device already completed the survey,
+    so the frontend can immediately show the "already participated" state.
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonymousSurveyRateThrottle]
+
+    def get(self, request, token):
+        try:
+            link = SurveyHashLink.objects.select_related('survey').get(token=token)
+        except SurveyHashLink.DoesNotExist:
+            return Response({'detail': 'لینک معتبر نیست.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.is_active:
+            return Response({'detail': 'این لینک غیرفعال شده است.'}, status=status.HTTP_403_FORBIDDEN)
+
+        survey = link.survey
+        if survey.status == Survey.STATUS_DRAFT:
+            return Response({'detail': 'این نظرسنجی هنوز منتشر نشده است.'}, status=status.HTTP_400_BAD_REQUEST)
+        if survey.status == Survey.STATUS_CLOSED:
+            return Response({'detail': 'این نظرسنجی بسته شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        client_ip = get_client_ip(request)
+        ip_locked = bool(
+            client_ip and AnonymousParticipation.objects.filter(
+                survey=survey, hash_link=link, ip_address=client_ip
+            ).exists()
+        )
+
+        from .serializers import SurveyPublicSerializer
+        data = SurveyPublicSerializer(survey, context={'request': request}).data
+        data['ip_locked'] = ip_locked
+        return Response(data)
+
+
+class AnonymousRatePersonView(APIView):
+    """Anonymous participation endpoint — no authentication required."""
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonymousSurveyRateThrottle]
+
+    def post(self, request, token, person_id):
+        try:
+            link = SurveyHashLink.objects.select_related('survey').get(token=token)
+        except SurveyHashLink.DoesNotExist:
+            return Response({'detail': 'لینک معتبر نیست.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.is_active:
+            return Response({'detail': 'این لینک غیرفعال شده است.'}, status=status.HTTP_403_FORBIDDEN)
+
+        survey = link.survey
+        client_ip = get_client_ip(request)
+        if survey.status == Survey.STATUS_DRAFT:
+            return Response({'detail': 'این نظرسنجی هنوز منتشر نشده است.'}, status=status.HTTP_400_BAD_REQUEST)
+        if survey.status == Survey.STATUS_CLOSED:
+            return Response({'detail': 'این نظرسنجی بسته شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+        anon_session = request.data.get('anonymous_token', '').strip()
+        if not anon_session or len(anon_session) > 64:
+            return Response({'detail': 'توکن ناشناس معتبر نیست.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if client_ip and AnonymousParticipation.objects.filter(
+            survey=survey,
+            hash_link=link,
+            ip_address=client_ip,
+        ).exists():
+            return Response({'detail': 'از این دستگاه/آدرس IP قبلا در این نظرسنجی شرکت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            person = SurveyPerson.objects.get(pk=person_id, survey=survey, is_active=True)
+        except SurveyPerson.DoesNotExist:
+            return Response({'detail': 'فرد مورد نظر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
+
+        questions = list(survey.questions.filter(is_active=True).order_by('display_order', 'created_at'))
+        if not questions:
+            return Response({'detail': 'این نظرسنجی هنوز سوال فعالی ندارد.'}, status=status.HTTP_400_BAD_REQUEST)
+        existing_answer_count = Rating.objects.filter(
+            survey=survey, person=person,
+            anonymous_token=anon_session,
+            question__is_active=True,
+        ).count()
+        if existing_answer_count >= len(questions):
+            return Response({'detail': 'شما قبلاً برای این فرد پاسخ ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from .serializers import RatingCreateSerializer
+        serializer = RatingCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        submitted_answers = serializer.validated_data.get('answers')
+        if submitted_answers is None:
+            if len(questions) != 1:
+                return Response({'detail': 'برای این نظرسنجی باید پاسخ همه سوال‌ها ارسال شود.'}, status=status.HTTP_400_BAD_REQUEST)
+            submitted_answers = [{
+                'question_id': questions[0].id,
+                'score': serializer.validated_data.get('score'),
+                'emoji_rating': serializer.validated_data.get('emoji_rating'),
+                'comment': serializer.validated_data.get('comment'),
+            }]
+
+        try:
+            validated_answers = validate_question_answers(questions, submitted_answers)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                Rating.objects.bulk_create([
+                    Rating(
+                        survey=survey,
+                        person=person,
+                        question=item['question'],
+                        voter=None,  # anonymous — no user
+                        anonymous_token=anon_session,
+                        score=item['score'],
+                        emoji_rating=item.get('emoji_rating'),
+                        comment=item['comment'],
+                        ip_address=client_ip,
+                        user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                    )
+                    for item in validated_answers
+                ])
+        except IntegrityError:
+            return Response({'detail': 'شما قبلاً برای این فرد پاسخ ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
+        active_people_count = survey.people.filter(is_active=True).count()
+        active_questions_count = len(questions)
+        required = active_people_count * active_questions_count
+
+        answered_count = Rating.objects.filter(
+            survey=survey,
+            anonymous_token=anon_session,
+            person__is_active=True,
+            question__is_active=True,
+        ).count()
+
+        if answered_count >= required:
+            try:
+                with transaction.atomic():
+                    AnonymousParticipation.objects.create(
+                        survey=survey,
+                        hash_link=link,
+                        ip_address=client_ip,
+                        anonymous_token=anon_session,
+                        user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                    )
+                    SurveyHashLink.objects.filter(pk=link.pk).update(
+                        anonymous_participant_count=F('anonymous_participant_count') + 1
+                    )
+            except IntegrityError:
+                return Response({'detail': 'از این دستگاه/آدرس IP قبلا در این نظرسنجی شرکت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            log_activity(
+                ActivityActions.ANONYMOUS_VOTE,
+                request=request,
+                description=f'یک شرکت‌کننده ناشناس نظرسنجی «{survey.title}» را تکمیل کرد',
+                target_type='survey',
+                target_id=survey.id,
+                target_repr=survey.title,
+                metadata={'token': token, 'anonymous_ip': client_ip},
+            )
+
+        invalidate_survey_results(survey.id)
+        invalidate_dashboard()
+        return Response({'detail': 'پاسخ‌های شما با موفقیت ثبت شد.'}, status=status.HTTP_201_CREATED)
+
+
+class AnonymousMyRatingsView(APIView):
+    """Return which people an anonymous session has already rated."""
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonymousSurveyRateThrottle]
+
+    def get(self, request, token, survey_id):
+        try:
+            link = SurveyHashLink.objects.select_related('survey').get(token=token)
+        except SurveyHashLink.DoesNotExist:
+            return Response({'detail': 'لینک معتبر نیست.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not link.is_active:
+            return Response({'detail': 'این لینک غیرفعال شده است.'}, status=status.HTTP_403_FORBIDDEN)
+
+        survey = link.survey
+        if survey.id != survey_id:
+            return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
+
+        total_active_people = survey.people.filter(is_active=True).count()
+        active_questions_count = survey.questions.filter(is_active=True).count()
+        completed_by_ip = AnonymousParticipation.objects.filter(
+            survey=survey,
+            hash_link=link,
+            ip_address=get_client_ip(request),
+        ).exists()
+        if completed_by_ip:
+            return Response({
+                'survey_id': survey.id,
+                'rated_person_ids': list(survey.people.filter(is_active=True).values_list('id', flat=True)),
+                'rated_count': total_active_people,
+                'total_people': total_active_people,
+                'total_questions': active_questions_count,
+                'required_answers_count': total_active_people * active_questions_count,
+                'is_complete': total_active_people > 0 and active_questions_count > 0,
+                'ip_locked': True,
+            })
+
+        anon_session = request.query_params.get('anonymous_token', '').strip()
+        if not anon_session:
+            return Response({'rated_person_ids': [], 'rated_count': 0, 'total_people': 0, 'is_complete': False})
+
+        completed_person_ids = []
+
+        if active_questions_count > 0:
+            rows = (
+                Rating.objects
+                .filter(
+                    survey=survey,
+                    anonymous_token=anon_session,
+                    person__is_active=True,
+                    question__is_active=True,
+                    question__survey=survey,
+                )
+                .values('person_id')
+                .annotate(answered_count=Count('question_id', distinct=True))
+            )
+            completed_person_ids = [
+                row['person_id']
+                for row in rows
+                if row['answered_count'] == active_questions_count
+            ]
+
+        return Response({
+            'survey_id': survey.id,
+            'rated_person_ids': completed_person_ids,
+            'rated_count': len(completed_person_ids),
+            'total_people': total_active_people,
+            'total_questions': active_questions_count,
+            'required_answers_count': total_active_people * active_questions_count,
+            'is_complete': len(completed_person_ids) == total_active_people and total_active_people > 0 and active_questions_count > 0,
         })

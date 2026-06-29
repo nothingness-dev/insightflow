@@ -8,7 +8,7 @@ assignees: ""
 
 ## Describe the bug / توضیح مشکل
 
-<!-- A clear description of what the bug is / توضیح واضح از مشکل -->
+
 
 ## Steps to reproduce / مراحل بازتولید
 
@@ -18,11 +18,11 @@ assignees: ""
 
 ## Expected behavior / رفتار مورد انتظار
 
-<!-- What you expected to happen / آنچه انتظار داشتید اتفاق بیفتد -->
+
 
 ## Screenshots / تصاویر
 
-<!-- If applicable, add screenshots / در صورت امکان تصویر اضافه کنید -->
+
 
 ## Environment / محیط
 

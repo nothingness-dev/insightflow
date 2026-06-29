@@ -153,9 +153,7 @@ export default function ActivityCenter() {
           </div>
         }
       />
-
-      {}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <StatCard label="کل فعالیت‌ها" value={stats ? stats.total_activities.toLocaleString('fa-IR') : '—'} accent="bg-indigo-50" icon={Ic.total} />
         <StatCard label="فعالیت‌های امروز" value={stats ? stats.today_activities.toLocaleString('fa-IR') : '—'} accent="bg-sky-50" icon={Ic.today} />
         <StatCard label="فعالیت‌های این هفته" value={stats ? stats.week_activities.toLocaleString('fa-IR') : '—'} accent="bg-emerald-50" icon={Ic.week} />
@@ -168,8 +166,7 @@ export default function ActivityCenter() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
-        {}
-        <div className="lg:col-span-2 card p-4 sm:p-5">
+<div className="lg:col-span-2 card p-4 sm:p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-slate-800">نمودار فعالیت‌ها (۱۴ روز اخیر)</h2>
             {stats && (
@@ -193,9 +190,7 @@ export default function ActivityCenter() {
             </div>
           )}
         </div>
-
-        {}
-        <div className="card p-4 sm:p-5">
+<div className="card p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-4">
             <span className="w-2 h-2 rounded-full bg-red-500" />
             <h2 className="text-sm font-bold text-slate-800">اقدامات حساس</h2>
@@ -220,9 +215,7 @@ export default function ActivityCenter() {
           )}
         </div>
       </div>
-
-      {}
-      <div className="card p-4 sm:p-5 mb-5">
+<div className="card p-4 sm:p-5 mb-5">
         <h2 className="text-sm font-bold text-slate-800 mb-4">جدول زمانی فعالیت‌ها</h2>
         {loadingTop ? (
           <div className="flex justify-center py-8"><Spinner /></div>
@@ -245,9 +238,7 @@ export default function ActivityCenter() {
           <p className="text-sm text-gray-400 text-center py-6">فعالیتی ثبت نشده است</p>
         )}
       </div>
-
-      {}
-      <div className="card p-4 sm:p-5">
+<div className="card p-4 sm:p-5">
         <h2 className="text-sm font-bold text-slate-800 mb-4">گزارش کامل فعالیت‌ها</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
           <div className="lg:col-span-2">
@@ -308,9 +299,7 @@ export default function ActivityCenter() {
             </tbody>
           </table>
         </div>
-
-        {}
-        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 mt-4 text-sm">
+<div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 mt-4 text-sm">
           <p className="text-xs text-gray-400">
             {count.toLocaleString('fa-IR')} رکورد · صفحه {page.toLocaleString('fa-IR')} از {totalPages.toLocaleString('fa-IR')}
           </p>
@@ -340,7 +329,7 @@ function DailyChart({ data }: { data: { date: string; total: number; failed: num
   const CHART_HEIGHT = 160; // px — matches h-40
 
   return (
-    <div className="flex items-end gap-1.5" style={{ height: CHART_HEIGHT }}>
+    <div className="flex items-end gap-1.5" dir="ltr" style={{ height: CHART_HEIGHT }}>
       {data.map(d => {
         const successCount = d.total - d.failed;
         const barPx   = Math.max(d.total > 0 ? 6 : 0, Math.round((d.total / max) * (CHART_HEIGHT - 24)));
@@ -354,13 +343,10 @@ function DailyChart({ data }: { data: { date: string; total: number; failed: num
             style={{ height: CHART_HEIGHT }}
             title={`${label} — ${d.total} فعالیت · ${successCount} موفق · ${d.failed} ناموفق`}
           >
-            {/* hover count badge */}
-            <span className="text-[10px] text-gray-400 mb-1 opacity-0 group-hover:opacity-100 transition-opacity leading-none">
+<span className="text-[10px] text-gray-400 mb-1 opacity-0 group-hover:opacity-100 transition-opacity leading-none">
               {d.total > 0 ? d.total : ''}
             </span>
-
-            {/* bar */}
-            {d.total > 0 ? (
+{d.total > 0 ? (
               <div className="w-full flex flex-col justify-end rounded-t-md overflow-hidden" style={{ height: barPx }}>
                 {succPx > 0 && (
                   <div className="w-full bg-indigo-500" style={{ height: succPx }} />
@@ -370,12 +356,10 @@ function DailyChart({ data }: { data: { date: string; total: number; failed: num
                 )}
               </div>
             ) : (
-              /* zero-activity day: faint placeholder line */
+              
               <div className="w-full bg-gray-100 rounded-t-sm" style={{ height: 4 }} />
             )}
-
-            {/* date label */}
-            <span className="text-[9px] text-gray-300 mt-1 truncate w-full text-center leading-none">
+<span className="text-[9px] text-gray-300 mt-1 truncate w-full text-center leading-none">
               {label}
             </span>
           </div>
@@ -461,8 +445,7 @@ function ExportCenterModal({ open, onClose }: { open: boolean; onClose: () => vo
   return (
     <Modal open={open} onClose={onClose} title="مرکز خروجی گزارش فعالیت‌ها" size="sm">
       <div className="p-4 sm:p-6 space-y-5">
-        {}
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+<div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
           <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>

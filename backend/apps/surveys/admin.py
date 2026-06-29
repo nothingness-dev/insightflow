@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Survey, SurveyQuestion, SurveyPerson, Rating
+from .models import Survey, SurveyQuestion, SurveyPerson, Rating, SurveyHashLink
 
 
 class SurveyQuestionInline(admin.TabularInline):
@@ -35,3 +35,11 @@ class RatingAdmin(admin.ModelAdmin):
     list_filter = ['survey', 'question', 'score', 'emoji_rating']
                                                        
     exclude = ['voter', 'ip_address', 'user_agent']
+
+
+@admin.register(SurveyHashLink)
+class SurveyHashLinkAdmin(admin.ModelAdmin):
+    list_display = ['token', 'survey', 'label', 'is_active', 'anonymous_participant_count', 'created_at']
+    list_filter = ['is_active', 'survey']
+    search_fields = ['token', 'label', 'survey__title']
+    readonly_fields = ['token', 'anonymous_participant_count', 'created_at']

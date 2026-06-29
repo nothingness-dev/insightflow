@@ -354,9 +354,7 @@ export default function UserManagement() {
           )}
         </div>
       )}
-
-      {}
-      <div className="mt-10 border border-red-200 rounded-xl p-5 bg-red-50">
+<div className="mt-10 border border-red-200 rounded-xl p-5 bg-red-50">
         <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3">
           <div>
             <p className="font-semibold text-red-700 text-sm">ناحیه خطر</p>
@@ -370,9 +368,7 @@ export default function UserManagement() {
           </button>
         </div>
       </div>
-
-      {}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? 'ویرایش کاربر' : 'کاربر جدید'} size="md">
+<Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? 'ویرایش کاربر' : 'کاربر جدید'} size="md">
         <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -436,9 +432,7 @@ export default function UserManagement() {
           </div>
         </form>
       </Modal>
-
-      {}
-      <Modal open={!!resetId} onClose={closeResetModal} title="تغییر رمز عبور" size="sm">
+<Modal open={!!resetId} onClose={closeResetModal} title="تغییر رمز عبور" size="sm">
         <div className="p-4 sm:p-6 space-y-4">
           <p className="text-xs text-gray-500">کاربر در اولین ورود بعدی ملزم به تغییر این رمز خواهد بود.</p>
           <div>
@@ -469,12 +463,9 @@ export default function UserManagement() {
         confirmVariant="primary"
         loading={resetting}
       />
-
-      {}
-      <Modal open={importModalOpen} onClose={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }} title="آپلود کاربران از فایل" size="lg">
+<Modal open={importModalOpen} onClose={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }} title="آپلود کاربران از فایل" size="lg">
         <div className="p-4 sm:p-6 space-y-5">
-          {}
-          <div className="bg-gray-50 rounded-xl p-4 text-xs font-mono text-gray-600 leading-relaxed border border-gray-100">
+<div className="bg-gray-50 rounded-xl p-4 text-xs font-mono text-gray-600 leading-relaxed border border-gray-100">
             <p className="text-gray-400 mb-2 font-sans font-medium text-xs">فرمت فایل CSV یا TXT (هر خط یک کاربر):</p>
             <p>username,نام کامل,رمز عبور,نقش</p>
             <p className="text-gray-400 mt-1"># نقش اختیاری است: employee (پیش‌فرض) یا admin</p>
@@ -486,9 +477,7 @@ export default function UserManagement() {
               <p>manager1,مدیر اول,Admin@2024,admin</p>
             </div>
           </div>
-
-          {}
-          <div
+<div
             className={`border-2 border-dashed rounded-xl p-5 sm:p-8 text-center cursor-pointer transition-colors
               ${isDragging ? 'border-[color:var(--c-400)] bg-[color:var(--c-50)] scale-[1.01]' :
                 importFile ? 'border-[color:var(--c-300)] bg-[color:var(--c-50)]' :
@@ -540,9 +529,7 @@ export default function UserManagement() {
               </>
             )}
           </div>
-
-          {}
-          {importResult && (
+{importResult && (
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
@@ -606,9 +593,7 @@ export default function UserManagement() {
           </div>
         </div>
       </Modal>
-
-      {}
-      <Modal open={deleteAllModal} onClose={() => setDeleteAllModal(false)} title="حذف تمام داده‌ها" size="sm">
+<Modal open={deleteAllModal} onClose={() => setDeleteAllModal(false)} title="حذف تمام داده‌ها" size="sm">
         <div className="p-6 space-y-4">
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
             <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -641,8 +626,7 @@ export default function UserManagement() {
           </div>
         </div>
       </Modal>
-      {}
-      <Modal open={!!deleteUserId} onClose={() => setDeleteUserId(null)} title="حذف کاربر" size="sm">
+<Modal open={!!deleteUserId} onClose={() => setDeleteUserId(null)} title="حذف کاربر" size="sm">
         <div className="p-6 space-y-4">
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
             <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

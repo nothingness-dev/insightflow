@@ -1,6 +1,13 @@
 import api from './client';
 import { ActivityCharts, ActivityCriticalPanel, ActivityFilterOptions, ActivityLog, ActivityLogFilters, ActivityStats, BulkImportResult, DashboardStats, EmojiRatingValue, MyRatings, PaginatedResponse, Survey, SurveyPerson, SurveyProgressDashboard, SurveyQuestionInput, SurveyResults, User } from '../types';
 
+type SurveyPayload = {
+  title: string;
+  description: string;
+  results_visibility: 'admin_only';
+  questions?: SurveyQuestionInput[];
+};
+
 
 export const authApi = {
   login: (username: string, password: string) =>
@@ -16,11 +23,11 @@ export const authApi = {
 export const adminSurveyApi = {
   list: (params?: Record<string, string>) =>
     api.get<Survey[]>('/admin/surveys/', { params }),
-  create: (data: { title: string; description: string; results_visibility: 'admin_only'; questions: SurveyQuestionInput[] }) =>
+  create: (data: SurveyPayload) =>
     api.post<Survey>('/admin/surveys/', data),
   get: (id: number) =>
     api.get<Survey>(`/admin/surveys/${id}/`),
-  update: (id: number, data: { title: string; description: string; results_visibility: 'admin_only'; questions: SurveyQuestionInput[] }) =>
+  update: (id: number, data: SurveyPayload) =>
     api.patch<Survey>(`/admin/surveys/${id}/`, data),
   delete: (id: number) =>
     api.delete(`/admin/surveys/${id}/`),
@@ -127,4 +134,33 @@ export const employeeApi = {
     api.get<MyRatings>(`/surveys/${surveyId}/my-ratings/`),
   results: (surveyId: number) =>
     api.get<SurveyResults>(`/surveys/${surveyId}/results/`),
+};
+
+
+export const adminHashLinkApi = {
+  list: (surveyId: number) =>
+    api.get<import('../types').SurveyHashLink[]>(`/admin/surveys/${surveyId}/hash-links/`),
+  create: (surveyId: number, label?: string) =>
+    api.post<import('../types').SurveyHashLink>(`/admin/surveys/${surveyId}/hash-links/`, { label: label || '' }),
+  update: (id: number, data: { label?: string; is_active?: boolean }) =>
+    api.patch<import('../types').SurveyHashLink>(`/admin/hash-links/${id}/`, data),
+  delete: (id: number) =>
+    api.delete(`/admin/hash-links/${id}/`),
+};
+
+
+export const anonymousApi = {
+  survey: (token: string) =>
+    api.get(`/s/${token}/`),
+  rate: (
+    token: string,
+    personId: number,
+    answers: { question_id: number; score?: number | null; emoji_rating?: EmojiRatingValue | null; comment?: string | null }[],
+    anonymousToken: string,
+  ) =>
+    api.post(`/s/${token}/people/${personId}/rate/`, { answers, anonymous_token: anonymousToken }),
+  myRatings: (token: string, surveyId: number, anonymousToken: string) =>
+    api.get<import('../types').MyRatings>(`/s/${token}/surveys/${surveyId}/my-ratings/`, {
+      params: { anonymous_token: anonymousToken },
+    }),
 };

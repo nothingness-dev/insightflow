@@ -56,6 +56,7 @@ export interface Survey {
   published_at: string | null;
   closed_at: string | null;
 
+  anonymous_participants_count?: number;
   my_votes_count?: number;
   total_people?: number;
   total_questions?: number;
@@ -153,6 +154,7 @@ export interface MyRatings {
   total_questions: number;
   required_answers_count: number;
   is_complete: boolean;
+  ip_locked?: boolean;
 }
 
 export interface PendingSurveyEmployee {
@@ -170,6 +172,7 @@ export interface SurveyProgress {
   tracking_enabled: boolean;
   assigned_employees: number;
   completed_employees: number;
+  anonymous_participants: number;
   pending_employees: number;
   completion_percentage: number;
   pending_users: PendingSurveyEmployee[];
@@ -180,6 +183,7 @@ export interface SurveyProgressDashboard {
     total_surveys: number;
     total_assigned_responses: number;
     total_completed_responses: number;
+    total_anonymous_participants: number;
     total_pending_responses: number;
     overall_completion_percentage: number;
   };
@@ -269,4 +273,14 @@ export interface ActivityLogFilters {
   date_to?: string;
   page?: string;
   page_size?: string;
+}
+
+export interface SurveyHashLink {
+  id: number;
+  survey: number;
+  token: string;
+  label: string;
+  is_active: boolean;
+  anonymous_participant_count: number;
+  created_at: string;
 }

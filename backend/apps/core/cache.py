@@ -82,3 +82,15 @@ def invalidate_all_employee_survey_lists() -> None:
         cache.delete_pattern('*employee:*:survey_list')                              
     except Exception:
         logger.debug('cache.invalidate_all_employee_survey_lists failed silently')
+
+
+def key_hash_links(survey_id: int) -> str:
+    return f'survey:{survey_id}:hash_links'
+
+
+def invalidate_hash_links(survey_id: int) -> None:
+    """Call when hash links for a survey change."""
+    try:
+        cache.delete(key_hash_links(survey_id))
+    except Exception:
+        logger.debug('cache.invalidate_hash_links(%s) failed silently', survey_id)

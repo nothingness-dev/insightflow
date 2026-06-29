@@ -2,11 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-                     
     path('admin/dashboard/', views.AdminDashboardView.as_view(), name='admin-dashboard'),
     path('admin/delete-all-data/', views.AdminDeleteAllDataView.as_view(), name='admin-delete-all-data'),
-
-                       
     path('admin/surveys/', views.AdminSurveyListCreateView.as_view(), name='admin-survey-list'),
     path('admin/surveys/progress/', views.AdminSurveyProgressView.as_view(), name='admin-survey-progress'),
     path('admin/surveys/<int:pk>/', views.AdminSurveyDetailView.as_view(), name='admin-survey-detail'),
@@ -18,15 +15,16 @@ urlpatterns = [
     path('admin/surveys/<int:pk>/export/csv/', views.AdminSurveyExportCSVView.as_view(), name='admin-survey-export-csv'),
     path('admin/surveys/<int:pk>/export/excel/', views.AdminSurveyExportExcelView.as_view(), name='admin-survey-export-excel'),
     path('admin/surveys/<int:pk>/export/pdf/', views.AdminSurveyExportPDFView.as_view(), name='admin-survey-export-pdf'),
-
-                             
+    path('admin/surveys/<int:survey_id>/hash-links/', views.AdminHashLinkListCreateView.as_view(), name='admin-hash-link-list'),
+    path('admin/hash-links/<int:pk>/', views.AdminHashLinkDetailView.as_view(), name='admin-hash-link-detail'),
     path('admin/surveys/<int:survey_id>/people/', views.AdminPersonListCreateView.as_view(), name='admin-person-list'),
     path('admin/people/<int:pk>/', views.AdminPersonDetailView.as_view(), name='admin-person-detail'),
-
-                               
     path('surveys/', views.EmployeeSurveyListView.as_view(), name='employee-survey-list'),
     path('surveys/<int:pk>/', views.EmployeeSurveyDetailView.as_view(), name='employee-survey-detail'),
     path('surveys/<int:survey_id>/people/<int:person_id>/rate/', views.EmployeeRatePersonView.as_view(), name='employee-rate-person'),
     path('surveys/<int:survey_id>/my-ratings/', views.EmployeeMyRatingsView.as_view(), name='employee-my-ratings'),
     path('surveys/<int:survey_id>/results/', views.EmployeeSurveyResultsView.as_view(), name='employee-survey-results'),
+    path('s/<str:token>/', views.AnonymousSurveyDetailView.as_view(), name='anonymous-survey-detail'),
+    path('s/<str:token>/people/<int:person_id>/rate/', views.AnonymousRatePersonView.as_view(), name='anonymous-rate-person'),
+    path('s/<str:token>/surveys/<int:survey_id>/my-ratings/', views.AnonymousMyRatingsView.as_view(), name='anonymous-my-ratings'),
 ]

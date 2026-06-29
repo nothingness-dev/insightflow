@@ -1,3 +1,5 @@
+import { AxiosError } from 'axios';
+
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';
   try {
@@ -41,10 +43,10 @@ function isHtmlString(s: string): boolean {
 }
 
 export function getErrorMessage(err: unknown): string {
-  const e = err as any;
-  if (e instanceof Error && e.message && !e?.response) return e.message;
-  if (!e?.response?.data) return 'خطای غیرمنتظره رخ داد';
-  const d = e.response.data;
+  if (err instanceof Error && !(err as AxiosError).response) return err.message;
+  const e = err as AxiosError;
+  if (!e.response?.data) return 'خطای غیرمنتظره رخ داد';
+  const d = e.response.data as any;
   if (typeof d === 'string') {
     if (isHtmlString(d)) return 'سرور در دسترس نیست. لطفاً دوباره تلاش کنید.';
     return d;

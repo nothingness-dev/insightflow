@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Count
-from .models import Survey, SurveyQuestion, SurveyPerson, Rating
+from .models import Survey, SurveyQuestion, SurveyPerson, Rating, SurveyHashLink
 
 
 def validate_photo(file):
@@ -41,6 +41,15 @@ class SurveyQuestionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'text': 'متن سوال الزامی است.'})
         if not has_score and not has_comment and not has_emoji:
             raise serializers.ValidationError('هر سوال باید حداقل یک نوع پاسخ (امتیاز عددی، امتیاز ایموجی یا توضیح متنی) داشته باشد.')
+        if not has_score:
+            attrs['score_required'] = False
+            score_required = False
+        if not has_comment:
+            attrs['comment_required'] = False
+            comment_required = False
+        if not has_emoji:
+            attrs['emoji_required'] = False
+            emoji_required = False
         if score_required and not has_score:
             raise serializers.ValidationError({'score_required': 'وقتی امتیاز عددی غیرفعال است، الزامی بودن امتیاز مجاز نیست.'})
         if comment_required and not has_comment:
@@ -107,6 +116,7 @@ class SurveySerializer(serializers.ModelSerializer):
     people_count = serializers.SerializerMethodField()
     questions_count = serializers.SerializerMethodField()
     total_responses = serializers.SerializerMethodField()
+    anonymous_participants_count = serializers.SerializerMethodField()
     questions = SurveyQuestionSerializer(many=True, read_only=True)
 
     class Meta:
@@ -115,6 +125,7 @@ class SurveySerializer(serializers.ModelSerializer):
             'id', 'title', 'question', 'description', 'status',
             'results_visibility', 'questions', 'questions_count',
             'created_by', 'created_by_name', 'people_count', 'total_responses',
+            'anonymous_participants_count',
             'created_at', 'updated_at', 'published_at', 'closed_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'published_at', 'closed_at', 'created_by']
@@ -129,7 +140,7 @@ class SurveySerializer(serializers.ModelSerializer):
         return obj.questions.filter(is_active=True).count()
 
     def get_total_responses(self, obj):
-        """Count voters who have fully completed the survey (all active people x all active questions)."""
+        """Count authenticated voters who fully completed the survey."""
         active_people_count = obj.people.filter(is_active=True).count()
         active_questions_count = obj.questions.filter(is_active=True).count()
         required = active_people_count * active_questions_count
@@ -137,12 +148,18 @@ class SurveySerializer(serializers.ModelSerializer):
             return 0
         return (
             obj.ratings
-            .filter(person__is_active=True, question__is_active=True)
+            .filter(person__is_active=True, question__is_active=True, voter__isnull=False)
             .values('voter_id')
             .annotate(answered_count=Count('id', distinct=True))
             .filter(answered_count=required)
             .count()
         )
+
+    def get_anonymous_participants_count(self, obj):
+        """Sum of anonymous_participant_count across all hash links for this survey."""
+        from django.db.models import Sum
+        result = obj.hash_links.aggregate(total=Sum('anonymous_participant_count'))
+        return result['total'] or 0
 
 
 class SurveyCreateUpdateSerializer(serializers.ModelSerializer):
@@ -321,6 +338,7 @@ class SurveyProgressSerializer(serializers.Serializer):
     tracking_enabled = serializers.BooleanField()
     assigned_employees = serializers.IntegerField()
     completed_employees = serializers.IntegerField()
+    anonymous_participants = serializers.IntegerField(default=0)
     pending_employees = serializers.IntegerField()
     completion_percentage = serializers.FloatField()
     pending_users = PendingEmployeeProgressSerializer(many=True)
@@ -330,6 +348,7 @@ class SurveyProgressSummarySerializer(serializers.Serializer):
     total_surveys = serializers.IntegerField()
     total_assigned_responses = serializers.IntegerField()
     total_completed_responses = serializers.IntegerField()
+    total_anonymous_participants = serializers.IntegerField(default=0)
     total_pending_responses = serializers.IntegerField()
     overall_completion_percentage = serializers.FloatField()
 
@@ -337,3 +356,17 @@ class SurveyProgressSummarySerializer(serializers.Serializer):
 class SurveyProgressDashboardSerializer(serializers.Serializer):
     summary = SurveyProgressSummarySerializer()
     surveys = SurveyProgressSerializer(many=True)
+
+
+class SurveyHashLinkSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = SurveyHashLink
+        fields = [
+            'id', 'survey', 'token', 'label',
+            'is_active', 'anonymous_participant_count', 'created_at',
+        ]
+        read_only_fields = ['id', 'survey', 'token', 'anonymous_participant_count', 'created_at']
+
+    def validate_label(self, value):
+        return value.strip()

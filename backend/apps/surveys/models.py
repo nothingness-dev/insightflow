@@ -1,5 +1,7 @@
 import os
 import uuid
+import secrets
+import string
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -10,6 +12,12 @@ def person_photo_upload_path(instance, filename):
     ext = filename.rsplit('.', 1)[-1].lower()
     new_filename = f"{uuid.uuid4().hex}.{ext}"
     return os.path.join('people', new_filename)
+
+
+def generate_hash_token():
+    """Generate a 12-char alphanumeric token (mix of letters and digits)."""
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(12))
 
 
 class Survey(models.Model):
@@ -30,8 +38,6 @@ class Survey(models.Model):
     ]
 
     title = models.CharField(max_length=300, verbose_name='عنوان')
-                                                                                
-                                                                    
     question = models.TextField(blank=True, default='', verbose_name='سوال اصلی قدیمی')
     description = models.TextField(blank=True, verbose_name='توضیحات')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, verbose_name='وضعیت')
@@ -109,6 +115,76 @@ class SurveyPerson(models.Model):
         return f"{self.full_name} - {self.survey.title}"
 
 
+class SurveyHashLink(models.Model):
+    """An anonymous participation link for a survey.
+
+    Anyone with the link can participate without logging in.
+    The anonymous_participant_count tracks completed submissions via this link.
+    """
+    survey = models.ForeignKey(
+        Survey, on_delete=models.CASCADE,
+        related_name='hash_links', verbose_name='نظرسنجی'
+    )
+    token = models.CharField(
+        max_length=32, unique=True, db_index=True, verbose_name='توکن هش'
+    )
+    label = models.CharField(max_length=200, blank=True, verbose_name='برچسب')
+    is_active = models.BooleanField(default=True, db_index=True, verbose_name='فعال')
+    anonymous_participant_count = models.PositiveIntegerField(
+        default=0, verbose_name='تعداد شرکت‌کنندگان ناشناس'
+    )
+    created_at = models.DateTimeField(default=timezone.now, verbose_name='تاریخ ایجاد')
+
+    class Meta:
+        verbose_name = 'لینک هش'
+        verbose_name_plural = 'لینک‌های هش'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"لینک {self.token} - {self.survey.title}"
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = generate_hash_token()
+            while SurveyHashLink.objects.filter(token=self.token).exists():
+                self.token = generate_hash_token()
+        super().save(*args, **kwargs)
+
+
+class AnonymousParticipation(models.Model):
+    """Completed anonymous participation for a hash link, locked by client IP."""
+    survey = models.ForeignKey(
+        Survey, on_delete=models.CASCADE,
+        related_name='anonymous_participations', verbose_name='نظرسنجی'
+    )
+    hash_link = models.ForeignKey(
+        SurveyHashLink, on_delete=models.CASCADE,
+        related_name='participations', verbose_name='لینک هش'
+    )
+    ip_address = models.GenericIPAddressField(verbose_name='آدرس IP')
+    anonymous_token = models.CharField(max_length=64, blank=True, verbose_name='توکن ناشناس')
+    user_agent = models.TextField(blank=True, verbose_name='مرورگر')
+    completed_at = models.DateTimeField(default=timezone.now, verbose_name='زمان تکمیل')
+
+    class Meta:
+        verbose_name = 'مشارکت ناشناس'
+        verbose_name_plural = 'مشارکت‌های ناشناس'
+        ordering = ['-completed_at']
+        indexes = [
+            models.Index(fields=['survey', 'ip_address'], name='anon_part_survey_ip_idx'),
+            models.Index(fields=['hash_link', 'ip_address'], name='anon_part_link_ip_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['survey', 'hash_link', 'ip_address'],
+                name='unique_anonymous_ip_per_link',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.ip_address} - {self.survey.title}"
+
+
 class Rating(models.Model):
     EMOJI_BAD = 'bad'
     EMOJI_AVERAGE = 'average'
@@ -130,7 +206,12 @@ class Rating(models.Model):
     )
     voter = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
-        related_name='ratings', verbose_name='رأی‌دهنده'
+        related_name='ratings', verbose_name='رأی‌دهنده',
+        null=True, blank=True,
+    )
+    anonymous_token = models.CharField(
+        max_length=64, null=True, blank=True,
+        verbose_name='توکن ناشناس', db_index=True,
     )
     score = models.PositiveSmallIntegerField(
         null=True, blank=True,
@@ -152,10 +233,22 @@ class Rating(models.Model):
     class Meta:
         verbose_name = 'پاسخ'
         verbose_name_plural = 'پاسخ‌ها'
-        unique_together = [('survey', 'person', 'question', 'voter')]
         indexes = [
-            models.Index(fields=['survey', 'voter'],  name='rating_survey_voter_idx'),
+            models.Index(fields=['survey', 'voter'], name='rating_survey_voter_idx'),
             models.Index(fields=['survey', 'person'], name='rating_survey_person_idx'),
+            models.Index(fields=['survey', 'anonymous_token'], name='rating_survey_anon_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['survey', 'person', 'question', 'voter'],
+                condition=models.Q(voter__isnull=False),
+                name='rating_unique_voter',
+            ),
+            models.UniqueConstraint(
+                fields=['survey', 'person', 'question', 'anonymous_token'],
+                condition=models.Q(anonymous_token__isnull=False),
+                name='rating_unique_anonymous',
+            ),
         ]
 
     def __str__(self):

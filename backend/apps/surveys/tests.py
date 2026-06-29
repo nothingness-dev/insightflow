@@ -4,7 +4,11 @@ from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from datetime import timedelta
 from apps.accounts.models import User
-from apps.surveys.models import Survey, SurveyQuestion, SurveyPerson, Rating
+from apps.activity.models import ActivityActions, ActivityLog
+from apps.surveys.models import (
+    AnonymousParticipation, Rating, Survey, SurveyHashLink,
+    SurveyQuestion, SurveyPerson,
+)
 from apps.surveys.services import calculate_survey_progress
 
 
@@ -27,12 +31,21 @@ def create_employee(**kwargs):
 
 
 def create_survey(created_by, status=Survey.STATUS_DRAFT, **kwargs):
-    return Survey.objects.create(
+    survey = Survey.objects.create(
         title=kwargs.get('title', 'نظرسنجی تست'),
         question=kwargs.get('question', 'عملکرد این فرد را ارزیابی کنید'),
         created_by=created_by,
         status=status,
     )
+    if kwargs.get('with_question', True):
+        SurveyQuestion.objects.create(
+            survey=survey,
+            text=survey.question,
+            has_score=True,
+            score_required=True,
+            display_order=0,
+        )
+    return survey
 
 
 def create_person(survey, **kwargs):
@@ -178,6 +191,66 @@ class SurveyRatingRulesTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
 
+class AnonymousHashLinkParticipationTests(APITestCase):
+    def setUp(self):
+        self.admin = create_admin(username='admin_hash_ip')
+        self.survey = create_survey(self.admin, status=Survey.STATUS_PUBLISHED, with_question=False)
+        self.person = create_person(self.survey)
+        self.question = SurveyQuestion.objects.create(
+            survey=self.survey,
+            text='Anonymous score?',
+            has_score=True,
+            score_required=True,
+            display_order=0,
+        )
+        self.link = SurveyHashLink.objects.create(survey=self.survey, label='public')
+        self.url = f'/api/s/{self.link.token}/people/{self.person.id}/rate/'
+
+    def submit(self, anonymous_token, ip='203.0.113.10'):
+        return self.client.post(
+            self.url,
+            {
+                'anonymous_token': anonymous_token,
+                'answers': [{'question_id': self.question.id, 'score': 8}],
+            },
+            format='json',
+            HTTP_X_REAL_IP=ip,
+        )
+
+    def test_completed_anonymous_hash_link_is_locked_by_ip_and_audited(self):
+        first = self.submit('anon-token-1')
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(AnonymousParticipation.objects.filter(
+            survey=self.survey,
+            hash_link=self.link,
+            ip_address='203.0.113.10',
+        ).exists())
+
+        self.link.refresh_from_db()
+        self.assertEqual(self.link.anonymous_participant_count, 1)
+        audit = ActivityLog.objects.get(action=ActivityActions.ANONYMOUS_VOTE)
+        self.assertEqual(audit.ip_address, '203.0.113.10')
+        self.assertEqual(audit.metadata['anonymous_ip'], '203.0.113.10')
+
+        second = self.submit('anon-token-2')
+        self.assertEqual(second.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(AnonymousParticipation.objects.count(), 1)
+
+    def test_anonymous_my_ratings_reports_ip_locked_completion(self):
+        self.submit('anon-token-1')
+
+        response = self.client.get(
+            f'/api/s/{self.link.token}/surveys/{self.survey.id}/my-ratings/',
+            {'anonymous_token': 'fresh-tab-token'},
+            HTTP_X_REAL_IP='203.0.113.10',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['is_complete'])
+        self.assertTrue(response.data['ip_locked'])
+        self.assertEqual(response.data['rated_person_ids'], [self.person.id])
+
+
 class ResultsTests(APITestCase):
     def setUp(self):
         self.admin = create_admin(username='admin_res')
@@ -196,9 +269,21 @@ class ResultsTests(APITestCase):
                                             
                                         
         for i, score in enumerate([8, 9, 10]):
-            Rating.objects.create(survey=self.survey, person=self.p1, voter=employees[i], score=score)
+            Rating.objects.create(
+                survey=self.survey,
+                person=self.p1,
+                question=self.survey.questions.first(),
+                voter=employees[i],
+                score=score,
+            )
         for i, score in enumerate([5, 6]):
-            Rating.objects.create(survey=self.survey, person=self.p2, voter=employees[i], score=score)
+            Rating.objects.create(
+                survey=self.survey,
+                person=self.p2,
+                question=self.survey.questions.first(),
+                voter=employees[i],
+                score=score,
+            )
 
     def get_admin_token(self):
         res = self.client.post('/api/auth/login/', {'username': 'admin_res', 'password': 'AdminPass@1'})
@@ -212,7 +297,7 @@ class ResultsTests(APITestCase):
         results = res.data['results']
         self.assertEqual(results[0]['full_name'], 'فرد اول')
         self.assertEqual(results[0]['rank'], 1)
-        self.assertAlmostEqual(results[0]['average_score'], 9.0)
+        self.assertAlmostEqual(results[0]['average_score'], 8.5)
 
     def test_results_do_not_expose_voter(self):
         token = self.get_admin_token()
@@ -249,6 +334,14 @@ class SurveyDuplicateTests(APITestCase):
             published_at=timezone.now(),
             closed_at=timezone.now(),
         )
+        self.question = SurveyQuestion.objects.create(
+            survey=self.survey,
+            text=self.survey.question,
+            has_score=True,
+            score_required=True,
+            has_comment=True,
+            display_order=0,
+        )
         self.active_person = SurveyPerson.objects.create(
             survey=self.survey,
             full_name='علی احمدی',
@@ -270,6 +363,7 @@ class SurveyDuplicateTests(APITestCase):
         Rating.objects.create(
             survey=self.survey,
             person=self.active_person,
+            question=self.question,
             voter=self.employee,
             score=9,
             comment='نظر خصوصی',
@@ -364,18 +458,21 @@ class SurveyProgressTests(APITestCase):
         Rating.objects.create(
             survey=self.published_survey,
             person=self.first_person,
+            question=self.published_survey.questions.first(),
             voter=self.completed_employee,
             score=8,
         )
         Rating.objects.create(
             survey=self.published_survey,
             person=self.second_person,
+            question=self.published_survey.questions.first(),
             voter=self.completed_employee,
             score=9,
         )
         Rating.objects.create(
             survey=self.published_survey,
             person=self.first_person,
+            question=self.published_survey.questions.first(),
             voter=self.partial_employee,
             score=7,
         )
@@ -427,7 +524,7 @@ class SurveyProgressTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_progress_calculation_uses_a_bounded_query_count(self):
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             calculate_survey_progress()
 
 
@@ -520,7 +617,7 @@ class MultiQuestionSurveyTests(APITestCase):
         self.assertEqual(result['average_score'], 9.0)
         self.assertEqual(len(result['question_results']), 2)
         self.assertEqual(result['question_results'][0]['question_text'], 'کیفیت همکاری؟')
-        self.assertEqual(result['question_results'][1]['comments'], ['نظر ناشناس'])
+        self.assertEqual(result['question_results'][1]['comments_count'], 1)
 
 class EmployeeSurveyListTests(APITestCase):
     def setUp(self):
@@ -531,16 +628,19 @@ class EmployeeSurveyListTests(APITestCase):
             self.admin,
             status=Survey.STATUS_PUBLISHED,
             title='نظرسنجی قابل مشاهده',
+            with_question=False,
         )
         self.closed = create_survey(
             self.admin,
             status=Survey.STATUS_CLOSED,
             title='نظرسنجی بسته قابل مشاهده',
+            with_question=False,
         )
         self.draft = create_survey(
             self.admin,
             status=Survey.STATUS_DRAFT,
             title='پیش‌نویس مخفی',
+            with_question=False,
         )
 
         for survey in (self.published, self.closed, self.draft):

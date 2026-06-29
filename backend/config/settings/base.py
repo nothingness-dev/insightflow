@@ -35,6 +35,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apps.core.middleware.ContentSecurityPolicyMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -67,7 +68,11 @@ DATABASES = {
 
 AUTH_USER_MODEL = 'accounts.User'
 
-AUTH_PASSWORD_VALIDATORS = []
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
 
 LANGUAGE_CODE = 'fa-ir'
 TIME_ZONE = 'Asia/Tehran'
@@ -103,6 +108,7 @@ REST_FRAMEWORK = {
         'anon':  '60/minute',
         'user':  '300/minute',
         'login': '5/minute',
+        'anonymous_survey': '30/minute',
     },
 }
 
@@ -130,7 +136,7 @@ CACHES = {
 
             'IGNORE_EXCEPTIONS': True,
         },
-        'KEY_PREFIX': 'itnazar',
+        'KEY_PREFIX': 'insightflow',
         'TIMEOUT': 60 * 5,
     }
 }
@@ -144,3 +150,18 @@ CACHE_TTL_EMPLOYEE_LIST   = 60 * 2
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+CONTENT_SECURITY_POLICY = config(
+    'CONTENT_SECURITY_POLICY',
+    default=(
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "font-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    ),
+)
