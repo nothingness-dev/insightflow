@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, FormEvent, useRef } from 'react';
 import { adminUserApi, dashboardApi } from '../../api/endpoints';
 import { BulkImportResult, PaginatedResponse, User } from '../../types';
-import { PageHeader, SearchInput, EmptyState, PageLoader, ConfirmModal, Modal, PasswordInput } from '../../components/common/index';
+import { PageHeader, SearchInput, EmptyState, TableSkeleton, ConfirmModal, Modal, PasswordInput } from '../../components/common/index';
 import { formatDate, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -257,7 +257,7 @@ export default function UserManagement() {
         </select>
       </div>
 
-      {loading ? <PageLoader /> : loadError ? (
+      {loading ? <TableSkeleton rows={6} /> : loadError ? (
         <div className="card">
           <EmptyState
             title="دریافت کارکنان ناموفق بود"

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { adminSurveyApi } from '../../api/endpoints';
 import { Survey } from '../../types';
-import { StatusBadge, PageHeader, EmptyState, PageLoader, SearchInput, ConfirmModal } from '../../components/common/index';
+import { StatusBadge, PageHeader, EmptyState, SearchInput, ConfirmModal, TableSkeleton } from '../../components/common/index';
 import { formatDate, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -20,6 +20,7 @@ export default function AdminSurveyList() {
   const [closing, setClosing] = useState(false);
   const [duplicateId, setDuplicateId] = useState<number | null>(null);
   const [duplicating, setDuplicating] = useState(false);
+  const publishSurvey = surveys.find(survey => survey.id === publishId);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -118,19 +119,20 @@ export default function AdminSurveyList() {
         </select>
       </div>
 
-      {loading ? <PageLoader /> : surveys.length === 0 ? (
+      {loading ? <TableSkeleton rows={6} /> : surveys.length === 0 ? (
         <div className="card">
           <EmptyState
-            title="نظرسنجی یافت نشد"
-            description="اولین نظرسنجی خود را ایجاد کنید"
+            title={search || statusFilter ? 'نتیجه‌ای پیدا نشد' : 'هنوز نظرسنجی ساخته نشده است'}
+            description={search || statusFilter ? 'عبارت جستجو یا فیلتر وضعیت را تغییر دهید.' : 'اولین نظرسنجی را بسازید و قبل از انتشار پیش‌نمایش آن را بررسی کنید.'}
             action={
-              <button onClick={() => navigate('/admin/surveys/new')} className="btn-primary">
-                ایجاد نظرسنجی
-              </button>
+              search || statusFilter ? (
+                <button onClick={() => { setSearch(''); setStatusFilter(''); }} className="btn-secondary">پاک کردن فیلترها</button>
+              ) : (
+                <button onClick={() => navigate('/admin/surveys/new')} className="btn-primary">ایجاد نظرسنجی</button>
+              )
             }
           />
-        </div>
-      ) : (
+        </div>      ) : (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="responsive-table w-full min-w-[640px] text-sm">

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { adminHashLinkApi } from '../../api/endpoints';
 import { SurveyHashLink } from '../../types';
 import { getErrorMessage } from '../../utils/helpers';
-import toast from 'react-hot-toast';
 
 interface Props {
   surveyId: number;
@@ -25,6 +25,7 @@ function CopyIcon({ copied }: { copied?: boolean }) {
       </svg>
     );
   }
+
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -48,11 +49,11 @@ function UsersIcon() {
   );
 }
 
-
 function copyToClipboard(text: string): Promise<void> {
   if (navigator.clipboard && window.isSecureContext) {
     return navigator.clipboard.writeText(text);
   }
+
   return new Promise((resolve, reject) => {
     const el = document.createElement('textarea');
     el.value = text;
@@ -63,6 +64,7 @@ function copyToClipboard(text: string): Promise<void> {
     document.body.appendChild(el);
     el.focus();
     el.select();
+
     try {
       const ok = document.execCommand('copy');
       document.body.removeChild(el);
@@ -79,6 +81,7 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newLabel, setNewLabel] = useState('');
+  const [labelError, setLabelError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
@@ -87,6 +90,7 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
   const baseUrl = rawBase || window.location.origin;
 
   const load = () => {
+    setLoading(true);
     adminHashLinkApi.list(surveyId)
       .then(r => setLinks(r.data))
       .catch(() => toast.error('خطا در بارگذاری لینک‌ها'))
@@ -96,13 +100,27 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
   useEffect(() => { load(); }, [surveyId]);
 
   const handleCreate = async () => {
+    const label = newLabel.trim();
+    const normalizedLabel = label.toLocaleLowerCase('fa-IR');
+    const hasDuplicateLabel = Boolean(label) && links.some(link =>
+      (link.label || '').trim().toLocaleLowerCase('fa-IR') === normalizedLabel
+    );
+
+    if (hasDuplicateLabel) {
+      setLabelError('برای این نظرسنجی لینکی با همین نام وجود دارد.');
+      toast.error('نام لینک تکراری است');
+      return;
+    }
+
     setCreating(true);
+    setLabelError('');
     try {
-      const r = await adminHashLinkApi.create(surveyId, newLabel.trim());
+      const r = await adminHashLinkApi.create(surveyId, label);
       setLinks(prev => [r.data, ...prev]);
       setNewLabel('');
+      setLabelError('');
       setShowCreate(false);
-      toast.success('لینک هش ایجاد شد');
+      toast.success('لینک ناشناس ایجاد شد');
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -125,6 +143,7 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('آیا مطمئن هستید که می‌خواهید این لینک را حذف کنید؟')) return;
+
     setDeletingId(id);
     try {
       await adminHashLinkApi.delete(id);
@@ -145,18 +164,16 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
       toast.success('لینک کپی شد');
       setTimeout(() => setCopiedToken(null), 2000);
     } catch {
-      toast.error(`کپی ناموفق — لینک: ${url}`, { duration: 6000 });
+      toast.error(`کپی ناموفق - لینک: ${url}`, { duration: 6000 });
     }
   };
-
-  const isBaseUrlDefault = baseUrl === 'http://localhost' || baseUrl.includes('127.0.0.1');
 
   return (
     <div className="card p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <LinkIcon />
-          <h2 className="text-base font-semibold text-slate-800">لینک‌های هش (شرکت ناشناس)</h2>
+          <h2 className="text-base font-semibold text-slate-800">لینک‌های ناشناس</h2>
         </div>
         {surveyStatus === 'published' && (
           <button
@@ -170,36 +187,61 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
 
       {surveyStatus === 'draft' && (
         <p className="text-sm text-gray-400 text-center py-4">
-          پس از انتشار نظرسنجی می‌توانید لینک هش ایجاد کنید.
+          پس از انتشار نظرسنجی می‌توانید لینک ناشناس ایجاد کنید.
         </p>
       )}
 
       {surveyStatus === 'closed' && links.length === 0 && (
-        <p className="text-sm text-gray-400 text-center py-4">لینک هشی ایجاد نشده است.</p>
+        <p className="text-sm text-gray-400 text-center py-4">لینک ناشناسی ایجاد نشده است.</p>
       )}
 
       {showCreate && (
-        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-          <p className="text-xs text-blue-700 mb-2 font-medium">ایجاد لینک هش جدید</p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newLabel}
-              onChange={e => setNewLabel(e.target.value)}
-              placeholder="برچسب اختیاری (مثلاً: گروه ۱)"
-              className="input flex-1 text-sm"
-              onKeyDown={e => e.key === 'Enter' && handleCreate()}
-            />
-            <button
-              onClick={handleCreate}
-              disabled={creating}
-              className="btn-primary text-sm px-4"
-            >
-              {creating ? '...' : 'ایجاد'}
-            </button>
-            <button onClick={() => setShowCreate(false)} className="btn-secondary text-sm px-3">
-              لغو
-            </button>
+        <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
+          <div className="flex flex-col gap-1 mb-3">
+            <p className="text-sm font-semibold text-slate-800">نام لینک ناشناس</p>
+            <p className="text-xs text-gray-400 leading-relaxed">یک نام داخلی برای تشخیص لینک وارد کنید؛ این نام برای شرکت‌کننده‌ها نمایش داده نمی‌شود.</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={newLabel}
+                onChange={e => {
+                  setNewLabel(e.target.value);
+                  if (labelError) setLabelError('');
+                }}
+                placeholder="مثلا: واحد منابع انسانی، گروه مدیران، شیفت صبح"
+                className={`input-field w-full bg-white pr-9 ${labelError ? 'border-red-400 focus:ring-red-200' : ''}`}
+                maxLength={200}
+                autoFocus
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300">
+                <LinkIcon />
+              </span>
+            </div>
+            <div className="flex gap-2 sm:flex-shrink-0">
+              <button
+                onClick={handleCreate}
+                disabled={creating}
+                className="btn-primary flex-1 sm:flex-none text-sm px-4"
+              >
+                {creating ? 'در حال ساخت...' : 'ساخت لینک'}
+              </button>
+              <button
+                onClick={() => { setShowCreate(false); setNewLabel(''); setLabelError(''); }}
+                className="btn-secondary flex-1 sm:flex-none text-sm px-4"
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
+          {labelError && (
+            <p className="mt-2 text-xs font-medium text-red-500">{labelError}</p>
+          )}
+          <div className="flex items-center justify-between gap-2 mt-2">
+            <p className="text-[11px] text-gray-400">خالی گذاشتن نام هم مجاز است.</p>
+            <p className="text-[11px] text-gray-300 font-mono">{newLabel.length}/200</p>
           </div>
         </div>
       )}
@@ -207,12 +249,13 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
       {loading ? (
         <p className="text-sm text-gray-400 text-center py-4">در حال بارگذاری...</p>
       ) : links.length === 0 && surveyStatus !== 'draft' ? (
-        <p className="text-sm text-gray-400 text-center py-4">هنوز لینک هشی ایجاد نشده است.</p>
+        <p className="text-sm text-gray-400 text-center py-4">هنوز لینک ناشناسی ایجاد نشده است.</p>
       ) : (
         <div className="space-y-3">
           {links.map(link => {
             const url = `${baseUrl}/s/${link.token}`;
             const isCopied = copiedToken === link.token;
+
             return (
               <div
                 key={link.id}
@@ -289,7 +332,7 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
       {links.length > 0 && (
         <p className="text-xs text-gray-400 mt-3 border-t border-gray-100 pt-3">
           هر لینک به افراد بدون حساب کاربری اجازه می‌دهد در نظرسنجی شرکت کنند.
-          هر مرورگر (توکن منحصر به فرد) یک شرکت‌کننده ناشناس مجزا شمرده می‌شود.
+          هر مرورگر با توکن اختصاصی، یک شرکت‌کننده ناشناس جدا شمرده می‌شود.
         </p>
       )}
     </div>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { adminSurveyApi, adminPersonApi } from '../../api/endpoints';
 import { Survey, SurveyPerson } from '../../types';
-import { StatusBadge, PageLoader, ConfirmModal } from '../../components/common/index';
+import { StatusBadge, SurveyDetailSkeleton, ConfirmModal } from '../../components/common/index';
 import { formatDateTime, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import PersonModal from '../../components/admin/PersonModal';
@@ -87,7 +87,7 @@ export default function SurveyDetail() {
     adminPersonApi.list(surveyId).then(r => setPeople(Array.isArray(r.data) ? r.data : (r.data as any).results || []));
   };
 
-  if (loading || !survey) return <PageLoader />;
+  if (loading || !survey) return <SurveyDetailSkeleton />;
 
   return (
     <div className="responsive-page max-w-4xl">
@@ -96,6 +96,12 @@ export default function SurveyDetail() {
         <span>/</span>
         <span className="text-gray-700">{survey.title}</span>
       </div>
+      {survey.status !== 'draft' && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 mb-5">
+          <p className="text-sm font-semibold text-amber-800">سوال‌ها و افراد این نظرسنجی قفل هستند</p>
+          <p className="text-xs text-amber-700 mt-1 leading-relaxed">بعد از انتشار، ساختار نظرسنجی تغییر نمی‌کند تا پاسخ‌های ثبت‌شده معتبر بمانند. برای تغییر ساختار، از گزینه کپی استفاده کنید و نسخه پیش‌نویس جدید بسازید.</p>
+        </div>
+      )}
 <div className="card p-4 sm:p-6 mb-5">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">

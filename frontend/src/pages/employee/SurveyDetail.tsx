@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { employeeApi } from '../../api/endpoints';
 import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../../types';
-import { PageLoader, Modal } from '../../components/common/index';
+import { PageLoader, Modal, PersonGridSkeleton, Skeleton } from '../../components/common/index';
 import { getErrorMessage } from '../../utils/helpers';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -243,7 +243,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
 
   return (
     <Modal open={open} onClose={onClose} size="lg">
-      <div className="p-4 sm:p-6 max-h-[85dvh] overflow-y-auto">
+      <div className="p-3 sm:p-6 max-h-[88dvh] overflow-y-auto">
         {person && (
           <>
             <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-3 sm:gap-4 mb-5 pb-5 border-b border-gray-100">
@@ -269,7 +269,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
               {questions.map((question, index) => {
                 const answer = answers[question.id] || { score: null, emoji_rating: null, comment: '' };
                 return (
-                  <div key={question.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+              <div key={question.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-3 sm:p-4">
                     <div className="mb-3">
                       <p className="text-sm font-bold text-slate-800 leading-relaxed">
                         {index + 1}. {question.text}
@@ -337,7 +337,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
               })}
             </div>
 
-            <div className="flex flex-col-reverse sm:flex-row gap-3 sticky bottom-0 bg-white pt-3 border-t border-gray-100">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 sticky -bottom-3 sm:bottom-0 bg-white/95 backdrop-blur pt-3 pb-1 border-t border-gray-100">
               <button
                 onClick={submit}
                 disabled={submitting}
@@ -391,7 +391,16 @@ export default function EmployeeSurveyDetail() {
     }
   };
 
-  if (loading) return <PageLoader/>;
+  if (loading) return (
+    <div className="responsive-page">
+      <div className="card p-4 sm:p-6 mb-6 space-y-4">
+        <Skeleton className="h-7 w-2/3" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-3 w-full" />
+      </div>
+      <PersonGridSkeleton items={8} />
+    </div>
+  );
   if (!survey) return (
     <div className="text-center py-20">
       <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">

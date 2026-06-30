@@ -1,5 +1,104 @@
+## [2.4.0] — 2026-06-30
+
+### Added
+
+- **Route-loading progress bar** (`components/common/RouteLoadingBar.tsx`) — a
+  thin animated bar at the top of the viewport now appears on every tab/page
+  navigation (admin sidebar, employee tabs, programmatic redirects). It eases
+  in, holds briefly, then completes and fades out, giving consistent visual
+  feedback even though most lazy-loaded route chunks resolve instantly after
+  the first visit. Mounted once in `App.tsx` inside `<BrowserRouter>`.
+
+- **404 / Not Found page** (`pages/NotFound.tsx`) — any unmatched URL now
+  renders a proper not-found page instead of silently redirecting to
+  `/login`. Matches the app's visual language (RTL, theme-aware colors,
+  Vazirmatn font) and offers two ways back: "بازگشت به صفحه قبل" (browser
+  history back) and a context-aware home link — admins go to `/admin`,
+  employees to `/surveys`, signed-out visitors to `/login`. Wired in as the
+  `path="*"` route in `App.tsx`, replacing the old `<Navigate to="/login" />`
+  catch-all.
+
+- **Skeleton loading states for every remaining page** — the app already had
+  `Skeleton`, `CardSkeleton`, `TableSkeleton`, and `PersonGridSkeleton`
+  primitives in `components/common/index.tsx`; six pages still used a plain
+  centered spinner (`PageLoader`) for their initial data fetch. All of them
+  now show a structural skeleton that mirrors their real layout instead:
+  - `DashboardSkeleton` — admin dashboard stat cards + recent surveys list.
+  - `FormSkeleton` — survey create/edit form (title, description, question
+    blocks, action buttons).
+  - `ProgressListSkeleton` — survey participation progress cards.
+  - `ResultsSkeleton` — survey results page (tabs, KPI cards, ranked list).
+  - `SurveyDetailSkeleton` — admin survey detail header + person grid.
+  - `AnonymousSurveySkeleton` — public anonymous voting page header, intro,
+    progress bar, and person grid.
+  - `CardGridSkeleton` — generic card-grid skeleton, used for the employee
+    survey list (stat tiles + tab bar + survey cards).
+  - Admin **User Management** table now shows `TableSkeleton` in place of the
+    page-level spinner while keeping the search/filter bar visible during
+    load, so the page doesn't visually reset on every refetch.
+
+  `PageLoader` itself is unchanged and still used for the auth-bootstrap
+  spinner in `routes/Guards.tsx`, where there's no page layout yet to mirror.
+
+---
+
+## [2.3.0] — 2026-06-30
+
+### Fixed
+
+- **Dev login hang without Redis** (`config/settings/dev.py`) — `dev.py` inherited
+  the Redis-backed `CACHES` from `base.py`. Without a running Redis container,
+  every request that touched the cache (login activity logging, cache
+  invalidation) stalled until the Redis socket timed out. `dev.py` now
+  explicitly overrides `CACHES` with `LocMemCache` so local development works
+  with no Docker dependency.
+
+- **Full test suite 429 throttle failures** — the `LoginRateThrottle`
+  (5 req/min) and `AnonymousSurveyRateThrottle` are backed by the shared cache.
+  Running all three test apps in one process exhausted the login rate limit,
+  causing every subsequent login in the same run to return 429. A new dedicated
+  `config/settings/test.py` file disables all throttle classes and raises all
+  `DEFAULT_THROTTLE_RATES` to 10 000/min, while also switching to
+  `LocMemCache` and the MD5 password hasher for speed. Use
+  `--settings=config.settings.test` for all local test runs.
+
+- **React Router v7 future-flag warnings** (`frontend/src/App.tsx`) — the
+  browser console emitted two deprecation warnings about behaviour that will
+  change in React Router v7: `v7_startTransition` and
+  `v7_relativeSplatPath`. Both flags are now passed to `<BrowserRouter>` so
+  the warnings are gone and the upgrade path to v7 is clear when the time
+  comes. No runtime behaviour changes.
+
+- **E2E Chrome path Windows-only** (`scripts/e2e-check.mjs`) — the
+  `executablePath` was hardcoded to the Windows Chrome location. The script
+  now auto-detects system Chrome across Windows, macOS, and Linux by checking
+  a prioritised list of known paths. `E2E_CHROME_PATH` still overrides
+  everything. If no system Chrome is found the script falls back to
+  Playwright's bundled Chromium (useful in CI where `npx playwright install`
+  succeeded).
+
+### Added
+
+- **`backend/config/settings/test.py`** — dedicated test settings module that
+  extends `dev.py` and: disables all DRF throttle classes, raises all throttle
+  rate limits to 10 000/min, locks in `LocMemCache`, and uses the MD5 password
+  hasher. Eliminates the 429 failures that previously broke the joint test run.
+
+---
+
 # Changelog
 
+## [2.2.0] - UX polish
+
+### Added
+- Draft survey forms now autosave locally on the current device and restore unsaved work when creating a new survey.
+- Admins can preview a draft survey before publishing.
+- Survey lists and voting pages now use skeleton loading states instead of generic spinners.
+- Empty survey-list states now distinguish between no data and filtered search results.
+
+### Changed
+- Published and closed surveys show clearer UI messaging that questions and people are locked after publication.
+- Employee voting modal has tighter mobile spacing and a sticky action area for easier completion on phones.
 ## [2.1.0] — 2026-06-28
 
 ### Added

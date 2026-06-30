@@ -5,6 +5,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { AdminRoute, EmployeeRoute, GuestRoute } from './routes/Guards';
 import AdminLayout from './layouts/AdminLayout';
 import EmployeeLayout from './layouts/EmployeeLayout';
+import RouteLoadingBar from './components/common/RouteLoadingBar';
+import NotFound from './pages/NotFound';
 
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -43,7 +45,8 @@ function EmployeeWrapper({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <RouteLoadingBar />
         <Suspense fallback={<PageFallback />}>
           <Routes>
 <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
@@ -60,7 +63,7 @@ export default function App() {
           <Route path="/surveys/:id" element={<EmployeeWrapper><EmployeeSurveyDetail /></EmployeeWrapper>} />
 <Route path="/s/:token" element={<AnonymousSurvey />} />
 <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </BrowserRouter>

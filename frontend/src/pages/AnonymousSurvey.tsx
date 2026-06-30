@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { anonymousApi } from '../api/endpoints';
 import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../types';
-import { Modal, PageLoader } from '../components/common/index';
+import { Modal, AnonymousSurveySkeleton } from '../components/common/index';
 import ThemeSwitcher from '../components/common/ThemeSwitcher';
 import { getErrorMessage } from '../utils/helpers';
 import { motion } from 'framer-motion';
@@ -345,7 +345,7 @@ export default function AnonymousSurvey() {
     }
   };
 
-  if (loading) return <PageLoader/>;
+  if (loading) return <AnonymousSurveySkeleton/>;
 
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4" dir="rtl">

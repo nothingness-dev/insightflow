@@ -1,6 +1,6 @@
 # InsightFlow
 
-![Version](https://img.shields.io/badge/version-2.1.0-blue)
+![Version](https://img.shields.io/badge/version-2.4.0-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-success)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Backend](https://img.shields.io/badge/backend-Django%20REST%20Framework-092E20)
@@ -8,7 +8,16 @@
 
 ---
 
-<!-- ═══════════════════════════════════════════════════════════════════ PERSIAN -->
+
+## UX Highlights
+
+- Draft survey forms autosave locally while admins work.
+- Draft surveys can be previewed before publishing.
+- Survey lists and voting pages use skeleton loading states.
+- Published and closed surveys clearly show that questions and people are locked.
+- Mobile voting uses a tighter modal layout with sticky submit actions.
+
+---<!-- ═══════════════════════════════════════════════════════════════════ PERSIAN -->
 <div dir="rtl">
 
 ## سامانه مدرن نظرسنجی و ارزیابی سازمانی
@@ -622,13 +631,25 @@ insightflow/
 ## Running Tests
 
 ```bash
-# All tests
+# All tests inside Docker
 docker compose exec backend python manage.py test apps.surveys apps.accounts apps.activity --verbosity=2
 
-# Without Docker (dev setup)
+# Without Docker — use the dedicated test settings
+# (disables throttles + uses LocMemCache so the suite never hits 429 errors)
 cd backend
-python manage.py test --settings=config.settings.dev
+python manage.py test apps.surveys apps.accounts apps.activity \
+  --settings=config.settings.test --verbosity=2
+
+# End-to-end browser test (requires local Django + Vite running)
+cd frontend
+npm run e2e
 ```
+
+> **Note:** always pass `--settings=config.settings.test` for local test runs.
+> The `test.py` settings disable DRF throttles and use in-memory cache, which
+> prevents spurious 429 failures when many login-heavy tests run in the same
+> process. Using `dev.py` for tests can cause later test classes to be blocked
+> by the shared login-rate-limit key.
 
 ---
 
@@ -667,6 +688,7 @@ The Vite proxy in `vite.config.ts` forwards `/api` and `/media` to `http://local
 | `relation does not exist` on login | Migrations haven't run: `docker compose exec backend python manage.py migrate` |
 | Static files not loading | `docker compose exec backend python manage.py collectstatic --noinput` |
 | 502 Bad Gateway | Backend is still starting — wait 30s and refresh |
+| Tests fail with `429 Too Many Requests` | Use `--settings=config.settings.test` instead of `dev` — test settings disable throttles |
 
 ---
 

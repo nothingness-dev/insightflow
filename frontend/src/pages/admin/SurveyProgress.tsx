@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { dashboardApi } from '../../api/endpoints';
 import { SurveyProgress, SurveyProgressDashboard } from '../../types';
-import { EmptyState, PageHeader, PageLoader, StatusBadge } from '../../components/common/index';
+import { EmptyState, PageHeader, ProgressListSkeleton, StatusBadge } from '../../components/common/index';
 import { getErrorMessage } from '../../utils/helpers';
 
 const numberFormatter = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 });
@@ -331,7 +331,7 @@ export default function SurveyProgressPage() {
     void loadProgress();
   }, [loadProgress]);
 
-  if (loading) return <PageLoader />;
+  if (loading) return <ProgressListSkeleton />;
 
   return (
     <div className="responsive-page">

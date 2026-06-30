@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { employeeApi } from '../../api/endpoints';
 import { Survey } from '../../types';
-import { PageLoader, EmptyState } from '../../components/common/index';
+import { CardGridSkeleton, EmptyState, Skeleton } from '../../components/common/index';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/helpers';
@@ -109,7 +109,24 @@ export default function EmployeeSurveyList() {
     void loadSurveys();
   }, [loadSurveys]);
 
-  if (loading) return <PageLoader />;
+  if (loading) return (
+    <div className="responsive-page">
+      <div className="mb-6 space-y-2">
+        <Skeleton className="h-7 w-32" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="card p-3 sm:p-4 space-y-2">
+            <Skeleton className="h-6 w-10 mx-auto" />
+            <Skeleton className="h-3 w-16 mx-auto" />
+          </div>
+        ))}
+      </div>
+      <Skeleton className="h-11 w-full rounded-xl mb-5" />
+      <CardGridSkeleton items={6} />
+    </div>
+  );
 
   if (loadError) {
     return (

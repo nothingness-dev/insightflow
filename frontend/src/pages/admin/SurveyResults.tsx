@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { adminSurveyApi } from '../../api/endpoints';
 import type { SurveyResults, PersonResult, QuestionResult } from '../../types';
-import { PageLoader } from '../../components/common/index';
+import { ResultsSkeleton } from '../../components/common/index';
 import { downloadBlob, getBlobErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -683,7 +683,7 @@ export default function SurveyResultsPage() {
     } finally { setExporting(null); }
   };
 
-  if (loading) return <PageLoader />;
+  if (loading) return <ResultsSkeleton />;
   if (!data)  return null;
 
   const { survey, results } = data;
@@ -743,7 +743,7 @@ export default function SurveyResultsPage() {
         </div>
       ) : (
         <>
-<div className="flex gap-1 border-b border-slate-200 mb-5 overflow-x-auto">
+<div className="flex flex-wrap gap-1 border-b border-slate-200 mb-5 overflow-hidden">
             {TABS.map(t => (
               <button key={t.id} type="button" onClick={() => setTab(t.id)}
                 className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${

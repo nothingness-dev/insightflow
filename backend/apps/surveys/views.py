@@ -1321,6 +1321,12 @@ class AdminHashLinkListCreateView(APIView):
             return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
         label = (request.data.get('label') or '').strip()
+        if label and survey.hash_links.filter(label__iexact=label).exists():
+            return Response(
+                {'detail': 'برای این نظرسنجی لینکی با همین نام وجود دارد.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         link = SurveyHashLink.objects.create(survey=survey, label=label)
 
         log_activity(

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { dashboardApi } from '../../api/endpoints';
 import { DashboardStats, Survey } from '../../types';
-import { StatusBadge, PageLoader } from '../../components/common/index';
+import { StatusBadge, DashboardSkeleton } from '../../components/common/index';
 import { formatDate, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
@@ -34,7 +34,7 @@ export default function AdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <PageLoader />;
+  if (loading) return <DashboardSkeleton />;
   if (!data) return null;
 
   const { stats, recent_surveys } = data;
