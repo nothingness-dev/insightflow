@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function NotFound() {
@@ -14,7 +15,12 @@ export default function NotFound() {
       style={{ backgroundColor: 'var(--c-bg)' }}
       dir="rtl"
     >
-      <div className="w-full max-w-md text-center">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="w-full max-w-md text-center"
+      >
         <div className="relative inline-flex items-center justify-center mb-6">
           <div
             className="w-28 h-28 rounded-3xl flex items-center justify-center"
@@ -56,7 +62,7 @@ export default function NotFound() {
             {homeLabel}
           </Link>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

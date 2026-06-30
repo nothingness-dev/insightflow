@@ -1,7 +1,7 @@
    
 from collections import defaultdict
 
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from .models import Rating
 from .services import calculate_survey_results, emoji_label_for_numeric
@@ -87,20 +87,34 @@ def build_export_dataset(survey, request=None):
     if required > 0:
         completed_voter_ids = list(
             Rating.objects
-            .filter(survey=survey, person__is_active=True, question__is_active=True)
+            .filter(survey=survey, person__is_active=True, question__is_active=True,
+                    voter__isnull=False)
             .values('voter_id')
             .annotate(answered_count=Count('id', distinct=True))
             .filter(answered_count=required)
             .values_list('voter_id', flat=True)
         )
+        completed_anon_tokens = list(
+            Rating.objects
+            .filter(survey=survey, person__is_active=True, question__is_active=True,
+                    anonymous_token__isnull=False)
+            .values('anonymous_token')
+            .annotate(answered_count=Count('id', distinct=True))
+            .filter(answered_count=required)
+            .values_list('anonymous_token', flat=True)
+        )
     else:
         completed_voter_ids = []
+        completed_anon_tokens = []
 
     comments_map = defaultdict(list)
-    if completed_voter_ids:
+    if completed_voter_ids or completed_anon_tokens:
         for rating in (Rating.objects
-                       .filter(survey=survey, voter_id__in=completed_voter_ids,
-                               person__is_active=True, question__is_active=True)
+                       .filter(survey=survey, person__is_active=True, question__is_active=True)
+                       .filter(
+                           Q(voter_id__in=completed_voter_ids) |
+                           Q(anonymous_token__in=completed_anon_tokens)
+                       )
                        .exclude(comment__isnull=True).exclude(comment__exact='')
                        .order_by('person__display_order', 'question__display_order', 'created_at')
                        .values('person_id', 'question_id', 'comment')):

@@ -1,3 +1,51 @@
+## [2.5.0] — 2026-06-30
+
+### Polish & smoothing pass
+
+A focused UI-polish pass across the whole app — no behavior changes, only
+how transitions, hovers, and loading states feel.
+
+#### Global (`styles/globals.css`)
+
+- `scroll-behavior: smooth` on `html`, with a `prefers-reduced-motion`
+  override that disables all animation/scroll smoothing for users who have
+  that OS preference set.
+- Refined `:focus-visible` ring (theme-colored, soft offset) instead of the
+  browser default outline, with `-webkit-tap-highlight-color: transparent`
+  so mobile taps don't flash gray.
+- `.skeleton` now sweeps a light shimmer across itself instead of a flat
+  opacity pulse — reads as noticeably more "alive" while loading.
+- Buttons (`.btn-primary/secondary/danger/success`) gain a small
+  `active:scale-[0.97]` press effect for tactile click feedback.
+- `.card`, `.person-card`, `.table-row`, `.sidebar-item`, and `.input-field`
+  all got eased, slightly longer transitions (150 → 200ms, `ease-out`) so
+  hover/focus states settle instead of snapping.
+- Theme-color utility classes (`.theme-bg`, `.theme-text`, etc.) now
+  transition smoothly when the user switches the accent color in
+  `ThemeSwitcher`, instead of changing instantly.
+
+#### Navigation feel
+
+- **Page content transition** — new `components/common/PageTransition.tsx`,
+  a small fade + 8px slide wrapper keyed by route pathname. Wrapped around
+  `{children}` in both `AdminLayout` and `EmployeeLayout`'s `<main>`, so
+  every page swap (sidebar click, tab click, back/forward) settles in
+  smoothly instead of popping.
+- **Mobile sidebar drawer** (`AdminLayout`) — now slides in from the edge
+  with `framer-motion` (`AnimatePresence` + spring-eased transform) instead
+  of appearing instantly; backdrop fades in alongside it.
+- **Employee header dropdown** (`EmployeeLayout`) and **theme color picker**
+  (`ThemeSwitcher`) — both now scale/fade in on open and out on close rather
+  than snapping, matching the existing `Modal` component's motion language.
+- **404 page** — added a matching entrance fade for consistency with
+  `LoginPage`'s existing animation.
+
+No new dependencies were introduced — everything above reuses
+`framer-motion`, which was already a project dependency used by `Modal`,
+`LoginPage`, and `AnonymousSurvey`.
+
+---
+
 ## [2.4.0] — 2026-06-30
 
 ### Added

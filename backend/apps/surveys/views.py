@@ -324,10 +324,18 @@ class AdminSurveyResultsView(APIView):
 class AdminSurveyExportCSVView(APIView):
     """Export survey results as a UTF-8 CSV (BOM for Excel compatibility).
 
-    The CSV is the full raw dataset. To stay scalable when a single question
-    collects hundreds of comments, the per-question columns in the individual
-    section carry only the comment COUNT; every comment is listed in full,
-    one row each, in the dedicated comments section at the bottom.
+    The CSV is organized into clearly labeled sections (separated by blank
+    rows and a "### عنوان بخش ###" marker row) so it reads sensibly when
+    opened in Excel/Sheets/Numbers, not just when parsed by a script:
+      1) Survey info header
+      2) Per-person results matrix (scores, emoji, comment counts)
+      3) Question-by-question analysis
+      4) Score distribution (+ emoji distribution if present)
+      5) Full text comments — one row per comment, with person/question context
+
+    To stay scalable when a single question collects hundreds of comments,
+    the per-question columns in section 2 carry only the comment COUNT;
+    every comment's full text is listed in section 5.
     """
     permission_classes = [IsAdminUser]
 
@@ -355,6 +363,22 @@ class AdminSurveyExportCSVView(APIView):
         )
         writer = csv.writer(response)
 
+        def section_title(title):
+            writer.writerow([])
+            writer.writerow([f'### {title} ###'])
+
+        # ---- 1) Survey info header -------------------------------------------------
+        section_title('اطلاعات نظرسنجی')
+        writer.writerow(['عنوان نظرسنجی', survey.title])
+        writer.writerow(['تاریخ خروجی', timezone.localtime().strftime('%Y-%m-%d %H:%M')])
+        writer.writerow(['تعداد افراد', summary['people']])
+        writer.writerow(['تعداد سوالات', summary['questions']])
+        writer.writerow(['تعداد رأی‌دهنده (تکمیل‌کننده)', summary['voters']])
+        writer.writerow(['میانگین کلی', summary['overall_avg'] if summary['overall_avg'] is not None else '—'])
+        writer.writerow(['مجموع نظرات متنی', summary['total_comments']])
+
+        # ---- 2) Per-person results matrix ------------------------------------------
+        section_title('نتایج به تفکیک افراد')
         headers = ['رتبه', 'نام و نام خانوادگی', 'واحد سازمانی', 'سمت',
                    'میانگین کلی', 'کیفیت', 'تعداد رأی‌دهنده', 'تعداد پاسخ امتیازی']
         for q in questions:
@@ -385,12 +409,11 @@ class AdminSurveyExportCSVView(APIView):
                     row.append(item.get('average_emoji_label') or '')
                     row.append(item.get('emoji_responses_count') or 0)
                 if q.has_comment:
-
                     row.append(len(comments_map.get((r['person_id'], q.id), [])))
             writer.writerow(row)
 
-        writer.writerow([])
-        writer.writerow(['تحلیل سوال‌به‌سوال'])
+        # ---- 3) Question-by-question analysis ---------------------------------------
+        section_title('تحلیل سوال‌به‌سوال')
         writer.writerow(['#', 'متن سوال', 'میانگین کل', 'کیفیت', 'تعداد پاسخ', 'امتیاز ایموجی', 'تعداد پاسخ ایموجی', 'تعداد نظرات متنی'])
         for idx, q in enumerate(questions_meta, 1):
             writer.writerow([
@@ -403,25 +426,26 @@ class AdminSurveyExportCSVView(APIView):
                 q['comments'] if q['has_comment'] else '—',
             ])
 
-        writer.writerow([])
-        writer.writerow(['توزیع امتیازات'])
+        # ---- 4) Distributions --------------------------------------------------------
+        section_title('توزیع امتیازات')
         writer.writerow(['دسته', 'تعداد افراد'])
         for label, count, _color in summary['distribution']:
             writer.writerow([label, count])
 
         if summary['emoji_distribution']:
-            writer.writerow([])
-            writer.writerow(['توزیع امتیاز ایموجی'])
+            section_title('توزیع امتیاز ایموجی')
             writer.writerow(['دسته', 'تعداد پاسخ'])
             for label, count, _color in summary['emoji_distribution']:
                 writer.writerow([label, count])
 
+        # ---- 5) Full text comments ----------------------------------------------------
+        section_title(f"نظرات متنی (مجموع {summary['total_comments']})")
         if ds['comments_flat']:
-            writer.writerow([])
-            writer.writerow([f"نظرات متنی (مجموع {summary['total_comments']})"])
-            writer.writerow(['نام فرد ارزیابی‌شده', 'واحد سازمانی', 'سوال', 'نظر'])
-            for person_name, dept, q_text, comment in ds['comments_flat']:
-                writer.writerow([person_name, dept, q_text, comment])
+            writer.writerow(['#', 'نام فرد ارزیابی‌شده', 'واحد سازمانی', 'سوال', 'نظر'])
+            for idx, (person_name, dept, q_text, comment) in enumerate(ds['comments_flat'], 1):
+                writer.writerow([idx, person_name, dept, q_text, comment])
+        else:
+            writer.writerow(['در این نظرسنجی هیچ نظر متنی ثبت نشده است.'])
 
         return response
 

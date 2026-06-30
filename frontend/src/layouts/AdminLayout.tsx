@@ -1,8 +1,10 @@
 import { ReactNode, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import ThemeSwitcher from '../components/common/ThemeSwitcher';
 import ChangePasswordModal from '../components/common/ChangePasswordModal';
+import PageTransition from '../components/common/PageTransition';
 import toast from 'react-hot-toast';
 
 interface NavItem { path: string; label: string; icon: ReactNode; }
@@ -90,12 +92,29 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 <div className="hidden lg:flex">
         <div className="w-64 h-full"><Sidebar /></div>
       </div>
-{sidebarOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
-          <div className="absolute right-0 top-0 h-full w-[min(20rem,calc(100vw-2rem))] max-w-full"><Sidebar mobile /></div>
-        </div>
-      )}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setSidebarOpen(false)}
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="absolute right-0 top-0 h-full w-[min(20rem,calc(100vw-2rem))] max-w-full"
+            >
+              <Sidebar mobile />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 flex flex-col overflow-hidden">
 <header className="bg-white border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
@@ -108,7 +127,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <ThemeSwitcher />
         </header>
 
-        <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-7">{children}</main>
+        <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-7">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
 
       <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />

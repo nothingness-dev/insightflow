@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme, THEMES, Theme } from '../../contexts/ThemeContext';
 
 const SWATCH: Record<Theme, string> = {
@@ -35,31 +36,40 @@ export default function ThemeSwitcher() {
         </svg>
       </button>
 
-      {open && (
-        <div className="absolute left-0 top-10 bg-white rounded-xl shadow-xl border border-gray-100 p-3 z-50 min-w-[140px]">
-          <p className="text-xs text-gray-400 mb-2 px-1">رنگ‌بندی سایت</p>
-          <div className="space-y-1">
-            {THEMES.map(t => (
-              <button
-                key={t.key}
-                onClick={() => { setTheme(t.key); setOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-right"
-              >
-                <span
-                  className="w-5 h-5 rounded-full flex-shrink-0 shadow-sm"
-                  style={{ backgroundColor: SWATCH[t.key] }}
-                />
-                <span className="text-sm text-gray-700">{t.label}</span>
-                {theme === t.key && (
-                  <svg className="w-3.5 h-3.5 text-gray-400 mr-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-                  </svg>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -6 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            style={{ transformOrigin: 'top left' }}
+            className="absolute left-0 top-10 bg-white rounded-xl shadow-xl border border-gray-100 p-3 z-50 min-w-[140px]"
+          >
+            <p className="text-xs text-gray-400 mb-2 px-1">رنگ‌بندی سایت</p>
+            <div className="space-y-1">
+              {THEMES.map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => { setTheme(t.key); setOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-right"
+                >
+                  <span
+                    className="w-5 h-5 rounded-full flex-shrink-0 shadow-sm"
+                    style={{ backgroundColor: SWATCH[t.key] }}
+                  />
+                  <span className="text-sm text-gray-700">{t.label}</span>
+                  {theme === t.key && (
+                    <svg className="w-3.5 h-3.5 text-gray-400 mr-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
