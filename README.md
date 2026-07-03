@@ -1,6 +1,6 @@
 # InsightFlow
 
-![Version](https://img.shields.io/badge/version-2.5.0-blue)
+![Version](https://img.shields.io/badge/version-2.6.0-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-success)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Backend](https://img.shields.io/badge/backend-Django%20REST%20Framework-092E20)
@@ -67,6 +67,7 @@
 - مشاهده **نتایج ناشناس** با رتبه‌بندی، میانگین هر سوال، توزیع امتیاز ایموجی و نظرات متنی
 - خروجی **PDF**، **Excel** و **CSV** از نتایج (شامل امتیاز عددی، امتیاز ایموجی و نظرات متنی)
 - **مرکز فعالیت‌ها** — لاگ ممیزی کامل با فیلتر، جستجو و خروجی
+- **کد QR برای لینک‌های ناشناس** — نمایش و دانلود کد QR هر لینک ناشناس برای اشتراک‌گذاری آسان (چاپ، پوستر، پیام‌رسان)؛ کد به‌صورت کامل در مرورگر ساخته می‌شود و نیازی به سرویس یا سرور جداگانه ندارد
 
 ### 👩‍⚕️ پنل کارمند
 - مشاهده نظرسنجی‌های در دسترس
@@ -336,6 +337,7 @@ Most organizations still rely on Excel files, paper forms, or fragmented tools f
 - View **anonymous results** — per-person rankings, per-question averages, emoji rating breakdowns, and text comments
 - Export results as **PDF**, **Excel**, and **CSV** (including numeric scores, emoji ratings, and text comments)
 - **Activity Center** — full audit log with filters, search, and export
+- **QR codes for anonymous links** — view and download a QR code for each anonymous hash link, generated entirely client-side (no backend service required)
 
 ### 👩‍⚕️ Employee Panel
 - See available surveys

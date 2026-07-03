@@ -4,6 +4,7 @@ import { adminSurveyApi } from '../../api/endpoints';
 import { Survey, SurveyQuestionInput } from '../../types';
 import { Modal, PageHeader, FormSkeleton } from '../../components/common/index';
 import { getErrorMessage } from '../../utils/helpers';
+import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
 
 const createEmptyQuestion = (displayOrder: number): SurveyQuestionInput => ({
@@ -46,7 +47,8 @@ export default function SurveyForm() {
 
   useEffect(() => {
     if (!isEdit) return;
-    adminSurveyApi.get(Number(id))
+    const controller = new AbortController();
+    adminSurveyApi.get(Number(id), controller.signal)
       .then(r => {
         const s: Survey = r.data;
         const questions = s.questions?.length
@@ -81,8 +83,15 @@ export default function SurveyForm() {
         });
         setAutosaveReady(true);
       })
-      .catch(() => { toast.error('خطا در بارگذاری نظرسنجی'); navigate('/admin/surveys'); })
-      .finally(() => setLoading(false));
+      .catch(error => {
+        if (isCanceledRequest(error, controller.signal)) return;
+        toast.error('خطا در بارگذاری نظرسنجی');
+        navigate('/admin/surveys');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [id, isEdit, navigate]);
 
   const isDraft = surveyStatus === 'draft';

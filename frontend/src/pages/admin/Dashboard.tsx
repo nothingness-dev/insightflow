@@ -4,6 +4,7 @@ import { dashboardApi } from '../../api/endpoints';
 import { DashboardStats, Survey } from '../../types';
 import { StatusBadge, DashboardSkeleton } from '../../components/common/index';
 import { formatDate, getErrorMessage } from '../../utils/helpers';
+import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
 
 function StatCard({ label, value, bgColor, iconColor, icon }: {
@@ -28,10 +29,17 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    dashboardApi.stats()
+    const controller = new AbortController();
+    dashboardApi.stats(controller.signal)
       .then(r => setData(r.data))
-      .catch(err => toast.error(getErrorMessage(err)))
-      .finally(() => setLoading(false));
+      .catch(err => {
+        if (isCanceledRequest(err, controller.signal)) return;
+        toast.error(getErrorMessage(err));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, []);
 
   if (loading) return <DashboardSkeleton />;

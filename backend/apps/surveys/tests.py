@@ -295,7 +295,7 @@ class ResultsTests(APITestCase):
         res = self.client.get(f'/api/admin/surveys/{self.survey.id}/results/')
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         results = res.data['results']
-        self.assertEqual(results[0]['full_name'], 'فرد اول')
+        self.assertEqual(results[0]['full_name'], self.p1.full_name)
         self.assertEqual(results[0]['rank'], 1)
         self.assertAlmostEqual(results[0]['average_score'], 8.5)
 

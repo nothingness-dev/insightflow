@@ -21,12 +21,12 @@ export const authApi = {
 
 
 export const adminSurveyApi = {
-  list: (params?: Record<string, string>) =>
-    api.get<Survey[]>('/admin/surveys/', { params }),
+  list: (params?: Record<string, string>, signal?: AbortSignal) =>
+    api.get<Survey[]>('/admin/surveys/', { params, signal }),
   create: (data: SurveyPayload) =>
     api.post<Survey>('/admin/surveys/', data),
-  get: (id: number) =>
-    api.get<Survey>(`/admin/surveys/${id}/`),
+  get: (id: number, signal?: AbortSignal) =>
+    api.get<Survey>(`/admin/surveys/${id}/`, { signal }),
   update: (id: number, data: SurveyPayload) =>
     api.patch<Survey>(`/admin/surveys/${id}/`, data),
   delete: (id: number) =>
@@ -37,10 +37,10 @@ export const adminSurveyApi = {
     api.post<Survey>(`/admin/surveys/${id}/publish/`),
   close: (id: number) =>
     api.post<Survey>(`/admin/surveys/${id}/close/`),
-  results: (id: number) =>
-    api.get<SurveyResults>(`/admin/surveys/${id}/results/`),
-  comments: (id: number, params: { person_id?: number; question_id?: number; page?: number; page_size?: number }) =>
-    api.get<{ total: number; page: number; page_size: number; total_pages: number; comments: { comment: string; question_text: string }[] }>(`/admin/surveys/${id}/comments/`, { params }),
+  results: (id: number, signal?: AbortSignal) =>
+    api.get<SurveyResults>(`/admin/surveys/${id}/results/`, { signal }),
+  comments: (id: number, params: { person_id?: number; question_id?: number; page?: number; page_size?: number }, signal?: AbortSignal) =>
+    api.get<{ total: number; page: number; page_size: number; total_pages: number; comments: { comment: string; question_text: string }[] }>(`/admin/surveys/${id}/comments/`, { params, signal }),
   exportCsv: (id: number) =>
     api.get(`/admin/surveys/${id}/export/csv/`, { responseType: 'blob' }),
   exportExcel: (id: number) =>
@@ -51,8 +51,8 @@ export const adminSurveyApi = {
 
 
 export const adminPersonApi = {
-  list: (surveyId: number) =>
-    api.get<SurveyPerson[]>(`/admin/surveys/${surveyId}/people/`),
+  list: (surveyId: number, signal?: AbortSignal) =>
+    api.get<SurveyPerson[]>(`/admin/surveys/${surveyId}/people/`, { signal }),
   create: (surveyId: number, data: FormData) =>
     api.post<SurveyPerson>(`/admin/surveys/${surveyId}/people/`, data, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -67,8 +67,8 @@ export const adminPersonApi = {
 
 
 export const adminUserApi = {
-  list: (params?: Record<string, string>) =>
-    api.get<PaginatedResponse<User>>('/admin/users/', { params }),
+  list: (params?: Record<string, string>, signal?: AbortSignal) =>
+    api.get<PaginatedResponse<User>>('/admin/users/', { params, signal }),
   create: (data: Partial<User> & { password: string; password_confirm: string }) =>
     api.post<User>('/admin/users/', data),
   get: (id: number) =>
@@ -97,24 +97,24 @@ export const adminUserApi = {
 
 
 export const dashboardApi = {
-  stats: () => api.get<DashboardStats>('/admin/dashboard/'),
-  surveyProgress: () => api.get<SurveyProgressDashboard>('/admin/surveys/progress/'),
+  stats: (signal?: AbortSignal) => api.get<DashboardStats>('/admin/dashboard/', { signal }),
+  surveyProgress: (signal?: AbortSignal) => api.get<SurveyProgressDashboard>('/admin/surveys/progress/', { signal }),
   deleteAllData: () =>
     api.delete('/admin/delete-all-data/', { data: { confirm: 'DELETE_ALL' } }),
 };
 
 
 export const activityApi = {
-  logs: (params?: ActivityLogFilters) =>
-    api.get<PaginatedResponse<ActivityLog>>('/admin/activity/logs/', { params }),
-  stats: () => api.get<ActivityStats>('/admin/activity/stats/'),
-  timeline: (limit = 15) =>
-    api.get<ActivityLog[]>('/admin/activity/timeline/', { params: { limit: String(limit) } }),
-  critical: (limit = 10) =>
-    api.get<ActivityCriticalPanel>('/admin/activity/critical/', { params: { limit: String(limit) } }),
-  charts: (days = 14) =>
-    api.get<ActivityCharts>('/admin/activity/charts/', { params: { days: String(days) } }),
-  filterOptions: () => api.get<ActivityFilterOptions>('/admin/activity/filters/'),
+  logs: (params?: ActivityLogFilters, signal?: AbortSignal) =>
+    api.get<PaginatedResponse<ActivityLog>>('/admin/activity/logs/', { params, signal }),
+  stats: (signal?: AbortSignal) => api.get<ActivityStats>('/admin/activity/stats/', { signal }),
+  timeline: (limit = 15, signal?: AbortSignal) =>
+    api.get<ActivityLog[]>('/admin/activity/timeline/', { params: { limit: String(limit) }, signal }),
+  critical: (limit = 10, signal?: AbortSignal) =>
+    api.get<ActivityCriticalPanel>('/admin/activity/critical/', { params: { limit: String(limit) }, signal }),
+  charts: (days = 14, signal?: AbortSignal) =>
+    api.get<ActivityCharts>('/admin/activity/charts/', { params: { days: String(days) }, signal }),
+  filterOptions: (signal?: AbortSignal) => api.get<ActivityFilterOptions>('/admin/activity/filters/', { signal }),
   export: (exportFormat: 'csv' | 'excel' | 'pdf', dateFrom: string, dateTo: string, extra?: ActivityLogFilters) =>
     api.get(`/admin/activity/export/`, {
       params: { export_format: exportFormat, date_from: dateFrom, date_to: dateTo, ...extra },
@@ -124,10 +124,10 @@ export const activityApi = {
 
 
 export const employeeApi = {
-  surveys: () =>
-    api.get<Survey[]>('/surveys/'),
-  survey: (id: number) =>
-    api.get(`/surveys/${id}/`),
+  surveys: (signal?: AbortSignal) =>
+    api.get<Survey[]>('/surveys/', { signal }),
+  survey: (id: number, signal?: AbortSignal) =>
+    api.get(`/surveys/${id}/`, { signal }),
   rate: (surveyId: number, personId: number, answers: { question_id: number; score?: number | null; emoji_rating?: EmojiRatingValue | null; comment?: string | null }[]) =>
     api.post(`/surveys/${surveyId}/people/${personId}/rate/`, { answers }),
   myRatings: (surveyId: number) =>
@@ -138,8 +138,8 @@ export const employeeApi = {
 
 
 export const adminHashLinkApi = {
-  list: (surveyId: number) =>
-    api.get<import('../types').SurveyHashLink[]>(`/admin/surveys/${surveyId}/hash-links/`),
+  list: (surveyId: number, signal?: AbortSignal) =>
+    api.get<import('../types').SurveyHashLink[]>(`/admin/surveys/${surveyId}/hash-links/`, { signal }),
   create: (surveyId: number, label?: string) =>
     api.post<import('../types').SurveyHashLink>(`/admin/surveys/${surveyId}/hash-links/`, { label: label || '' }),
   update: (id: number, data: { label?: string; is_active?: boolean }) =>

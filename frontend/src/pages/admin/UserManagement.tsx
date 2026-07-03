@@ -1,34 +1,31 @@
-import { useEffect, useState, useCallback, FormEvent, useRef } from 'react';
+import { useState, FormEvent, useRef } from 'react';
 import { adminUserApi, dashboardApi } from '../../api/endpoints';
-import { BulkImportResult, PaginatedResponse, User } from '../../types';
+import { BulkImportResult, User } from '../../types';
 import { PageHeader, SearchInput, EmptyState, TableSkeleton, ConfirmModal, Modal, PasswordInput } from '../../components/common/index';
 import { formatDate, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
-
-function RoleBadge({ role }: { role: string }) {
-  return role === 'admin'
-    ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">مدیر</span>
-    : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[color:var(--c-50)] text-[color:var(--c-700)] border border-[color:var(--c-200)]">کارمند</span>;
-}
-
-interface UserFormData {
-  username: string; full_name: string; role: string; password: string; password_confirm: string; is_active: boolean;
-}
-const emptyForm: UserFormData = { username: '', full_name: '', role: 'employee', password: '', password_confirm: '', is_active: true };
-const USERS_PER_PAGE = 50;
-
-
+import { RoleBadge } from './components/RoleBadge';
+import { USERS_PER_PAGE, useUserDirectory } from './hooks/useUserDirectory';
+import { emptyUserForm, type UserFormData } from './types/userManagement';
 export default function UserManagement() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalUsers, setTotalUsers] = useState(0);
+  const {
+    users,
+    setUsers,
+    loading,
+    loadError,
+    search,
+    roleFilter,
+    page,
+    setPage,
+    totalUsers,
+    load,
+    refreshFirstPage,
+    handleSearchChange,
+    handleRoleChange,
+  } = useUserDirectory();
   const [modalOpen, setModalOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
-  const [form, setForm] = useState<UserFormData>(emptyForm);
+  const [form, setForm] = useState<UserFormData>(emptyUserForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [deactivateId, setDeactivateId] = useState<number | null>(null);
@@ -54,54 +51,7 @@ export default function UserManagement() {
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
   const [deletingUser, setDeletingUser] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setLoadError('');
-
-    const params: Record<string, string> = {
-      page: String(page),
-      page_size: String(USERS_PER_PAGE),
-    };
-    if (search.trim()) params.search = search.trim();
-    if (roleFilter) params.role = roleFilter;
-
-    try {
-      const response = await adminUserApi.list(params);
-      const payload = response.data as PaginatedResponse<User>;
-      setUsers(payload.results || []);
-      setTotalUsers(payload.count || 0);
-    } catch (error) {
-      setUsers([]);
-      setTotalUsers(0);
-      setLoadError(getErrorMessage(error));
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search, roleFilter]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const refreshFirstPage = () => {
-    if (page === 1) {
-      void load();
-    } else {
-      setPage(1);
-    }
-  };
-
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    setPage(1);
-  };
-
-  const handleRoleChange = (value: string) => {
-    setRoleFilter(value);
-    setPage(1);
-  };
-
-  const openCreate = () => { setEditUser(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
+  const openCreate = () => { setEditUser(null); setForm(emptyUserForm); setErrors({}); setModalOpen(true); };
   const openEdit = (u: User) => {
     setEditUser(u);
     setForm({ username: u.username, full_name: u.full_name, role: u.role, password: '', password_confirm: '', is_active: u.is_active });

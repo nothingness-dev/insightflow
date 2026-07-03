@@ -4,6 +4,7 @@ import { adminSurveyApi } from '../../api/endpoints';
 import { Survey } from '../../types';
 import { StatusBadge, PageHeader, EmptyState, SearchInput, ConfirmModal, TableSkeleton } from '../../components/common/index';
 import { formatDate, getErrorMessage } from '../../utils/helpers';
+import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
 
 export default function AdminSurveyList() {
@@ -22,19 +23,29 @@ export default function AdminSurveyList() {
   const [duplicating, setDuplicating] = useState(false);
   const publishSurvey = surveys.find(survey => survey.id === publishId);
 
-  const load = useCallback(() => {
+  const load = useCallback((signal?: AbortSignal) => {
     setLoading(true);
     const params: Record<string, string> = {};
     if (search) params.search = search;
     if (statusFilter) params.status = statusFilter;
-    adminSurveyApi.list(params)
+    adminSurveyApi.list(params, signal)
       .then(r => setSurveys(Array.isArray(r.data) ? r.data : (r.data as any).results || []))
 
-      .catch(err => { toast.error(getErrorMessage(err)); setSurveys([]); })
-      .finally(() => setLoading(false));
+      .catch(err => {
+        if (isCanceledRequest(err, signal)) return;
+        toast.error(getErrorMessage(err));
+        setSurveys([]);
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
   }, [search, statusFilter]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
 
   const handleDelete = async () => {
     if (!deleteId) return;

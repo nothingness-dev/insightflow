@@ -1,11 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
-import api from '../api/client';
+import api, { authTokenStore } from '../api/client';
 
 interface AuthContextType {
   user: User | null;
   accessToken: string | null;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   updateUser: (partial: Partial<User>) => void;
   isLoading: boolean;
@@ -19,12 +19,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    const savedUser = localStorage.getItem('user');
-    if (token && savedUser) {
-      setAccessToken(token);
+    const savedUser = authTokenStore.getSavedUser();
+    if (savedUser && authTokenStore.getRefreshToken()) {
       setUser(JSON.parse(savedUser));
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
     setIsLoading(false);
   }, []);
@@ -34,30 +31,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { access, refresh, user: userData } = res.data;
     setAccessToken(access);
     setUser(userData);
-    localStorage.setItem('access_token', access);
-    localStorage.setItem('refresh_token', refresh);
-    localStorage.setItem('user', JSON.stringify(userData));
+    authTokenStore.setAccessToken(access);
+    authTokenStore.setRefreshToken(refresh);
+    authTokenStore.setSavedUser(JSON.stringify(userData));
     api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+    return userData;
   };
 
   const updateUser = (partial: Partial<User>) => {
     setUser(prev => {
       const next = prev ? { ...prev, ...partial } : prev;
-      if (next) localStorage.setItem('user', JSON.stringify(next));
+      if (next) authTokenStore.setSavedUser(JSON.stringify(next));
       return next;
     });
   };
 
   const logout = async () => {
     try {
-      const refresh = localStorage.getItem('refresh_token');
+      const refresh = authTokenStore.getRefreshToken();
+      if (refresh && !authTokenStore.getAccessToken()) {
+        const res = await api.post('/auth/refresh/', { refresh });
+        const newAccess = res.data.access;
+        authTokenStore.setAccessToken(newAccess);
+        api.defaults.headers.common['Authorization'] = `Bearer ${newAccess}`;
+      }
       if (refresh) await api.post('/auth/logout/', { refresh });
     } catch {}
     setUser(null);
     setAccessToken(null);
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
+    authTokenStore.clear();
     delete api.defaults.headers.common['Authorization'];
   };
 

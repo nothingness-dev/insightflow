@@ -4,6 +4,7 @@ import { employeeApi } from '../../api/endpoints';
 import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../../types';
 import { PageLoader, Modal, PersonGridSkeleton, Skeleton } from '../../components/common/index';
 import { getErrorMessage } from '../../utils/helpers';
+import { isCanceledRequest } from '../../utils/http';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -364,14 +365,23 @@ export default function EmployeeSurveyDetail() {
   const [submitting, setSubmitting] = useState(false);
   const surveyId = Number(id);
 
-  const load = useCallback(() => {
-    employeeApi.survey(surveyId)
+  const load = useCallback((signal?: AbortSignal) => {
+    employeeApi.survey(surveyId, signal)
       .then(r => setSurvey(r.data))
-      .catch(() => toast.error('خطا در بارگذاری نظرسنجی'))
-      .finally(() => setLoading(false));
+      .catch(error => {
+        if (isCanceledRequest(error, signal)) return;
+        toast.error('خطا در بارگذاری نظرسنجی');
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
   }, [surveyId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
 
   const handleSubmitRating = async (answers: { question_id: number; score?: number | null; emoji_rating?: EmojiRatingValue | null; comment?: string | null }[]) => {
     if (!ratingPerson) return;

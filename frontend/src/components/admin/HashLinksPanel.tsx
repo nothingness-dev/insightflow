@@ -3,6 +3,8 @@ import toast from 'react-hot-toast';
 import { adminHashLinkApi } from '../../api/endpoints';
 import { SurveyHashLink } from '../../types';
 import { getErrorMessage } from '../../utils/helpers';
+import { isCanceledRequest } from '../../utils/http';
+import QrCodeModal from './QrCodeModal';
 
 interface Props {
   surveyId: number;
@@ -37,6 +39,14 @@ function TrashIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  );
+}
+
+function QrIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 3h3m-3 3h3m-6-3h.01M17 14h.01M20 14h.01M14 20h.01" />
     </svg>
   );
 }
@@ -86,18 +96,28 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [qrLink, setQrLink] = useState<SurveyHashLink | null>(null);
   const rawBase = (import.meta.env.VITE_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
   const baseUrl = rawBase || window.location.origin;
 
-  const load = () => {
+  const load = (signal?: AbortSignal) => {
     setLoading(true);
-    adminHashLinkApi.list(surveyId)
+    adminHashLinkApi.list(surveyId, signal)
       .then(r => setLinks(r.data))
-      .catch(() => toast.error('خطا در بارگذاری لینک‌ها'))
-      .finally(() => setLoading(false));
+      .catch(error => {
+        if (isCanceledRequest(error, signal)) return;
+        toast.error('خطا در بارگذاری لینک‌ها');
+      })
+      .finally(() => {
+        if (!signal?.aborted) setLoading(false);
+      });
   };
 
-  useEffect(() => { load(); }, [surveyId]);
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [surveyId]);
 
   const handleCreate = async () => {
     const label = newLabel.trim();
@@ -281,6 +301,13 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
                       >
                         <CopyIcon copied={isCopied} />
                       </button>
+                      <button
+                        onClick={() => setQrLink(link)}
+                        title="نمایش کد QR"
+                        className="transition-colors flex-shrink-0 p-0.5 rounded text-gray-400 hover:text-blue-600"
+                      >
+                        <QrIcon />
+                      </button>
                     </div>
                     <div className="flex items-center gap-3 mt-2 flex-wrap">
                       <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
@@ -335,6 +362,13 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
           هر مرورگر با توکن اختصاصی، یک شرکت‌کننده ناشناس جدا شمرده می‌شود.
         </p>
       )}
+
+      <QrCodeModal
+        open={!!qrLink}
+        onClose={() => setQrLink(null)}
+        url={qrLink ? `${baseUrl}/s/${qrLink.token}` : ''}
+        label={qrLink?.label}
+      />
     </div>
   );
 }

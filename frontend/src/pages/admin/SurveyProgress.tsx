@@ -3,6 +3,7 @@ import { dashboardApi } from '../../api/endpoints';
 import { SurveyProgress, SurveyProgressDashboard } from '../../types';
 import { EmptyState, PageHeader, ProgressListSkeleton, StatusBadge } from '../../components/common/index';
 import { getErrorMessage } from '../../utils/helpers';
+import { isCanceledRequest } from '../../utils/http';
 
 const numberFormatter = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 });
 
@@ -313,22 +314,25 @@ export default function SurveyProgressPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadProgress = useCallback(async () => {
+  const loadProgress = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await dashboardApi.surveyProgress();
+      const response = await dashboardApi.surveyProgress(signal);
       setData(response.data);
     } catch (err) {
+      if (isCanceledRequest(err, signal)) return;
       setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadProgress();
+    const controller = new AbortController();
+    void loadProgress(controller.signal);
+    return () => controller.abort();
   }, [loadProgress]);
 
   if (loading) return <ProgressListSkeleton />;

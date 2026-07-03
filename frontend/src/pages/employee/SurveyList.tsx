@@ -6,6 +6,7 @@ import { CardGridSkeleton, EmptyState, Skeleton } from '../../components/common/
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/helpers';
+import { isCanceledRequest } from '../../utils/http';
 
 type Tab = 'active' | 'closed' | 'completed';
 
@@ -84,29 +85,32 @@ export default function EmployeeSurveyList() {
   const [loadError, setLoadError] = useState('');
   const [tab, setTab] = useState<Tab>('active');
 
-  const loadSurveys = useCallback(async () => {
+  const loadSurveys = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setLoadError('');
 
     try {
-      const response = await employeeApi.surveys();
+      const response = await employeeApi.surveys(signal);
       const payload = response.data as Survey[] | { results?: Survey[]; surveys?: Survey[] };
       const nextSurveys = Array.isArray(payload)
         ? payload
         : payload.results || payload.surveys || [];
       setSurveys(nextSurveys);
     } catch (error) {
+      if (isCanceledRequest(error, signal)) return;
       const message = getErrorMessage(error);
       setLoadError(message);
       setSurveys([]);
       toast.error(message || 'دریافت نظرسنجی‌ها ناموفق بود');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadSurveys();
+    const controller = new AbortController();
+    void loadSurveys(controller.signal);
+    return () => controller.abort();
   }, [loadSurveys]);
 
   if (loading) return (

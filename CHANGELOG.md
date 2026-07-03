@@ -1,3 +1,28 @@
+## [2.6.0] — 2026-07-04
+
+### QR codes for anonymous hash links
+
+Admins can now generate a scannable QR code for any anonymous hash link
+directly from the **Hash Links** panel on a survey's detail page — useful
+for posters, printed handouts, or sharing in chat apps where a raw URL
+isn't convenient.
+
+- **`frontend/src/components/admin/QrCodeModal.tsx`** (new) — modal that
+  renders a QR code onto a `<canvas>` using the `qrcode` package and offers
+  a "Download PNG" button. The code encodes the exact same
+  `{VITE_PUBLIC_BASE_URL}/s/{token}` URL shown next to the link, so
+  scanning it lands on the same anonymous voting page as the copy-link
+  button.
+- **`HashLinksPanel.tsx`** — added a QR icon button next to the existing
+  copy button on each link row; clicking it opens `QrCodeModal` for that
+  link's URL and label.
+- Generation is 100% client-side — the token/URL never leaves the
+  browser to produce the code, so **no backend, database, Redis, or nginx
+  changes were required**. `npm ci` in `frontend/Dockerfile` picks up the
+  new dependency automatically via the updated lockfile.
+- New dependencies: `qrcode@^1.5.4` (runtime) and `@types/qrcode@^1.5.6`
+  (dev), added to `frontend/package.json` and `frontend/package-lock.json`.
+
 ## [2.5.0] — 2026-06-30
 
 ### Polish & smoothing pass

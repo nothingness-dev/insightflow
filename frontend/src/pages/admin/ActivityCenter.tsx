@@ -9,6 +9,7 @@ import {
   ActivityLog, ActivityLogFilters, ActivityStats,
 } from '../../types';
 import { downloadBlob, formatDateTime, getBlobErrorMessage, getErrorMessage } from '../../utils/helpers';
+import { isCanceledRequest } from '../../utils/http';
 
 const PAGE_SIZE = 20;
 
@@ -78,15 +79,15 @@ export default function ActivityCenter() {
 
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
-  const loadTop = useCallback(async () => {
+  const loadTop = useCallback(async (signal?: AbortSignal) => {
     setLoadingTop(true);
     try {
       const [s, c, cr, tl, opt] = await Promise.all([
-        activityApi.stats(),
-        activityApi.charts(14),
-        activityApi.critical(8),
-        activityApi.timeline(12),
-        activityApi.filterOptions(),
+        activityApi.stats(signal),
+        activityApi.charts(14, signal),
+        activityApi.critical(8, signal),
+        activityApi.timeline(12, signal),
+        activityApi.filterOptions(signal),
       ]);
       setStats(s.data);
       setCharts(c.data);
@@ -94,13 +95,14 @@ export default function ActivityCenter() {
       setTimeline(tl.data);
       setOptions(opt.data);
     } catch (err) {
+      if (isCanceledRequest(err, signal)) return;
       toast.error(getErrorMessage(err));
     } finally {
-      setLoadingTop(false);
+      if (!signal?.aborted) setLoadingTop(false);
     }
   }, []);
 
-  const loadTable = useCallback(async () => {
+  const loadTable = useCallback(async (signal?: AbortSignal) => {
     setLoadingTable(true);
     try {
       const params: ActivityLogFilters = {
@@ -112,18 +114,27 @@ export default function ActivityCenter() {
       if (statusFilter) params.status = statusFilter;
       if (actor) params.actor = actor;
       if (criticalOnly) params.is_critical = 'true';
-      const res = await activityApi.logs(params);
+      const res = await activityApi.logs(params, signal);
       setLogs(res.data.results);
       setCount(res.data.count);
     } catch (err) {
+      if (isCanceledRequest(err, signal)) return;
       toast.error(getErrorMessage(err));
     } finally {
-      setLoadingTable(false);
+      if (!signal?.aborted) setLoadingTable(false);
     }
   }, [page, search, action, statusFilter, actor, criticalOnly]);
 
-  useEffect(() => { loadTop(); }, [loadTop]);
-  useEffect(() => { loadTable(); }, [loadTable]);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadTop(controller.signal);
+    return () => controller.abort();
+  }, [loadTop]);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadTable(controller.signal);
+    return () => controller.abort();
+  }, [loadTable]);
 
 
   const onFilterChange = (fn: () => void) => { fn(); setPage(1); };

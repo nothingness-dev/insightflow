@@ -17,11 +17,7 @@ export default function LoginPage() {
     if (!username.trim() || !password.trim()) { toast.error('نام کاربری و رمز عبور الزامی است'); return; }
     setLoading(true);
     try {
-      await login(username.trim(), password);
-
-
-      const savedUser = localStorage.getItem('user');
-      const loggedInUser = savedUser ? JSON.parse(savedUser) : null;
+      const loggedInUser = await login(username.trim(), password);
       navigate(loggedInUser?.role === 'admin' ? '/admin' : '/surveys', { replace: true });
     } catch (err: any) {
       toast.error(err?.response?.data?.non_field_errors?.[0] || err?.response?.data?.detail || 'خطا در ورود به سیستم');

@@ -4,6 +4,7 @@ import { adminSurveyApi, adminPersonApi } from '../../api/endpoints';
 import { Survey, SurveyPerson } from '../../types';
 import { StatusBadge, SurveyDetailSkeleton, ConfirmModal } from '../../components/common/index';
 import { formatDateTime, getErrorMessage } from '../../utils/helpers';
+import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
 import PersonModal from '../../components/admin/PersonModal';
 import HashLinksPanel from '../../components/admin/HashLinksPanel';
@@ -26,18 +27,33 @@ export default function SurveyDetail() {
 
   const surveyId = Number(id);
 
-  const loadData = () => {
+  const loadData = (signal?: AbortSignal) => {
+    if (!Number.isFinite(surveyId)) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     Promise.all([
-      adminSurveyApi.get(surveyId),
-      adminPersonApi.list(surveyId),
+      adminSurveyApi.get(surveyId, signal),
+      adminPersonApi.list(surveyId, signal),
     ]).then(([sr, pr]) => {
       setSurvey(sr.data);
       setPeople(Array.isArray(pr.data) ? pr.data : (pr.data as any).results || []);
-    }).catch(() => { toast.error('خطا در بارگذاری اطلاعات'); navigate('/admin/surveys'); })
-      .finally(() => setLoading(false));
+    }).catch(error => {
+      if (isCanceledRequest(error, signal)) return;
+      toast.error('خطا در بارگذاری اطلاعات');
+      navigate('/admin/surveys');
+    }).finally(() => {
+      if (!signal?.aborted) setLoading(false);
+    });
   };
 
-  useEffect(() => { loadData(); }, [id]);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => controller.abort();
+  }, [id]);
 
   const handlePublish = async () => {
     setPublishing(true);
