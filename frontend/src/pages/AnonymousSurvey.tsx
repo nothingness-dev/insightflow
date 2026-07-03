@@ -363,7 +363,7 @@ export default function AnonymousSurvey() {
 
   if (!survey) return null;
 
-  const people = (survey.people || []).map(p => ({ ...p, has_rated: ratedPersonIds.has(p.id) }));
+  const people = (survey.people || []).map(p => ({ ...p, has_rated: ipLocked || ratedPersonIds.has(p.id) }));
   const ratedCount = people.filter(p => p.has_rated).length;
   const totalCount = people.length;
   const questionCount = survey.questions.length;
@@ -393,18 +393,20 @@ export default function AnonymousSurvey() {
             <p className="text-sm font-medium" style={{ color: 'var(--c-700)' }}>این نظرسنجی بسته شده است</p>
           </div>
         )}
-        {ipLocked && !allDone && (
-          <div className="mb-5 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4">
-            <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
+        {ipLocked && !closed && (
+          <div className="mb-5 flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-4">
+            <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
             <div>
-              <p className="text-sm font-semibold text-amber-800">شما قبلاً در این نظرسنجی شرکت کرده‌اید</p>
-              <p className="text-xs text-amber-600 mt-0.5">هر مرورگر فقط یک بار می‌تواند پاسخ ثبت کند.</p>
+              <p className="text-sm font-semibold text-emerald-800">شما قبلاً در این نظرسنجی شرکت کرده‌اید</p>
+              <p className="text-xs text-emerald-600 mt-0.5">پاسخ‌های شما ثبت شده است — هر مرورگر فقط یک بار می‌تواند در این نظرسنجی شرکت کند. ممنون از وقت شما!</p>
             </div>
           </div>
         )}
-        {(allDone || ipLocked) && !closed && (
+        {allDone && !ipLocked && !closed && (
           <div className="mb-5 flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-5 py-3">
             <svg className="w-5 h-5 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>

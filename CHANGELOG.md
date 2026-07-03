@@ -1,3 +1,33 @@
+## [2.6.1] — 2026-07-04
+
+### Clearer "already participated" state on the anonymous survey page
+
+Previously, when a device/IP had already completed an anonymous survey
+(`ip_locked: true` from `GET /api/anonymous/survey/{token}/`), the frontend
+only reflected that on a per-card basis: each `PersonCard` waited on the
+separate `GET /api/anonymous/survey/{token}/{survey_id}/my-ratings/` call to
+resolve before showing the green "ثبت شد" checkmark. In the gap between
+those two requests, cards briefly showed a generic gray **"پایان یافته"**
+label — indistinguishable from a closed survey — instead of communicating
+"you already participated."
+
+- **`AnonymousSurvey.tsx`** — the "already participated" banner is now
+  driven solely by `ip_locked` from the initial survey fetch, not by the
+  `allDone` flag (which depended on the slower `my-ratings` response). It
+  renders immediately on first paint, with clearer wording.
+- Person cards now treat `has_rated` as `true` immediately whenever
+  `ip_locked` is set, so every card shows the emerald "ثبت شد" checkmark
+  state right away instead of flashing the ambiguous gray "ended" state
+  first.
+- Collapsed the previous two overlapping banners (amber "already
+  participated" + green "all done") into one consistent emerald state for
+  the IP-locked case, with a separate, unchanged green banner for the
+  (rarer) case of finishing in the current session without being
+  IP-locked.
+- No backend, database, Redis, or API changes — `ip_locked` was already
+  returned by the existing endpoint; this is purely a frontend
+  render-order fix.
+
 ## [2.6.0] — 2026-07-04
 
 ### QR codes for anonymous hash links
