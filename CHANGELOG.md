@@ -1,3 +1,49 @@
+## [2.6.2] — 2026-07-04
+
+### Fixed: spurious "session expired" errors and forced logouts while navigating
+
+Root cause: the backend has `ROTATE_REFRESH_TOKENS` + `BLACKLIST_AFTER_ROTATION`
+enabled (`backend/config/settings/base.py`), so every call to
+`/api/auth/refresh/` both issues a new refresh token **and blacklists the one
+that was used** — a refresh token is single-use. The frontend axios
+interceptor (`frontend/src/api/client.ts`) had two bugs that turned this into
+random-feeling logouts and error toasts:
+
+1. **Lost rotation** — on a successful refresh it only stored the new
+   *access* token and silently discarded the new *refresh* token from the
+   response, continuing to hold the now-blacklisted one. The very next
+   refresh (up to an hour later, or immediately under bug #2 below) would
+   fail, wipe the session, and hard-redirect to `/login`.
+2. **Unguarded concurrency** — the in-memory access token doesn't survive a
+   page reload, so right after a hard refresh every mounted component fired
+   its first request unauthenticated. Each got a 401 and independently
+   called `/auth/refresh/` with the *same* refresh token. Only the first
+   call could ever succeed; the rest arrived after it had already been
+   rotated/blacklisted, failed, and each cleared the session and redirected
+   — while the still-pending page requests kept surfacing their own
+   `"خطا در بارگذاری..."` toasts in the moment before the redirect actually
+   fired. This is what showed up as "random error pop-ups while switching
+   between parts of the app."
+
+Fixes, both in `frontend/src/api/client.ts`:
+
+- The rotated refresh token is now persisted (`res.data.refresh`) after
+  every successful refresh.
+- Concurrent 401s now await a single shared in-flight refresh call
+  (`refreshPromise`) instead of racing separate ones against the same
+  single-use token.
+
+`frontend/src/contexts/AuthContext.tsx` now also proactively refreshes the
+access token once on mount (when a saved user + refresh token exist) instead
+of waiting for the first page request to 401 — the existing route guards in
+`routes/Guards.tsx` already hold rendering on `isLoading`, so this removes
+the burst of parallel unauthenticated first-requests after a reload
+entirely, rather than just making them survive the race.
+
+No backend, database, Redis, or API changes — this was purely a frontend
+token-handling bug; the backend's rotate/blacklist behavior is correct and
+unchanged.
+
 ## [2.6.1] — 2026-07-04
 
 ### Clearer "already participated" state on the anonymous survey page

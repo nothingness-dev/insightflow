@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
-import api, { authTokenStore } from '../api/client';
+import api, { authTokenStore, refreshAccessToken } from '../api/client';
 
 interface AuthContextType {
   user: User | null;
@@ -20,9 +20,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const savedUser = authTokenStore.getSavedUser();
-    if (savedUser && authTokenStore.getRefreshToken()) {
+    const hasRefreshToken = Boolean(authTokenStore.getRefreshToken());
+
+    if (savedUser && hasRefreshToken) {
       setUser(JSON.parse(savedUser));
+      // The in-memory access token doesn't survive a page reload, so every
+      // component that fetches data on mount would otherwise fire its first
+      // request unauthenticated, get a 401, and independently trigger a
+      // refresh — the exact race that can prematurely blacklist the refresh
+      // token and log the user out. Refresh once, proactively, before any
+      // page-level requests go out.
+      refreshAccessToken()
+        .then(token => setAccessToken(token))
+        .catch(() => {
+          authTokenStore.clear();
+          setUser(null);
+        })
+        .finally(() => setIsLoading(false));
+      return;
     }
+
     setIsLoading(false);
   }, []);
 
