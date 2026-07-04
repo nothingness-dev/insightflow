@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { PersonResult, QuestionResult } from '../../../types';
+import { useTheme } from '../../../contexts/ThemeContext';
 import {
   Avatar,
   Bar,
@@ -17,6 +18,8 @@ import {
   scoreGrade,
 } from './surveyResultsPrimitives';
 export function TabOverview({ results, survey }: { results: PersonResult[]; survey: any }) {
+  const { mode } = useTheme();
+  const dark = mode === 'dark';
   const scored = useMemo(() => results.filter(r => r.average_score != null), [results]);
   const avg = scored.length ? scored.reduce((s, r) => s + r.average_score!, 0) / scored.length : null;
   const maxVoters = useMemo(() => Math.max(...results.map(r => r.votes_count), 0), [results]);
@@ -57,10 +60,10 @@ export function TabOverview({ results, survey }: { results: PersonResult[]; surv
     <div className="space-y-4">
 <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'میانگین کل', value: avg != null ? avg.toFixed(1) : '—', sub: scoreGrade(avg), color: scoreColor(avg), bg: scoreBg(avg) },
-          { label: 'رأی‌دهندگان', value: fa(maxVoters), sub: 'نفر شرکت‌کننده', color: '#6366f1', bg: '#eef2ff' },
-          { label: 'افراد ارزیابی‌شده', value: fa(results.length), sub: `از ${survey.people_count} نفر`, color: '#0891b2', bg: '#ecfeff' },
-          { label: 'بهترین امتیاز', value: results[0]?.average_score != null ? results[0].average_score.toFixed(1) : '—', sub: results[0]?.full_name ?? '—', color: '#d97706', bg: '#fffbeb' },
+          { label: 'میانگین کل', value: avg != null ? avg.toFixed(1) : '—', sub: scoreGrade(avg), color: scoreColor(avg), bg: scoreBg(avg, dark) },
+          { label: 'رأی‌دهندگان', value: fa(maxVoters), sub: 'نفر شرکت‌کننده', color: '#6366f1', bg: dark ? 'rgba(99,102,241,0.16)' : '#eef2ff' },
+          { label: 'افراد ارزیابی‌شده', value: fa(results.length), sub: `از ${survey.people_count} نفر`, color: '#0891b2', bg: dark ? 'rgba(8,145,178,0.16)' : '#ecfeff' },
+          { label: 'بهترین امتیاز', value: results[0]?.average_score != null ? results[0].average_score.toFixed(1) : '—', sub: results[0]?.full_name ?? '—', color: '#d97706', bg: dark ? 'rgba(217,119,6,0.16)' : '#fffbeb' },
         ].map((c, i) => (
           <div key={i} className="card p-4">
             <p className="text-xs text-slate-400 mb-2">{c.label}</p>
@@ -157,6 +160,8 @@ interface QStat {
 }
 
 export function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId: number }) {
+  const { mode } = useTheme();
+  const dark = mode === 'dark';
   const stats = useMemo<QStat[]>(() => {
     const map = new Map<number, QStat>();
     const acc = new Map<number, { sum: number; n: number }>();
@@ -248,7 +253,7 @@ export function TabQuestions({ results, surveyId }: { results: PersonResult[]; s
                       {EMOJI_ORDER.map(key => {
                         const count = q.emoji_breakdown[key] || 0;
                         const label = EMOJI_KEY_TO_LABEL[key];
-                        const { color, bg } = emojiVisual(label);
+                        const { color, bg } = emojiVisual(label, dark);
                         const isTop = q.emoji_avg_label === label && count > 0;
                         return (
                           <span key={key}
@@ -271,7 +276,7 @@ export function TabQuestions({ results, surveyId }: { results: PersonResult[]; s
               </div>
 {q.has_score && (
                 <div className="flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center"
-                  style={{ background: scoreBg(q.avg) }}>
+                  style={{ background: scoreBg(q.avg, dark) }}>
                   <span className="text-lg font-bold leading-none" style={{ color: scoreColor(q.avg) }}>
                     {q.avg != null ? q.avg.toFixed(1) : '—'}
                   </span>
@@ -282,8 +287,8 @@ export function TabQuestions({ results, surveyId }: { results: PersonResult[]; s
               )}
               {!q.has_score && q.has_emoji && (
                 <div className="flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center"
-                  style={{ background: emojiVisual(q.emoji_avg_label).bg }}>
-                  <span className="text-sm font-bold leading-none text-center" style={{ color: emojiVisual(q.emoji_avg_label).color }}>
+                  style={{ background: emojiVisual(q.emoji_avg_label, dark).bg }}>
+                  <span className="text-sm font-bold leading-none text-center" style={{ color: emojiVisual(q.emoji_avg_label, dark).color }}>
                     {q.emoji_avg_label || '—'}
                   </span>
                 </div>
@@ -298,6 +303,8 @@ export function TabQuestions({ results, surveyId }: { results: PersonResult[]; s
 
 
 function QuestionRow({ q, surveyId, personId }: { q: QuestionResult; surveyId: number; personId: number }) {
+  const { mode } = useTheme();
+  const dark = mode === 'dark';
   return (
     <div className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
       <div className="flex-1 min-w-0">
@@ -314,13 +321,13 @@ function QuestionRow({ q, surveyId, personId }: { q: QuestionResult; surveyId: n
       </div>
       {q.has_score && (
         <span className="flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-md"
-          style={{ background: scoreBg(q.average_score), color: scoreColor(q.average_score) }}>
+          style={{ background: scoreBg(q.average_score, dark), color: scoreColor(q.average_score) }}>
           {q.average_score != null ? q.average_score.toFixed(1) : '—'}
         </span>
       )}
       {!q.has_score && q.has_emoji && (
         <span className="flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-md"
-          style={{ background: emojiVisual(q.average_emoji_label).bg, color: emojiVisual(q.average_emoji_label).color }}>
+          style={{ background: emojiVisual(q.average_emoji_label, dark).bg, color: emojiVisual(q.average_emoji_label, dark).color }}>
           {q.average_emoji_label || '—'}
         </span>
       )}

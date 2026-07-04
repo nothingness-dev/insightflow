@@ -1,3 +1,49 @@
+## [2.7.0] — 2026-07-04
+
+### Light / dark theme mode
+
+Added a full light/dark mode toggle alongside the existing accent-color
+switcher, with a smooth transition and no flash on load.
+
+- **`ThemeSwitcher.tsx`** — a sun/moon button now sits next to the accent
+  color swatch (in the admin sidebar, employee header, and the anonymous
+  survey page) for a one-click toggle. The same choice is also exposed as a
+  segmented "روشن / تاریک" control inside the color dropdown.
+- **`ThemeContext.tsx`** — now manages both `theme` (accent) and `mode`
+  (`light`/`dark`). Each accent has a dedicated dark palette: the `50/100/200`
+  tints become translucent overlays on the dark surface instead of
+  near-white fills, `600` keeps its vivid, identity value for solid button
+  backgrounds, and `700` — used throughout the app as *text/hover* color on
+  top of light backgrounds — is remapped to a lighter tone in dark mode so
+  the same text stays readable instead of going near-invisible on a dark
+  card. The chosen mode is persisted to `localStorage`
+  (`app-theme-mode`) and falls back to the OS `prefers-color-scheme`
+  setting on first visit, tracking it live until the person makes an
+  explicit choice.
+- **`index.html`** — a small inline script sets the `dark` class (and
+  `color-scheme`) on `<html>` before React mounts, so there's no
+  light-mode flash on reload for people who've chosen dark.
+- **`globals.css`** — a global `background-color, border-color, color,
+  fill, stroke, box-shadow` transition (0.2s ease) makes the mode switch
+  itself feel smooth rather than an instant snap, and respects
+  `prefers-reduced-motion` via the existing media query. Dark equivalents
+  were added for every raw Tailwind gray/slate/status-color utility class
+  already used across the app (`bg-white`, `text-gray-500`,
+  `border-gray-100`, `bg-emerald-50`, hover states, shadows, scrollbars,
+  skeleton shimmer, placeholders, etc.) by targeting `.dark <utility>` —
+  which has higher specificity than the plain utility and so always wins —
+  rather than rewriting every page with `dark:` variants.
+- A handful of components compute colors as inline hex rather than Tailwind
+  classes (survey results score/emoji pills, rank medals, stat cards,
+  active/draft badges). These now read `mode` from `useTheme()` and pick a
+  dark-appropriate variant explicitly, so they update instantly and in sync
+  with the rest of the UI when the mode is toggled — a plain
+  `document.documentElement.classList.contains('dark')` check inside a pure
+  function would have lagged a render behind the actual DOM update.
+
+No backend, database, Redis, or API changes — this is entirely a frontend
+presentation feature. Verified with a clean `tsc --noEmit` and `vite build`.
+
 ## [2.6.2] — 2026-07-04
 
 ### Fixed: spurious "session expired" errors and forced logouts while navigating

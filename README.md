@@ -1,6 +1,6 @@
 # InsightFlow
 
-![Version](https://img.shields.io/badge/version-2.6.2-blue)
+![Version](https://img.shields.io/badge/version-2.7.0-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-success)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Backend](https://img.shields.io/badge/backend-Django%20REST%20Framework-092E20)
@@ -81,6 +81,11 @@
 - محدودیت نوع و حجم فایل آپلودی
 - هیچ اطلاعات رأی‌دهنده‌ای در نتایج ذخیره نمی‌شود
 - **لاگ ممیزی** هر عملیات حساس
+
+### 🎨 ظاهر و شخصی‌سازی
+- **حالت روشن / تاریک** با یک کلیک، دقیقاً هماهنگ با تنظیم سیستم‌عامل در اولین بازدید و قابل تغییر دستی در هر زمان؛ انتخاب کاربر ذخیره می‌شود و بین صفحات باقی می‌ماند
+- **۴ رنگ‌بندی سایت** (بنفش، آبی، سبز، قرمز) که در هر دو حالت روشن و تاریک به‌درستی نمایش داده می‌شوند
+- تغییر حالت به‌صورت نرم و بدون پرش انجام می‌شود
 
 ---
 
@@ -351,6 +356,11 @@ Most organizations still rely on Excel files, paper forms, or fragmented tools f
 - Upload type and size restrictions enforced
 - No voter identity stored in results
 - Every sensitive operation is **audit-logged**
+
+### 🎨 Appearance & personalization
+- **Light / dark mode** toggle, matching the OS preference on first visit and switchable anytime; the choice persists across pages
+- **4 accent colors** (purple, blue, green, red), correctly rendered in both light and dark mode
+- Mode switches transition smoothly, no flash of the wrong theme on reload
 
 ---
 

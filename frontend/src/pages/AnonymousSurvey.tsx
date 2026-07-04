@@ -6,6 +6,7 @@ import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../types';
 import { Modal, AnonymousSurveySkeleton } from '../components/common/index';
 import ThemeSwitcher from '../components/common/ThemeSwitcher';
 import { getErrorMessage } from '../utils/helpers';
+import { useTheme } from '../contexts/ThemeContext';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 function getOrCreateAnonToken(surveyToken: string): string {
@@ -280,6 +281,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
 }
 
 export default function AnonymousSurvey() {
+  const { mode } = useTheme();
   const { token } = useParams<{ token: string }>();
   const [survey, setSurvey] = useState<SurveyData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -421,7 +423,7 @@ export default function AnonymousSurvey() {
             <span className="flex-shrink-0 text-xs font-semibold px-3 py-1 rounded-full border"
               style={closed
                 ? { backgroundColor: 'var(--c-50)', color: 'var(--c-700)', borderColor: 'var(--c-200)' }
-                : { backgroundColor: '#ecfdf5', color: '#065f46', borderColor: '#a7f3d0' }}>
+                : { backgroundColor: mode === 'dark' ? 'rgba(16,185,129,0.16)' : '#ecfdf5', color: mode === 'dark' ? '#6ee7b7' : '#065f46', borderColor: mode === 'dark' ? 'rgba(16,185,129,0.35)' : '#a7f3d0' }}>
               {closed ? 'بسته شده' : 'فعال'}
             </span>
           </div>

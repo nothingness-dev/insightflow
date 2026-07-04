@@ -5,6 +5,7 @@ import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../../types';
 import { PageLoader, Modal, PersonGridSkeleton, Skeleton } from '../../components/common/index';
 import { getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
+import { useTheme } from '../../contexts/ThemeContext';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -357,6 +358,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
 }
 
 export default function EmployeeSurveyDetail() {
+  const { mode } = useTheme();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [survey, setSurvey] = useState<SurveyDetailData | null>(null);
@@ -465,7 +467,7 @@ export default function EmployeeSurveyDetail() {
           <span className="flex-shrink-0 text-xs font-semibold px-3 py-1 rounded-full border"
             style={closed
               ? { backgroundColor: 'var(--c-50)', color: 'var(--c-700)', borderColor: 'var(--c-200)' }
-              : { backgroundColor: '#ecfdf5', color: '#065f46', borderColor: '#a7f3d0' }}>
+              : { backgroundColor: mode === 'dark' ? 'rgba(16,185,129,0.16)' : '#ecfdf5', color: mode === 'dark' ? '#6ee7b7' : '#065f46', borderColor: mode === 'dark' ? 'rgba(16,185,129,0.35)' : '#a7f3d0' }}>
             {closed ? 'بسته شده' : 'فعال'}
           </span>
         </div>

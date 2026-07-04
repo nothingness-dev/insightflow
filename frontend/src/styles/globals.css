@@ -16,10 +16,32 @@
   --c-bg:  #F8F7FF;
   --c-scrollbar: #c4b5fd;
   --c-scrollbar-hover: #a78bfa;
+
+  
+  --surface: #ffffff;
+  --surface-alt: #f9fafb;
+  --border-soft: #f3f4f6;
+}
+
+.dark {
+  --surface: #181a24;
+  --surface-alt: #1f212d;
+  --border-soft: #262936;
 }
 
 @keyframes skeleton-shimmer {
   100% { transform: translateX(100%); }
+}
+
+/* Smooth color-scheme switch: only transition color-related properties, and
+   only for as long as it takes to feel deliberate rather than instant —
+   layout, size, and transform transitions defined by individual components
+   (buttons, cards, etc.) are untouched since this rule is lower specificity
+   and those components declare their own `transition` shorthand. */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-timing-function: ease;
+  transition-duration: 0.2s;
 }
 
 @layer base {
@@ -27,6 +49,7 @@
   html { direction: rtl; scroll-behavior: smooth; }
   body { background-color: var(--c-bg); color: #1e293b; font-size: 15px; line-height: 1.8; }
   input, textarea, select, button { font-family: 'Vazirmatn', sans-serif; }
+  .dark body { color: #e5e7eb; }
 
   
   :focus-visible {
@@ -65,11 +88,14 @@
 
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2
-           bg-white hover:bg-gray-50 active:bg-gray-100
+           hover:bg-gray-50 active:bg-gray-100
            text-gray-700 border border-gray-200
            px-5 py-2.5 rounded-lg text-sm font-medium
            transition-all duration-150 shadow-sm cursor-pointer active:scale-[0.97];
+    background-color: var(--surface);
   }
+  .dark .btn-secondary { @apply text-gray-200 border-transparent; background-color: var(--surface-alt); }
+  .dark .btn-secondary:hover { background-color: var(--border-soft); }
 
   .btn-danger {
     @apply inline-flex items-center justify-center gap-2
@@ -87,20 +113,26 @@
 
   
   .card {
-    @apply bg-white rounded-xl border border-gray-100 shadow-sm;
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    @apply rounded-xl border border-gray-100 shadow-sm;
+    background-color: var(--surface);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
   }
+  .dark .card { @apply border-transparent; box-shadow: 0 1px 3px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.3); }
 
   
   .input-field {
     @apply w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm
            focus:outline-none focus:border-transparent
-           transition-all duration-200 ease-out bg-white placeholder-gray-400;
+           transition-all duration-200 ease-out placeholder-gray-400;
+    background-color: var(--surface);
   }
   .input-field:focus { box-shadow: 0 0 0 3px var(--c-200); border-color: var(--c-400); }
+  .dark .input-field { @apply border-transparent text-gray-100; background-color: var(--surface-alt); }
+  .dark .input-field::placeholder { color: #6b7280; }
 
   
   .label { @apply block text-sm font-medium text-gray-700 mb-1.5; }
+  .dark .label { color: #d1d5db; }
 
   
   .badge-draft     { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200; }
@@ -111,10 +143,14 @@
     font-size: 0.75rem; font-weight: 500;
     background-color: var(--c-50); color: var(--c-700); border: 1px solid var(--c-200);
   }
+  .dark .badge-draft     { color: #d1d5db; @apply border-transparent; background-color: var(--surface-alt); }
+  .dark .badge-published { @apply text-emerald-300 border-transparent; background-color: rgba(16,185,129,0.16); }
 
   
   .page-title    { @apply text-2xl font-bold text-slate-800; }
   .section-title { @apply text-lg font-semibold text-slate-700; }
+  .dark .page-title    { @apply text-gray-100; }
+  .dark .section-title { @apply text-gray-200; }
 
   .skeleton {
     position: relative;
@@ -122,6 +158,7 @@
     background-color: #e9ecf1;
     border-radius: 0.375rem;
   }
+  .dark .skeleton { background-color: #262a38; }
   .skeleton::after {
     content: '';
     position: absolute;
@@ -137,6 +174,16 @@
     );
     animation: skeleton-shimmer 1.6s ease-in-out infinite;
   }
+  .dark .skeleton::after {
+    background-image: linear-gradient(
+      90deg,
+      rgba(255,255,255,0) 0,
+      rgba(255,255,255,0.06) 20%,
+      rgba(255,255,255,0.12) 50%,
+      rgba(255,255,255,0.06) 80%,
+      rgba(255,255,255,0) 100%
+    );
+  }
 
   
   .sidebar-item {
@@ -145,6 +192,8 @@
   }
   .sidebar-item.active { background-color: var(--c-50); color: var(--c-700); transition: background-color 0.2s ease, color 0.2s ease; }
   .sidebar-item.active:hover { background-color: var(--c-100); color: var(--c-800); }
+  .dark .sidebar-item { color: #7c8aa0; }
+  .dark .sidebar-item:hover { @apply text-gray-100; background-color: var(--surface-alt); }
 
   
   .table-row { @apply transition-colors duration-150 ease-out; }
@@ -169,6 +218,7 @@
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #f1f5f9; }
+.dark ::-webkit-scrollbar-track { background: #1a1c26; }
 ::-webkit-scrollbar-thumb { background: var(--c-scrollbar); border-radius: 3px; transition: background-color 0.15s ease; }
 ::-webkit-scrollbar-thumb:hover { background: var(--c-scrollbar-hover); }
 
@@ -236,3 +286,109 @@
     height: 1px;
   }
 }
+
+/* ==========================================================================
+   Dark mode — raw Tailwind utility overrides
+   --------------------------------------------------------------------------
+   The app is built almost entirely with plain Tailwind gray/slate utility
+   classes rather than semantic tokens (bg-white, text-gray-500, etc.), spread
+   across every page and component. Rather than touching dozens of files to
+   add `dark:` variants one by one, these overrides target the exact utility
+   classes already in use — `.dark .bg-white` has higher specificity than the
+   Tailwind-generated `.bg-white` (two classes vs. one) so it always wins,
+   regardless of stylesheet order. New components should keep using the same
+   plain utility classes and will automatically look right in both modes.
+   ========================================================================== */
+
+.dark {
+  color-scheme: dark;
+}
+
+/* Surfaces */
+.dark .bg-white   { background-color: var(--surface); }
+.dark .bg-gray-50 { background-color: var(--surface-alt); }
+.dark .bg-slate-50 { background-color: var(--surface-alt); }
+.dark .bg-gray-100 { background-color: var(--border-soft); }
+.dark .bg-slate-100 { background-color: var(--border-soft); }
+.dark .bg-gray-200 { background-color: #2f3342; }
+.dark .bg-slate-200 { background-color: #2f3342; }
+.dark .bg-gray-400 { background-color: #4b5165; }
+.dark .bg-slate-400 { background-color: #4b5165; }
+.dark .active\:bg-gray-100:active { background-color: var(--border-soft); }
+
+/* Status tints (banners, badges, alerts) — near-white fills become
+   translucent color overlays; the matching -700/-800 text keeps enough
+   contrast by going lighter (see the -300 remaps just below). */
+.dark .bg-emerald-50  { background-color: rgba(16,185,129,0.12); }
+.dark .bg-emerald-100 { background-color: rgba(16,185,129,0.18); }
+.dark .bg-red-50      { background-color: rgba(239,68,68,0.12); }
+.dark .bg-red-100     { background-color: rgba(239,68,68,0.18); }
+.dark .bg-amber-50    { background-color: rgba(245,158,11,0.14); }
+.dark .bg-amber-100   { background-color: rgba(245,158,11,0.20); }
+.dark .bg-purple-50   { background-color: rgba(168,85,247,0.12); }
+.dark .bg-purple-100  { background-color: rgba(168,85,247,0.18); }
+.dark .bg-lime-100    { background-color: rgba(132,204,22,0.18); }
+.dark .bg-orange-50   { background-color: rgba(249,115,22,0.12); }
+.dark .bg-sky-50      { background-color: rgba(14,165,233,0.12); }
+.dark .bg-violet-50   { background-color: rgba(139,92,246,0.12); }
+.dark .border-emerald-200 { border-color: rgba(16,185,129,0.35); }
+.dark .border-red-200     { border-color: rgba(239,68,68,0.35); }
+.dark .border-amber-200   { border-color: rgba(245,158,11,0.4); }
+.dark .border-purple-200  { border-color: rgba(168,85,247,0.35); }
+.dark .text-emerald-700, .dark .text-emerald-800 { color: #6ee7b7; }
+.dark .text-emerald-600 { color: #34d399; }
+.dark .text-red-700, .dark .text-red-800 { color: #fca5a5; }
+.dark .text-red-600 { color: #f87171; }
+.dark .text-amber-700, .dark .text-amber-800 { color: #fcd34d; }
+.dark .text-amber-600 { color: #fbbf24; }
+.dark .text-purple-700, .dark .text-purple-800 { color: #d8b4fe; }
+.dark .text-purple-600 { color: #c084fc; }
+
+/* Hover states for the same light tints (cards/menus that darken slightly
+   on hover in light mode should brighten-from-transparent in dark mode). */
+.dark .hover\:bg-gray-50:hover, .dark .hover\:bg-slate-50:hover   { background-color: var(--surface-alt); }
+.dark .hover\:bg-gray-100:hover                                   { background-color: var(--border-soft); }
+.dark .hover\:bg-emerald-50:hover  { background-color: rgba(16,185,129,0.14); }
+.dark .hover\:bg-emerald-100:hover { background-color: rgba(16,185,129,0.20); }
+.dark .hover\:bg-red-50:hover      { background-color: rgba(239,68,68,0.14); }
+.dark .hover\:bg-red-100:hover     { background-color: rgba(239,68,68,0.20); }
+.dark .hover\:bg-amber-50:hover    { background-color: rgba(245,158,11,0.16); }
+.dark .hover\:bg-amber-100:hover   { background-color: rgba(245,158,11,0.22); }
+.dark .hover\:bg-purple-50:hover   { background-color: rgba(168,85,247,0.14); }
+.dark .hover\:bg-purple-100:hover  { background-color: rgba(168,85,247,0.20); }
+.dark .hover\:bg-lime-100:hover    { background-color: rgba(132,204,22,0.20); }
+.dark .hover\:bg-orange-50:hover   { background-color: rgba(249,115,22,0.14); }
+.dark .hover\:bg-sky-50:hover      { background-color: rgba(14,165,233,0.14); }
+.dark .hover\:bg-violet-50:hover   { background-color: rgba(139,92,246,0.14); }
+.dark .hover\:bg-red-700:hover, .dark .hover\:bg-purple-700:hover, .dark .hover\:bg-emerald-700:hover { filter: brightness(1.12); }
+
+/* Body text */
+.dark .text-slate-800, .dark .text-gray-900, .dark .text-gray-800 { color: #f1f5f9; }
+.dark .text-slate-700, .dark .text-gray-700                       { color: #e2e8f0; }
+.dark .text-slate-600, .dark .text-gray-600                       { color: #cbd5e1; }
+.dark .text-slate-500, .dark .text-gray-500                       { color: #94a3b8; }
+.dark .text-slate-400, .dark .text-gray-400                       { color: #7c8aa0; }
+.dark .text-gray-300, .dark .text-slate-200                       { color: #5b6478; }
+
+/* Borders */
+.dark .border-gray-50,  .dark .border-slate-50  { border-color: #24273330; }
+.dark .border-gray-100, .dark .border-slate-100 { border-color: var(--border-soft); }
+.dark .border-gray-200, .dark .border-slate-200 { border-color: #333849; }
+.dark .border-gray-300, .dark .border-slate-300 { border-color: #454b5e; }
+.dark .border-slate-400 { border-color: #5b6478; }
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--border-soft); }
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #333849; }
+
+/* Placeholders */
+.dark .placeholder-gray-400::placeholder { color: #6b7686; }
+
+/* Shadows read as too-black / invisible on dark surfaces — soften and rely
+   more on the (already-adjusted) border color for definition. */
+.dark .shadow-sm { box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.dark .shadow    { box-shadow: 0 1px 3px rgba(0,0,0,.5), 0 1px 2px rgba(0,0,0,.35); }
+.dark .shadow-md { box-shadow: 0 4px 6px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.3); }
+.dark .shadow-lg { box-shadow: 0 10px 15px rgba(0,0,0,.5), 0 4px 6px rgba(0,0,0,.35); }
+.dark .shadow-xl { box-shadow: 0 20px 25px rgba(0,0,0,.55), 0 8px 10px rgba(0,0,0,.35); }
+
+/* Table header rows commonly sit on bg-gray-50 with gray-500 text */
+.dark thead { background-color: var(--surface-alt); }

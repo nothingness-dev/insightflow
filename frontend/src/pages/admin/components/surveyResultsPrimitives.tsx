@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { adminSurveyApi } from '../../../api/endpoints';
 import { isCanceledRequest } from '../../../utils/http';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 export const fa = (n: number, d = 0) => n.toLocaleString('fa-IR', { maximumFractionDigits: d });
 
@@ -12,7 +13,13 @@ export function scoreColor(v: number | null) {
   return '#10b981';
 }
 
-export function scoreBg(v: number | null) {
+export function scoreBg(v: number | null, dark = false) {
+  if (dark) {
+    if (v == null) return 'rgba(148,163,184,0.14)';
+    if (v < 4) return 'rgba(239,68,68,0.16)';
+    if (v < 7) return 'rgba(245,158,11,0.16)';
+    return 'rgba(16,185,129,0.16)';
+  }
   if (v == null) return '#f8fafc';
   if (v < 4) return '#fef2f2';
   if (v < 7) return '#fffbeb';
@@ -31,15 +38,16 @@ export const EMOJI_ORDER = ['bad', 'average', 'good', 'excellent'] as const;
 export const EMOJI_KEY_TO_LABEL: Record<string, string> = { bad: 'بد', average: 'متوسط', good: 'خوب', excellent: 'عالی' };
 export const EMOJI_NUM_TO_LABEL: Record<number, string> = { 1: 'بد', 2: 'متوسط', 3: 'خوب', 4: 'عالی' };
 
-const EMOJI_VISUALS: Record<string, { color: string; bg: string }> = {
-  'بد': { color: '#ef4444', bg: '#fef2f2' },
-  'متوسط': { color: '#f59e0b', bg: '#fffbeb' },
-  'خوب': { color: '#84cc16', bg: '#f7fee7' },
-  'عالی': { color: '#10b981', bg: '#f0fdf4' },
+const EMOJI_VISUALS: Record<string, { color: string; bg: string; darkBg: string }> = {
+  'بد': { color: '#ef4444', bg: '#fef2f2', darkBg: 'rgba(239,68,68,0.16)' },
+  'متوسط': { color: '#f59e0b', bg: '#fffbeb', darkBg: 'rgba(245,158,11,0.16)' },
+  'خوب': { color: '#84cc16', bg: '#f7fee7', darkBg: 'rgba(132,204,22,0.16)' },
+  'عالی': { color: '#10b981', bg: '#f0fdf4', darkBg: 'rgba(16,185,129,0.16)' },
 };
 
-export function emojiVisual(label?: string | null) {
-  return (label && EMOJI_VISUALS[label]) || { color: '#94a3b8', bg: '#f8fafc' };
+export function emojiVisual(label?: string | null, dark = false) {
+  const visual = (label && EMOJI_VISUALS[label]) || { color: '#94a3b8', bg: '#f8fafc', darkBg: 'rgba(148,163,184,0.14)' };
+  return { color: visual.color, bg: dark ? visual.darkBg : visual.bg };
 }
 
 export function emojiLabelFromNumeric(value: number | null): string | null {
@@ -48,8 +56,9 @@ export function emojiLabelFromNumeric(value: number | null): string | null {
 }
 
 export function EmojiPill({ label, size = 'md' }: { label?: string | null; size?: 'sm' | 'md' | 'lg' }) {
+  const { mode } = useTheme();
   const sizes = { sm: 'text-sm px-2.5 py-0.5', md: 'text-base px-3 py-1', lg: 'text-xl px-4 py-2' };
-  const { color, bg } = emojiVisual(label);
+  const { color, bg } = emojiVisual(label, mode === 'dark');
   return (
     <span className={`font-bold rounded-lg ${sizes[size]}`} style={{ background: bg, color }}>
       {label || '—'}
@@ -58,10 +67,11 @@ export function EmojiPill({ label, size = 'md' }: { label?: string | null; size?
 }
 
 export function ScorePill({ value, size = 'md' }: { value: number | null; size?: 'sm' | 'md' | 'lg' }) {
+  const { mode } = useTheme();
   const sizes = { sm: 'text-sm px-2.5 py-0.5', md: 'text-base px-3 py-1', lg: 'text-2xl px-4 py-2' };
   return (
     <span className={`font-bold rounded-lg tabular-nums ${sizes[size]}`}
-      style={{ background: scoreBg(value), color: scoreColor(value) }}>
+      style={{ background: scoreBg(value, mode === 'dark'), color: scoreColor(value) }}>
       {value != null ? value.toFixed(1) : '—'}
     </span>
   );
@@ -97,10 +107,12 @@ export function Avatar({ name, photo, size = 10 }: { name: string; photo: string
 }
 
 export function RankMedal({ rank }: { rank: number }) {
+  const { mode } = useTheme();
   const style =
     rank === 1 ? { background: '#fbbf24', color: '#fff' } :
     rank === 2 ? { background: '#94a3b8', color: '#fff' } :
     rank === 3 ? { background: '#b45309', color: '#fff' } :
+    mode === 'dark' ? { background: 'rgba(148,163,184,0.18)', color: '#94a3b8' } :
                { background: '#f1f5f9', color: '#64748b' };
   return (
     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={style}>

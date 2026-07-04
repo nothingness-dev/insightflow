@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
+import { useTheme } from '../../contexts/ThemeContext';
 
 type Tab = 'active' | 'closed' | 'completed';
 
@@ -80,6 +81,7 @@ function SurveyCard({ survey }: { survey: Survey }) {
 }
 
 export default function EmployeeSurveyList() {
+  const { mode } = useTheme();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -184,7 +186,7 @@ export default function EmployeeSurveyList() {
               <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold`}
                 style={tab === t.key
                   ? { backgroundColor: 'var(--c-100)', color: 'var(--c-700)' }
-                  : { backgroundColor: '#e5e7eb', color: '#6b7280' }}>
+                  : { backgroundColor: mode === 'dark' ? '#333849' : '#e5e7eb', color: mode === 'dark' ? '#9ca3af' : '#6b7280' }}>
                 {t.count}
               </span>
             )}

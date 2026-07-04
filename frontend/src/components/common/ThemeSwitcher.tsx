@@ -9,10 +9,28 @@ const SWATCH: Record<Theme, string> = {
   red:    '#e11d48',
 };
 
+function SunIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="4" />
+      <path strokeLinecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41" />
+    </svg>
+  );
+}
+
+function MoonIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+    </svg>
+  );
+}
+
 export default function ThemeSwitcher() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, mode, toggleMode } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const isDark = mode === 'dark';
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -23,7 +41,28 @@ export default function ThemeSwitcher() {
   }, []);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative flex items-center gap-2">
+      <button
+        onClick={toggleMode}
+        title={isDark ? 'حالت روشن' : 'حالت تاریک'}
+        aria-label={isDark ? 'تغییر به حالت روشن' : 'تغییر به حالت تاریک'}
+        className="w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border-soft)', color: isDark ? '#fbbf24' : '#64748b' }}
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            key={mode}
+            initial={{ opacity: 0, rotate: -60, scale: 0.5 }}
+            animate={{ opacity: 1, rotate: 0, scale: 1 }}
+            exit={{ opacity: 0, rotate: 60, scale: 0.5 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="flex items-center justify-center"
+          >
+            {isDark ? <MoonIcon className="w-4 h-4" /> : <SunIcon className="w-4 h-4" />}
+          </motion.span>
+        </AnimatePresence>
+      </button>
+
       <button
         onClick={() => setOpen(o => !o)}
         title="تغییر رنگ‌بندی"
@@ -43,9 +82,27 @@ export default function ThemeSwitcher() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -6 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            style={{ transformOrigin: 'top left' }}
-            className="absolute left-0 top-10 bg-white rounded-xl shadow-xl border border-gray-100 p-3 z-50 min-w-[140px]"
+            style={{ transformOrigin: 'top left', backgroundColor: 'var(--surface)', borderColor: 'var(--border-soft)' }}
+            className="absolute left-0 top-10 rounded-xl shadow-xl border p-3 z-50 min-w-[160px]"
           >
+            <p className="text-xs text-gray-400 mb-2 px-1">حالت نمایش</p>
+            <div className="flex gap-1.5 mb-3 p-1 rounded-lg" style={{ backgroundColor: 'var(--surface-alt)' }}>
+              <button
+                onClick={() => { if (isDark) toggleMode(); }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all ${!isDark ? 'shadow-sm' : ''}`}
+                style={!isDark ? { backgroundColor: 'var(--surface)', color: 'var(--c-600)' } : { color: '#94a3b8' }}
+              >
+                <SunIcon className="w-3.5 h-3.5" /> روشن
+              </button>
+              <button
+                onClick={() => { if (!isDark) toggleMode(); }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all ${isDark ? 'shadow-sm' : ''}`}
+                style={isDark ? { backgroundColor: 'var(--surface)', color: 'var(--c-400)' } : { color: '#94a3b8' }}
+              >
+                <MoonIcon className="w-3.5 h-3.5" /> تاریک
+              </button>
+            </div>
+
             <p className="text-xs text-gray-400 mb-2 px-1">رنگ‌بندی سایت</p>
             <div className="space-y-1">
               {THEMES.map(t => (
