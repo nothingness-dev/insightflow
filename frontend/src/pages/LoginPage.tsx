@@ -1,11 +1,13 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { mode } = useTheme();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -24,8 +26,12 @@ export default function LoginPage() {
     } finally { setLoading(false); }
   };
 
+  const pageBackground = mode === 'dark'
+    ? 'linear-gradient(135deg, #090b11 0%, var(--c-bg) 58%, rgba(255,255,255,0.03) 100%)'
+    : 'linear-gradient(135deg, #f8fafc 0%, var(--c-50) 100%)';
+
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center p-3 sm:p-4" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, var(--c-50) 100%)' }} dir="rtl">
+    <div className="min-h-[100dvh] flex items-center justify-center p-3 sm:p-4" style={{ background: pageBackground }} dir="rtl">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
 <div className="px-5 sm:px-8 py-6 sm:py-8 text-center" style={{ backgroundColor: 'var(--c-600)' }}>

@@ -5,16 +5,21 @@ import { DashboardStats, Survey } from '../../types';
 import { StatusBadge, DashboardSkeleton } from '../../components/common/index';
 import { formatDate, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
+import { useTheme } from '../../contexts/ThemeContext';
 import toast from 'react-hot-toast';
 
-function StatCard({ label, value, bgColor, iconColor, icon }: {
+function StatCard({ label, value, bgColor, iconColor, icon, darkBgColor, darkIconColor }: {
   label: string; value: number;
   bgColor: string; iconColor: string; icon: React.ReactNode;
+  darkBgColor?: string; darkIconColor?: string;
 }) {
+  const { mode } = useTheme();
+  const isDark = mode === 'dark';
+
   return (
     <div className="card p-3 sm:p-5 flex items-center gap-3 sm:gap-4">
-      <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: bgColor }}>
-        <span style={{ color: iconColor }}>{icon}</span>
+      <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: isDark ? (darkBgColor || bgColor) : bgColor }}>
+        <span style={{ color: isDark ? (darkIconColor || iconColor) : iconColor }}>{icon}</span>
       </div>
       <div>
         <p className="text-2xl font-bold text-slate-800">{value.toLocaleString('fa-IR')}</p>
@@ -67,12 +72,12 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <StatCard label="کل نظرسنجی‌ها"  value={stats.total_surveys}     bgColor="var(--c-50)"  iconColor="var(--c-600)" icon={<SIcon />} />
-        <StatCard label="پیش‌نویس"        value={stats.draft_surveys}     bgColor="#f9fafb"      iconColor="#6b7280"     icon={<DIcon />} />
-        <StatCard label="منتشر شده"       value={stats.published_surveys} bgColor="#ecfdf5"      iconColor="#059669"     icon={<PIcon />} />
-        <StatCard label="بسته شده"        value={stats.closed_surveys}    bgColor="var(--c-50)"  iconColor="var(--c-600)" icon={<CIcon />} />
-        <StatCard label="کل پاسخ‌ها"     value={stats.total_responses}   bgColor="var(--c-100)" iconColor="var(--c-700)" icon={<RIcon />} />
-        <StatCard label="تعداد کارکنان"   value={stats.total_employees}   bgColor="#fffbeb"      iconColor="#d97706"     icon={<UIcon />} />
+        <StatCard label="کل نظرسنجی‌ها"  value={stats.total_surveys}     bgColor="var(--c-50)"  iconColor="var(--c-600)" darkBgColor="var(--c-50)" darkIconColor="var(--c-700)" icon={<SIcon />} />
+        <StatCard label="پیش‌نویس"        value={stats.draft_surveys}     bgColor="#f9fafb"      iconColor="#6b7280"     darkBgColor="rgba(148,163,184,0.14)" darkIconColor="#cbd5e1" icon={<DIcon />} />
+        <StatCard label="منتشر شده"       value={stats.published_surveys} bgColor="#ecfdf5"      iconColor="#059669"     darkBgColor="rgba(16,185,129,0.16)" darkIconColor="#6ee7b7" icon={<PIcon />} />
+        <StatCard label="بسته شده"        value={stats.closed_surveys}    bgColor="var(--c-50)"  iconColor="var(--c-600)" darkBgColor="var(--c-50)" darkIconColor="var(--c-700)" icon={<CIcon />} />
+        <StatCard label="کل پاسخ‌ها"     value={stats.total_responses}   bgColor="var(--c-100)" iconColor="var(--c-700)" darkBgColor="var(--c-100)" darkIconColor="var(--c-700)" icon={<RIcon />} />
+        <StatCard label="تعداد کارکنان"   value={stats.total_employees}   bgColor="#fffbeb"      iconColor="#d97706"     darkBgColor="rgba(245,158,11,0.16)" darkIconColor="#fcd34d" icon={<UIcon />} />
       </div>
 
       <div className="card">

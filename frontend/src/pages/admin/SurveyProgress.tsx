@@ -4,6 +4,7 @@ import { SurveyProgress, SurveyProgressDashboard } from '../../types';
 import { EmptyState, PageHeader, ProgressListSkeleton, StatusBadge } from '../../components/common/index';
 import { getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const numberFormatter = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 });
 
@@ -63,19 +64,28 @@ function SummaryCard({
   value,
   icon,
   accent,
+  darkAccent,
+  iconColor = '#334155',
+  darkIconColor = '#cbd5e1',
 }: {
   label: string;
   value: string;
   icon: React.ReactNode;
   accent: string;
+  darkAccent?: string;
+  iconColor?: string;
+  darkIconColor?: string;
 }) {
+  const { mode } = useTheme();
+  const isDark = mode === 'dark';
+
   return (
     <div className="card p-4 sm:p-5 flex items-center gap-3 sm:gap-4">
       <div
         className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ backgroundColor: accent }}
+        style={{ backgroundColor: isDark ? (darkAccent || accent) : accent }}
       >
-        <span className="text-slate-700">{icon}</span>
+        <span style={{ color: isDark ? darkIconColor : iconColor }}>{icon}</span>
       </div>
       <div className="min-w-0">
         <p className="text-2xl font-bold text-slate-800">{value}</p>
@@ -367,30 +377,45 @@ export default function SurveyProgressPage() {
               label="کل نظرسنجی‌ها"
               value={formatNumber(data.summary.total_surveys)}
               accent="var(--c-50)"
+              darkAccent="var(--c-50)"
+              iconColor="var(--c-700)"
+              darkIconColor="var(--c-700)"
               icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" /></svg>}
             />
             <SummaryCard
               label="کل پاسخ‌های تخصیص‌یافته"
               value={formatNumber(data.summary.total_assigned_responses)}
               accent="#eff6ff"
+              darkAccent="rgba(59,130,246,0.16)"
+              iconColor="#2563eb"
+              darkIconColor="#93c5fd"
               icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>}
             />
             <SummaryCard
               label="کارمندان تکمیل‌شده"
               value={formatNumber(data.summary.total_completed_responses)}
               accent="#ecfdf5"
+              darkAccent="rgba(16,185,129,0.16)"
+              iconColor="#059669"
+              darkIconColor="#6ee7b7"
               icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m9 12 2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>}
             />
             <SummaryCard
               label="شرکت‌کنندگان ناشناس"
               value={formatNumber(data.summary.total_anonymous_participants)}
               accent="#eef2ff"
+              darkAccent="rgba(99,102,241,0.16)"
+              iconColor="#4f46e5"
+              darkIconColor="#c7d2fe"
               icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>}
             />
             <SummaryCard
               label="نرخ تکمیل کلی"
               value={`${formatNumber(data.summary.overall_completion_percentage)}٪`}
               accent="#fffbeb"
+              darkAccent="rgba(245,158,11,0.16)"
+              iconColor="#d97706"
+              darkIconColor="#fcd34d"
               icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18M7 16l4-5 3 3 5-7" /></svg>}
             />
           </section>
