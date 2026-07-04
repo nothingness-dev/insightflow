@@ -24,9 +24,9 @@
 }
 
 .dark {
-  --surface: #181a24;
-  --surface-alt: #1f212d;
-  --border-soft: #262936;
+  --surface: #1c1f2a;
+  --surface-alt: #252936;
+  --border-soft: #323848;
 }
 
 @keyframes skeleton-shimmer {
@@ -128,7 +128,7 @@
   }
   .input-field:focus { box-shadow: 0 0 0 3px var(--c-200); border-color: var(--c-400); }
   .dark .input-field { @apply border-transparent text-gray-100; background-color: var(--surface-alt); }
-  .dark .input-field::placeholder { color: #6b7280; }
+  .dark .input-field::placeholder { color: #79869b; }
 
   
   .label { @apply block text-sm font-medium text-gray-700 mb-1.5; }
@@ -192,7 +192,7 @@
   }
   .sidebar-item.active { background-color: var(--c-50); color: var(--c-700); transition: background-color 0.2s ease, color 0.2s ease; }
   .sidebar-item.active:hover { background-color: var(--c-100); color: var(--c-800); }
-  .dark .sidebar-item { color: #7c8aa0; }
+  .dark .sidebar-item { color: #8b98ab; }
   .dark .sidebar-item:hover { @apply text-gray-100; background-color: var(--surface-alt); }
 
   
@@ -366,21 +366,25 @@
 .dark .text-slate-800, .dark .text-gray-900, .dark .text-gray-800 { color: #f1f5f9; }
 .dark .text-slate-700, .dark .text-gray-700                       { color: #e2e8f0; }
 .dark .text-slate-600, .dark .text-gray-600                       { color: #cbd5e1; }
-.dark .text-slate-500, .dark .text-gray-500                       { color: #94a3b8; }
-.dark .text-slate-400, .dark .text-gray-400                       { color: #7c8aa0; }
-.dark .text-gray-300, .dark .text-slate-200                       { color: #5b6478; }
+.dark .text-slate-500, .dark .text-gray-500                       { color: #9ca9bd; }
+.dark .text-slate-400, .dark .text-gray-400                       { color: #8b98ab; }
+.dark .text-gray-300, .dark .text-slate-200                       { color: #717e93; }
 
 /* Borders */
-.dark .border-gray-50,  .dark .border-slate-50  { border-color: #24273330; }
+.dark .border-gray-50,  .dark .border-slate-50  { border-color: #232733; }
 .dark .border-gray-100, .dark .border-slate-100 { border-color: var(--border-soft); }
-.dark .border-gray-200, .dark .border-slate-200 { border-color: #333849; }
-.dark .border-gray-300, .dark .border-slate-300 { border-color: #454b5e; }
-.dark .border-slate-400 { border-color: #5b6478; }
-.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--border-soft); }
-.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #333849; }
+.dark .border-gray-200, .dark .border-slate-200 { border-color: #3d4457; }
+.dark .border-gray-300, .dark .border-slate-300 { border-color: #4d5568; }
+.dark .border-slate-400 { border-color: #626b80; }
+.dark .divide-gray-50  > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-50 > :not([hidden]) ~ :not([hidden]) { border-color: #232733; }
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--border-soft); }
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #3d4457; }
 
 /* Placeholders */
-.dark .placeholder-gray-400::placeholder { color: #6b7686; }
+.dark .placeholder-gray-400::placeholder { color: #79869b; }
+.dark .placeholder-gray-300::placeholder { color: #5f6b7f; }
 
 /* Shadows read as too-black / invisible on dark surfaces — soften and rely
    more on the (already-adjusted) border color for definition. */

@@ -1,3 +1,36 @@
+## [2.7.1] — 2026-07-04
+
+### Dark mode contrast fixes
+
+Follow-up to the [2.7.0] dark mode release — several gray elements were too
+dim against the dark surfaces.
+
+- **Page vs. card separation was too subtle.** The per-accent dark page
+  background (`--c-bg`) and the generic card surface (`--surface`) were too
+  close in lightness, so cards barely stood out from the page. Darkened all
+  four `--c-bg` values and widened the `--surface` → `--surface-alt` →
+  `--border-soft` ladder in `globals.css` so cards, secondary buttons, and
+  badges are clearly distinguishable from the page and from each other.
+- **Gray text scale brightened.** `text-gray-400/300`, `text-slate-400/200`,
+  and both placeholder shades were too dim to read comfortably on dark
+  surfaces — brightened the whole scale a step, most noticeably the dimmest
+  tones (`text-gray-300`, `placeholder-gray-300`).
+- **Missing overrides added:** `divide-gray-50`/`divide-slate-50` (some
+  lists use `-50` instead of `-100` for row separators), and
+  `placeholder-gray-300`. These utility classes were simply never covered
+  before.
+- **Fixed an unrelated pre-existing bug** in `ConfirmModal`
+  (`components/common/index.tsx`) found while auditing: the non-danger
+  variant's icon circle was setting its background via
+  `className={... : 'var(--c-50)'}` — a CSS custom property used as a
+  Tailwind class name, which is invalid and renders as no background at
+  all. It now correctly applies `backgroundColor: 'var(--c-50)'` via
+  `style`. This affected light mode too, just less noticeably against a
+  white page.
+
+No backend/DB/Redis changes — CSS/component-only. Verified with `tsc
+--noEmit` and `vite build`.
+
 ## [2.7.0] — 2026-07-04
 
 ### Light / dark theme mode
