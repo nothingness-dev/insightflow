@@ -3,7 +3,7 @@ import io
 from django.http import HttpResponse
 from django.utils import timezone
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Q, F
+from django.db.models import Count, Max, Q, F
 from rest_framework import status, generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -27,12 +27,41 @@ import logging
 from django.conf import settings
 from django.core.cache import cache
 from apps.core.cache import (
-    key_dashboard, key_survey_results, key_employee_survey_list,
+    key_dashboard, key_survey_results, key_employee_survey_list, key_hash_links,
     invalidate_dashboard, invalidate_survey_results,
     invalidate_all_employee_survey_lists, invalidate_employee_survey_list,
+    invalidate_hash_links,
 )
 
 logger = logging.getLogger('apps')
+
+
+def survey_results_cache_key(survey: Survey) -> str:
+    ratings_state = survey.ratings.aggregate(
+        count=Count('id'),
+        latest=Max('created_at'),
+    )
+    people_state = survey.people.filter(is_active=True).aggregate(
+        count=Count('id'),
+        latest=Max('updated_at'),
+    )
+    questions_state = survey.questions.filter(is_active=True).aggregate(
+        count=Count('id'),
+        latest=Max('updated_at'),
+    )
+    latest_rating = ratings_state['latest']
+    latest_person = people_state['latest']
+    latest_question = questions_state['latest']
+    signature = ':'.join([
+        str(ratings_state['count'] or 0),
+        latest_rating.isoformat() if latest_rating else 'none',
+        str(people_state['count'] or 0),
+        latest_person.isoformat() if latest_person else 'none',
+        str(questions_state['count'] or 0),
+        latest_question.isoformat() if latest_question else 'none',
+        survey.updated_at.isoformat() if survey.updated_at else 'none',
+    ])
+    return f'{key_survey_results(survey.id)}:{signature}'
 
 try:
     import openpyxl
@@ -307,7 +336,7 @@ class AdminSurveyResultsView(APIView):
         except Survey.DoesNotExist:
             return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
-        ck = key_survey_results(pk)
+        ck = survey_results_cache_key(survey)
         cached = cache.get(ck)
         if cached is not None:
             return Response(cached)
@@ -1334,9 +1363,18 @@ class AdminHashLinkListCreateView(APIView):
         except Survey.DoesNotExist:
             return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
+        cache_key = key_hash_links(survey.id)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
         links = survey.hash_links.all().order_by('-created_at')
-        serializer = SurveyHashLinkSerializer(links, many=True)
-        return Response(serializer.data)
+        data = SurveyHashLinkSerializer(links, many=True).data
+        try:
+            cache.set(cache_key, data, timeout=60)
+        except Exception:
+            logger.debug('cache.set for hash_links(%s) failed silently', survey.id)
+        return Response(data)
 
     def post(self, request, survey_id):
         try:
@@ -1351,7 +1389,20 @@ class AdminHashLinkListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        link = SurveyHashLink.objects.create(survey=survey, label=label)
+        serializer = SurveyHashLinkSerializer(data={
+            'label': label,
+            'max_participants': request.data.get('max_participants'),
+            'expiry_value': request.data.get('expiry_value'),
+            'expiry_unit': request.data.get('expiry_unit'),
+        })
+        serializer.is_valid(raise_exception=True)
+        link = SurveyHashLink.objects.create(
+            survey=survey,
+            label=label,
+            max_participants=serializer.validated_data.get('max_participants'),
+            expiry_value=serializer.validated_data.get('expiry_value'),
+            expiry_unit=serializer.validated_data.get('expiry_unit'),
+        )
 
         log_activity(
             ActivityActions.HASH_LINK_CREATE,
@@ -1360,9 +1411,15 @@ class AdminHashLinkListCreateView(APIView):
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
-            metadata={'token': link.token, 'label': label},
+            metadata={
+                'token': link.token, 'label': label,
+                'max_participants': link.max_participants,
+                'expiry_value': link.expiry_value,
+                'expiry_unit': link.expiry_unit,
+            },
         )
         invalidate_dashboard()
+        invalidate_hash_links(survey.id)
         return Response(SurveyHashLinkSerializer(link).data, status=status.HTTP_201_CREATED)
 
 
@@ -1377,10 +1434,25 @@ class AdminHashLinkDetailView(APIView):
             return Response({'detail': 'لینک هش یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
         old_active = link.is_active
+        limits_changed = False
+
         if 'label' in request.data:
             link.label = (request.data['label'] or '').strip()
         if 'is_active' in request.data:
             link.is_active = bool(request.data['is_active'])
+
+        limit_fields = {}
+        for field in ('max_participants', 'expiry_value', 'expiry_unit'):
+            if field in request.data:
+                limit_fields[field] = request.data[field]
+                limits_changed = True
+
+        if limit_fields:
+            serializer = SurveyHashLinkSerializer(link, data=limit_fields, partial=True)
+            serializer.is_valid(raise_exception=True)
+            for field, value in limit_fields.items():
+                setattr(link, field, serializer.validated_data.get(field) if field in serializer.validated_data else value)
+
         link.save()
 
         if old_active != link.is_active:
@@ -1395,6 +1467,23 @@ class AdminHashLinkDetailView(APIView):
                 metadata={'token': link.token, 'is_active': link.is_active},
             )
 
+        if limits_changed:
+            log_activity(
+                ActivityActions.HASH_LINK_UPDATE_LIMITS,
+                request=request,
+                description=f'محدودیت‌های لینک هش نظرسنجی «{link.survey.title}» تغییر کرد',
+                target_type='survey',
+                target_id=link.survey.id,
+                target_repr=link.survey.title,
+                metadata={
+                    'token': link.token,
+                    'max_participants': link.max_participants,
+                    'expiry_value': link.expiry_value,
+                    'expiry_unit': link.expiry_unit,
+                },
+            )
+
+        invalidate_hash_links(link.survey.id)
         return Response(SurveyHashLinkSerializer(link).data)
 
     def delete(self, request, pk):
@@ -1417,7 +1506,9 @@ class AdminHashLinkDetailView(APIView):
             metadata={'token': token},
         )
         invalidate_dashboard()
+        invalidate_hash_links(survey.id)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class AnonymousSurveyDetailView(APIView):
     """Return survey detail for an anonymous participant using a hash token.
@@ -1436,6 +1527,9 @@ class AnonymousSurveyDetailView(APIView):
         if not link.is_active:
             return Response({'detail': 'این لینک غیرفعال شده است.'}, status=status.HTTP_403_FORBIDDEN)
 
+        if link.is_expired:
+            return Response({'detail': 'مهلت استفاده از این لینک به پایان رسیده است.'}, status=status.HTTP_403_FORBIDDEN)
+
         survey = link.survey
         if survey.status == Survey.STATUS_DRAFT:
             return Response({'detail': 'این نظرسنجی هنوز منتشر نشده است.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1448,6 +1542,9 @@ class AnonymousSurveyDetailView(APIView):
                 survey=survey, hash_link=link, ip_address=client_ip
             ).exists()
         )
+
+        if link.is_full and not ip_locked:
+            return Response({'detail': 'ظرفیت شرکت‌کنندگان این لینک تکمیل شده است.'}, status=status.HTTP_403_FORBIDDEN)
 
         from .serializers import SurveyPublicSerializer
         data = SurveyPublicSerializer(survey, context={'request': request}).data
@@ -1469,6 +1566,9 @@ class AnonymousRatePersonView(APIView):
         if not link.is_active:
             return Response({'detail': 'این لینک غیرفعال شده است.'}, status=status.HTTP_403_FORBIDDEN)
 
+        if link.is_expired:
+            return Response({'detail': 'مهلت استفاده از این لینک به پایان رسیده است.'}, status=status.HTTP_403_FORBIDDEN)
+
         survey = link.survey
         client_ip = get_client_ip(request)
         if survey.status == Survey.STATUS_DRAFT:
@@ -1479,12 +1579,17 @@ class AnonymousRatePersonView(APIView):
         if not anon_session or len(anon_session) > 64:
             return Response({'detail': 'توکن ناشناس معتبر نیست.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if client_ip and AnonymousParticipation.objects.filter(
+        already_locked = bool(client_ip and AnonymousParticipation.objects.filter(
             survey=survey,
             hash_link=link,
             ip_address=client_ip,
-        ).exists():
+        ).exists())
+
+        if already_locked:
             return Response({'detail': 'از این دستگاه/آدرس IP قبلا در این نظرسنجی شرکت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if link.is_full:
+            return Response({'detail': 'ظرفیت شرکت‌کنندگان این لینک تکمیل شده است.'}, status=status.HTTP_403_FORBIDDEN)
         try:
             person = SurveyPerson.objects.get(pk=person_id, survey=survey, is_active=True)
         except SurveyPerson.DoesNotExist:

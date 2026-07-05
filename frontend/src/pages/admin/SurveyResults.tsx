@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { adminSurveyApi } from '../../api/endpoints';
-import type { SurveyResults } from '../../types';
+import type { PersonResult, Survey, SurveyResults } from '../../types';
 import { ResultsSkeleton } from '../../components/common/index';
 import { downloadBlob, getBlobErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
@@ -14,6 +14,14 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'questions', label: 'تحلیل سوال‌ها' },
   { id: 'people',    label: 'نتایج فردی' },
 ];
+
+function normalizeResultsPayload(payload: SurveyResults): SurveyResults {
+  return {
+    ...payload,
+    survey: (payload?.survey ?? {}) as Survey,
+    results: Array.isArray(payload?.results) ? (payload.results as PersonResult[]) : [],
+  };
+}
 
 export default function SurveyResultsPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +43,7 @@ export default function SurveyResultsPage() {
     setData(null);
 
     adminSurveyApi.results(surveyId, controller.signal)
-      .then(r => setData(r.data))
+      .then(r => setData(normalizeResultsPayload(r.data)))
       .catch(error => {
         if (isCanceledRequest(error, controller.signal)) return;
         toast.error('خطا در بارگذاری نتایج');
@@ -88,7 +96,8 @@ export default function SurveyResultsPage() {
   if (loading) return <ResultsSkeleton />;
   if (!data)  return null;
 
-  const { survey, results } = data;
+  const survey = data.survey;
+  const results = Array.isArray(data.results) ? data.results : [];
 
   return (
     <div className="responsive-page max-w-4xl">
@@ -104,11 +113,11 @@ export default function SurveyResultsPage() {
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-slate-800 truncate">{survey.title}</h1>
             <p className="text-sm text-slate-400 mt-1">
-              {survey.questions?.length ?? survey.questions_count ?? 0} سوال
+              {fa(survey.questions?.length ?? survey.questions_count ?? 0)} سوال
               &nbsp;·&nbsp;
-              {survey.people_count} فرد ارزیابی‌شونده
+              {fa(survey.people_count)} فرد ارزیابی‌شونده
               &nbsp;·&nbsp;
-              {results.length} نتیجه ثبت‌شده
+              {fa(results.length)} نتیجه ثبت‌شده
             </p>
           </div>
           <div className="flex flex-wrap gap-2 flex-shrink-0">

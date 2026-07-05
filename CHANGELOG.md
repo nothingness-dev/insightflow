@@ -1,3 +1,89 @@
+## [2.8.2] — 2026-07-05
+
+### Removed the anonymous IP-lock admin UI entirely; enhanced the Audit Log instead
+
+- The dedicated "آدرس‌های IP قفل‌شده" panel and its unlock/remove actions
+  (added in 2.8.0/2.8.1) have been **removed completely** — backend views
+  (`AdminHashLinkLocksView`, `AdminHashLinkLockDetailView`), their URLs,
+  the `HashLinkLockSerializer`, the `hash_link_unlock_ip` /
+  `hash_link_remove_participant` activity actions, and the frontend
+  `HashLinkLocksModal` component and its wiring in `HashLinksPanel` are all
+  gone. Anonymous IP-based duplicate-prevention itself is untouched and
+  still works exactly as before — only the admin management UI around it
+  was removed.
+- **In its place, the Activity Log (`ActivityCenter`) was enhanced** so
+  admins can already see everything they need there instead:
+  - Each row in the audit log table is now expandable (click to
+    open/close, with a chevron indicator) and reveals a details panel with
+    the event's target, full IP address, full user agent, and every
+    non-empty `metadata` field — with common keys (`token`, `label`,
+    `max_participants`, `expiry_value`/`expiry_unit`, `ip_address`, etc.)
+    translated to readable Persian labels instead of raw JSON keys.
+  - Booleans render as "بله"/"خیر", `expiry_unit` values render as
+    "ساعت"/"روز"/"هفته", and arrays/objects are formatted readably instead
+    of dumping raw JSON.
+  - This reuses the `metadata` JSON field that was already being recorded
+    on every hash-link related `log_activity(...)` call (creation, toggle,
+    limit changes) — no backend changes were needed for this, it was
+    already there and simply wasn't surfaced in the UI before.
+
+### Anonymous hash link controls: participant limits, expiry
+
+- **Optional per-link participant limit.** `SurveyHashLink.max_participants`
+  (nullable) can be set on creation or edited later. Once
+  `anonymous_participant_count` reaches the limit, new anonymous
+  participants are blocked with a clear Persian error message.
+- **Optional link expiry duration.** Admins choose a duration (e.g. "5
+  ساعت", "2 روز", "1 هفته") instead of a fixed date —
+  `expiry_value` + `expiry_unit` (`hours`/`days`/`weeks`) are stored and
+  `expires_at` is computed and cached on the model (`SurveyHashLink.save()`
+  / `_compute_expires_at()`). Both the anonymous survey-detail and
+  submission endpoints reject expired links with a 403 and Persian message.
+  Clearing both fields (send `null`/`null`) removes the expiry.
+- **Backend wiring:**
+  - `PATCH /admin/hash-links/<id>/` and `POST
+    /admin/surveys/<id>/hash-links/` accept `max_participants`,
+    `expiry_value`, `expiry_unit`.
+  - `SurveyHashLinkSerializer` validates limits are positive, expiry
+    value/unit are set or cleared together, and exposes read-only
+    `is_expired`/`is_full`/`expires_at`.
+  - Migration `surveys/0012_...` adds `max_participants`, `expiry_value`,
+    `expiry_unit`, `expires_at` to `SurveyHashLink`.
+  - New activity action `hash_link_update_limits` for auditing.
+- **Redis wiring:** the previously-defined but unused
+  `key_hash_links`/`invalidate_hash_links` cache helpers in
+  `apps/core/cache.py` are now actually used — the admin hash-link list
+  endpoint is cached in Redis for 60s and invalidated on every create,
+  update, and delete.
+- **Frontend:** `HashLinksPanel` gained optional "محدود کردن تعداد
+  شرکت‌کنندگان" and "تعیین مهلت انقضا" controls, redesigned as a clear
+  two-column card layout with icons, a highlighted border/background when
+  a limit is enabled, and explicit "بدون محدودیت"/"بدون انقضا" hints
+  otherwise. Status badges added for "منقضی شده"/"ظرفیت تکمیل".
+  `types/index.ts` and `api/endpoints.ts` updated to match.
+- **Dark theme pass:** removed hardcoded `bg-white` utility classes that
+  fought with the app's dark-theme override system; replaced with
+  `.input-field`'s own styling and dark-safe Tailwind shades already
+  covered by `globals.css` (`border-emerald-200`/`border-amber-200` instead
+  of the uncovered `-300` variants, `bg-gray-50` instead of `bg-white` for
+  the token chip, themed checkboxes via `text-[color:var(--c-600)]`,
+  matching the pattern already used in `UserManagement.tsx`).
+
+### Bug fix: stray error toast when navigating away from a survey's detail page
+
+- `SurveyDetail.tsx`'s `handlePersonSaved` refreshed the participant list
+  with `adminPersonApi.list(surveyId).then(...)` and **no `.catch` at
+  all**. If the admin saved a person and then navigated to another admin
+  page before that request settled, a failed/interrupted request became an
+  unhandled promise rejection, which could surface as an unintended error
+  popup. Added a proper `.catch` with `isCanceledRequest` handling (silently
+  ignored) and a Persian `toast.error` for genuine failures, matching the
+  pattern already used everywhere else in this file.
+
+Verified with `python manage.py check`, a full migration + smoke-test pass
+(create/list/patch/clear/validate) against a throwaway sqlite DB,
+`tsc --noEmit`, and `vite build`.
+
 ## [2.7.1] — 2026-07-04
 
 ### Dark mode contrast fixes

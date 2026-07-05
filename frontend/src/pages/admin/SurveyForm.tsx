@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { adminSurveyApi } from '../../api/endpoints';
 import { Survey, SurveyQuestionInput } from '../../types';
 import { Modal, PageHeader, FormSkeleton } from '../../components/common/index';
-import { getErrorMessage } from '../../utils/helpers';
+import { formatNumber, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
 
@@ -312,7 +312,7 @@ export default function SurveyForm() {
             {form.questions.map((question, index) => (
               <div key={question.id || index} className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
                 <div className="flex items-center justify-between gap-3 mb-3">
-                  <p className="text-sm font-bold text-slate-700">سوال {index + 1}</p>
+                  <p className="text-sm font-bold text-slate-700">سوال {formatNumber(index + 1)}</p>
                   <button
                     type="button"
                     onClick={() => removeQuestion(index)}
@@ -433,7 +433,7 @@ export default function SurveyForm() {
           <div className="space-y-3">
             {form.questions.map((question, index) => (
               <div key={index} className="rounded-2xl border border-gray-100 p-4">
-                <p className="text-sm font-bold text-slate-800">{index + 1}. {question.text}</p>
+                <p className="text-sm font-bold text-slate-800">{formatNumber(index + 1)}. {question.text}</p>
                 {question.help_text && <p className="text-xs text-gray-400 mt-1">{question.help_text}</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
                   {question.has_score && <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">امتیاز عددی {question.score_required ? 'الزامی' : 'اختیاری'}</span>}

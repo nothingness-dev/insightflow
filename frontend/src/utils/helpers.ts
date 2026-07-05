@@ -1,5 +1,18 @@
 import { AxiosError } from 'axios';
 
+const faNumberFormatter = new Intl.NumberFormat('fa-IR');
+
+export function formatNumber(value: number | string | null | undefined, maximumFractionDigits = 0): string {
+  const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+  if (!Number.isFinite(numericValue)) return '۰';
+  return new Intl.NumberFormat('fa-IR', { maximumFractionDigits }).format(numericValue);
+}
+
+export function toPersianDigits(value: number | string | null | undefined): string {
+  if (value == null) return '';
+  return String(value).replace(/\d/g, digit => faNumberFormatter.format(Number(digit)));
+}
+
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';
   try {

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { employeeApi } from '../../api/endpoints';
 import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../../types';
 import { PageLoader, Modal, PersonGridSkeleton, Skeleton } from '../../components/common/index';
-import { getErrorMessage } from '../../utils/helpers';
+import { formatNumber, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 import { useTheme } from '../../contexts/ThemeContext';
 import { motion } from 'framer-motion';
@@ -262,7 +262,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
                 <p className="font-bold text-slate-800 text-base">{person.full_name}</p>
                 <p className="text-sm text-gray-400">{[person.role_title, person.department].filter(Boolean).join(' — ')}</p>
                 <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
-                  برای این فرد باید به همه {questions.length} سوال پاسخ دهید.
+                  برای این فرد باید به همه {formatNumber(questions.length)} سوال پاسخ دهید.
                 </p>
               </div>
             </div>
@@ -274,7 +274,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
               <div key={question.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-3 sm:p-4">
                     <div className="mb-3">
                       <p className="text-sm font-bold text-slate-800 leading-relaxed">
-                        {index + 1}. {question.text}
+                        {formatNumber(index + 1)}. {question.text}
                       </p>
                       {question.help_text && <p className="text-xs text-gray-400 mt-1">{question.help_text}</p>}
                       <p className="text-[11px] text-gray-400 mt-1">{getQuestionTypeLabel(question)}</p>
@@ -293,7 +293,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
                               onClick={() => updateAnswer(question.id, { score: s })}
                               className={`py-2.5 rounded-xl border-2 text-sm font-bold transition-all duration-150 ${getColor(s, answer.score === s)}`}
                             >
-                              {s}
+                              {formatNumber(s)}
                             </button>
                           ))}
                         </div>
@@ -326,7 +326,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
                           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--c-400)] focus:border-transparent resize-none placeholder-gray-300 leading-relaxed bg-white"
                         />
                         {answer.comment.length > 0 && (
-                          <p className="text-xs text-gray-400 text-left mt-1">{answer.comment.length}/۱۰۰۰</p>
+                          <p className="text-xs text-gray-400 text-left mt-1">{formatNumber(answer.comment.length)}/{formatNumber(1000)}</p>
                         )}
                       </div>
                     )}
@@ -472,7 +472,7 @@ export default function EmployeeSurveyDetail() {
           </span>
         </div>
 
-        <p className="text-gray-600 leading-relaxed">برای هر فرد باید به {questionCount} سوال پاسخ دهید.</p>
+        <p className="text-gray-600 leading-relaxed">برای هر فرد باید به {formatNumber(questionCount)} سوال پاسخ دهید.</p>
         {survey.description && (
           <p className="text-sm text-gray-400 leading-relaxed border-t border-gray-100 pt-3 mt-3">{survey.description}</p>
         )}
@@ -495,7 +495,7 @@ export default function EmployeeSurveyDetail() {
           <div className="mt-4">
             <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
               <span>پیشرفت پاسخ‌دهی</span>
-              <span className="font-semibold" style={{ color: 'var(--c-700)' }}>{ratedCount} از {totalCount} نفر — {pct}٪</span>
+              <span className="font-semibold" style={{ color: 'var(--c-700)' }}>{formatNumber(ratedCount)} از {formatNumber(totalCount)} نفر — {formatNumber(pct)}٪</span>
             </div>
             <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
               <motion.div
@@ -523,16 +523,16 @@ export default function EmployeeSurveyDetail() {
           {!isEnded && !allDone && (
             <div className="mb-4 flex items-start gap-3 rounded-xl px-4 py-3 border text-sm"
               style={{ backgroundColor: 'var(--c-50)', borderColor: 'var(--c-200)', color: 'var(--c-700)' }}>
-              <span>برای هر یک از <strong>{totalCount} نفر</strong> باید به <strong>{questionCount} سوال</strong> پاسخ دهید. هیچ سوالی نباید خالی بماند.
-                {ratedCount > 0 && <span className="mr-1">({totalCount - ratedCount} نفر باقی‌مانده)</span>}
+              <span>برای هر یک از <strong>{formatNumber(totalCount)} نفر</strong> باید به <strong>{formatNumber(questionCount)} سوال</strong> پاسخ دهید. هیچ سوالی نباید خالی بماند.
+                {ratedCount > 0 && <span className="mr-1">({formatNumber(totalCount - ratedCount)} نفر باقی‌مانده)</span>}
               </span>
             </div>
           )}
 
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-slate-700">{totalCount} نفر در این نظرسنجی</p>
+            <p className="text-sm font-semibold text-slate-700">{formatNumber(totalCount)} نفر در این نظرسنجی</p>
             {!isEnded && ratedCount > 0 && !allDone && (
-              <p className="text-xs text-gray-400">{ratedCount} از {totalCount} نفر تکمیل شده</p>
+              <p className="text-xs text-gray-400">{formatNumber(ratedCount)} از {formatNumber(totalCount)} نفر تکمیل شده</p>
             )}
           </div>
           <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">

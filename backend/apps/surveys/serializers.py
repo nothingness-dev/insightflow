@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Count
+from django.utils import timezone
 from .models import Survey, SurveyQuestion, SurveyPerson, Rating, SurveyHashLink
 
 
@@ -359,14 +360,61 @@ class SurveyProgressDashboardSerializer(serializers.Serializer):
 
 
 class SurveyHashLinkSerializer(serializers.ModelSerializer):
+    is_expired = serializers.BooleanField(read_only=True)
+    is_full = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = SurveyHashLink
         fields = [
             'id', 'survey', 'token', 'label',
             'is_active', 'anonymous_participant_count', 'created_at',
+            'max_participants', 'expiry_value', 'expiry_unit', 'expires_at',
+            'is_expired', 'is_full',
         ]
-        read_only_fields = ['id', 'survey', 'token', 'anonymous_participant_count', 'created_at']
+        read_only_fields = [
+            'id', 'survey', 'token', 'anonymous_participant_count', 'created_at',
+            'expires_at', 'is_expired', 'is_full',
+        ]
 
     def validate_label(self, value):
         return value.strip()
+
+    def validate_max_participants(self, value):
+        if value is not None and value < 1:
+            raise serializers.ValidationError('حداقل تعداد شرکت‌کنندگان باید ۱ نفر باشد.')
+        if (
+            value is not None
+            and self.instance is not None
+            and value <= self.instance.anonymous_participant_count
+        ):
+            raise serializers.ValidationError('محدودیت باید بیشتر از تعداد شرکت‌کنندگان ناشناس فعلی باشد.')
+        return value
+
+    def validate_expiry_value(self, value):
+        if value is not None and not (1 <= value <= 1000):
+            raise serializers.ValidationError('مقدار انقضا باید بین ۱ تا ۱۰۰۰ باشد.')
+        return value
+
+    def validate(self, attrs):
+        # expiry_value and expiry_unit must be set/cleared together.
+        has_value = 'expiry_value' in attrs
+        has_unit = 'expiry_unit' in attrs
+        value = attrs.get('expiry_value', getattr(self.instance, 'expiry_value', None) if self.instance else None)
+        unit = attrs.get('expiry_unit', getattr(self.instance, 'expiry_unit', None) if self.instance else None)
+        if (has_value or has_unit) and bool(value) != bool(unit):
+            raise serializers.ValidationError({
+                'expiry_value': 'برای تعیین انقضا باید هم مقدار و هم واحد زمانی مشخص شود، یا هر دو خالی بمانند.'
+            })
+        if self.instance is not None and value and unit:
+            if unit == SurveyHashLink.EXPIRY_UNIT_WEEKS:
+                expiry_hours = value * 7 * 24
+            elif unit == SurveyHashLink.EXPIRY_UNIT_DAYS:
+                expiry_hours = value * 24
+            else:
+                expiry_hours = value
+            elapsed_hours = int((timezone.now() - self.instance.created_at).total_seconds() // 3600) + 1
+            if expiry_hours < max(1, elapsed_hours):
+                raise serializers.ValidationError({
+                    'expiry_value': 'مهلت انقضا باید بیشتر از زمان گذشته از ایجاد لینک باشد.'
+                })
+        return attrs

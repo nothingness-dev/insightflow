@@ -2,6 +2,7 @@ import os
 import uuid
 import secrets
 import string
+from datetime import timedelta
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -133,6 +134,29 @@ class SurveyHashLink(models.Model):
     anonymous_participant_count = models.PositiveIntegerField(
         default=0, verbose_name='تعداد شرکت‌کنندگان ناشناس'
     )
+    max_participants = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name='حداکثر تعداد شرکت‌کنندگان',
+        validators=[MinValueValidator(1)],
+    )
+
+    EXPIRY_UNIT_HOURS = 'hours'
+    EXPIRY_UNIT_DAYS = 'days'
+    EXPIRY_UNIT_WEEKS = 'weeks'
+    EXPIRY_UNIT_CHOICES = [
+        (EXPIRY_UNIT_HOURS, 'ساعت'),
+        (EXPIRY_UNIT_DAYS, 'روز'),
+        (EXPIRY_UNIT_WEEKS, 'هفته'),
+    ]
+    expiry_value = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name='مقدار انقضا',
+        validators=[MinValueValidator(1), MaxValueValidator(1000)],
+    )
+    expiry_unit = models.CharField(
+        max_length=10, choices=EXPIRY_UNIT_CHOICES, null=True, blank=True,
+        verbose_name='واحد انقضا',
+    )
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name='زمان انقضا')
+
     created_at = models.DateTimeField(default=timezone.now, verbose_name='تاریخ ایجاد')
 
     class Meta:
@@ -143,12 +167,39 @@ class SurveyHashLink(models.Model):
     def __str__(self):
         return f"لینک {self.token} - {self.survey.title}"
 
+    def _compute_expires_at(self):
+        if not self.expiry_value or not self.expiry_unit:
+            return None
+        base = self.created_at or timezone.now()
+        if self.expiry_unit == self.EXPIRY_UNIT_HOURS:
+            delta = timedelta(hours=self.expiry_value)
+        elif self.expiry_unit == self.EXPIRY_UNIT_DAYS:
+            delta = timedelta(days=self.expiry_value)
+        elif self.expiry_unit == self.EXPIRY_UNIT_WEEKS:
+            delta = timedelta(weeks=self.expiry_value)
+        else:
+            return None
+        return base + delta
+
     def save(self, *args, **kwargs):
         if not self.token:
             self.token = generate_hash_token()
             while SurveyHashLink.objects.filter(token=self.token).exists():
                 self.token = generate_hash_token()
+        self.expires_at = self._compute_expires_at()
         super().save(*args, **kwargs)
+
+    @property
+    def is_expired(self):
+        return bool(self.expires_at and timezone.now() >= self.expires_at)
+
+    @property
+    def is_full(self):
+        return bool(self.max_participants and self.anonymous_participant_count >= self.max_participants)
+
+    @property
+    def is_usable(self):
+        return self.is_active and not self.is_expired and not self.is_full
 
 
 class AnonymousParticipation(models.Model):

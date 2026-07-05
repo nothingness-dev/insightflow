@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { adminSurveyApi } from '../../api/endpoints';
 import { Survey } from '../../types';
 import { StatusBadge, PageHeader, EmptyState, SearchInput, ConfirmModal, TableSkeleton } from '../../components/common/index';
-import { formatDate, getErrorMessage } from '../../utils/helpers';
+import { formatDate, formatNumber, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
 
@@ -163,13 +163,13 @@ export default function AdminSurveyList() {
                     <td className="px-4 sm:px-6 py-4">
                       <div>
                         <p className="font-medium text-slate-800">{survey.title}</p>
-                        <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{survey.questions_count || survey.questions?.length || 0} سوال — {survey.questions?.[0]?.text || survey.question || 'بدون سوال'}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{formatNumber(survey.questions_count || survey.questions?.length || 0)} سوال — {survey.questions?.[0]?.text || survey.question || 'بدون سوال'}</p>
                         <div className="md:hidden mt-1"><StatusBadge status={survey.status} /></div>
                       </div>
                     </td>
                     <td className="px-4 py-4 hidden md:table-cell"><StatusBadge status={survey.status} /></td>
-                    <td className="px-4 py-4 hidden lg:table-cell text-gray-600">{survey.people_count}</td>
-                    <td className="px-4 py-4 hidden lg:table-cell text-gray-600">{survey.total_responses}</td>
+                    <td className="px-4 py-4 hidden lg:table-cell text-gray-600">{formatNumber(survey.people_count)}</td>
+                    <td className="px-4 py-4 hidden lg:table-cell text-gray-600">{formatNumber(survey.total_responses)}</td>
                     <td className="px-4 py-4 hidden md:table-cell text-gray-500 text-xs">{formatDate(survey.created_at)}</td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-1 justify-end flex-wrap whitespace-nowrap">

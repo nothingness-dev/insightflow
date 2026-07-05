@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { adminSurveyApi, adminPersonApi } from '../../api/endpoints';
 import { Survey, SurveyPerson } from '../../types';
 import { StatusBadge, SurveyDetailSkeleton, ConfirmModal } from '../../components/common/index';
-import { formatDateTime, getErrorMessage } from '../../utils/helpers';
+import { formatDateTime, formatNumber, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
 import PersonModal from '../../components/admin/PersonModal';
@@ -100,7 +100,12 @@ export default function SurveyDetail() {
 
   const handlePersonSaved = () => {
     setPersonModal({ open: false });
-    adminPersonApi.list(surveyId).then(r => setPeople(Array.isArray(r.data) ? r.data : (r.data as any).results || []));
+    adminPersonApi.list(surveyId)
+      .then(r => setPeople(Array.isArray(r.data) ? r.data : (r.data as any).results || []))
+      .catch(error => {
+        if (isCanceledRequest(error)) return;
+        toast.error('خطا در بارگذاری فهرست افراد');
+      });
   };
 
   if (loading || !survey) return <SurveyDetailSkeleton />;
@@ -127,7 +132,7 @@ export default function SurveyDetail() {
             </div>
             <h1 className="text-xl font-bold text-slate-800 mb-1">{survey.title}</h1>
             <p className="text-gray-600 text-sm leading-relaxed">
-              {survey.questions_count || survey.questions?.length || 0} سوال برای هر فرد در این نظرسنجی تعریف شده است.
+              {formatNumber(survey.questions_count || survey.questions?.length || 0)} سوال برای هر فرد در این نظرسنجی تعریف شده است.
             </p>
             {survey.description && (
               <p className="text-gray-400 text-xs mt-2 leading-relaxed">{survey.description}</p>
@@ -138,19 +143,19 @@ export default function SurveyDetail() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t border-gray-100">
           <div>
             <p className="text-xs text-gray-400">افراد</p>
-            <p className="text-lg font-semibold text-slate-700">{survey.people_count}</p>
+            <p className="text-lg font-semibold text-slate-700">{formatNumber(survey.people_count)}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400">سوال‌ها</p>
-            <p className="text-lg font-semibold text-slate-700">{survey.questions_count || survey.questions?.length || 0}</p>
+            <p className="text-lg font-semibold text-slate-700">{formatNumber(survey.questions_count || survey.questions?.length || 0)}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400">شرکت‌کنندگان (کاربر)</p>
-            <p className="text-lg font-semibold text-slate-700">{survey.total_responses}</p>
+            <p className="text-lg font-semibold text-slate-700">{formatNumber(survey.total_responses)}</p>
           </div>
           <div>
             <p className="text-xs text-gray-400">شرکت‌کنندگان ناشناس</p>
-            <p className="text-lg font-semibold text-emerald-700">{survey.anonymous_participants_count ?? 0}</p>
+            <p className="text-lg font-semibold text-emerald-700">{formatNumber(survey.anonymous_participants_count ?? 0)}</p>
           </div>
         </div>
 <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-gray-100">
@@ -193,7 +198,7 @@ export default function SurveyDetail() {
             {survey.questions.filter(q => q.is_active !== false).map((question, index) => (
               <div key={question.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                 <p className="text-sm font-semibold text-slate-800 leading-relaxed">
-                  {index + 1}. {question.text}
+                  {formatNumber(index + 1)}. {question.text}
                 </p>
                 {question.help_text && <p className="text-xs text-gray-400 mt-1">{question.help_text}</p>}
                 <div className="flex flex-wrap gap-2 mt-3 text-[11px]">
@@ -220,7 +225,7 @@ export default function SurveyDetail() {
           <p className="text-sm text-gray-400">هنوز سوالی برای این نظرسنجی تعریف نشده است.</p>
         )}
       </div>
-<div className="card">
+      <div className="card mb-5">
         <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
           <h2 className="section-title">افراد نظرسنجی</h2>
           {survey.status === 'draft' && (

@@ -4,7 +4,8 @@ import { adminSurveyApi } from '../../../api/endpoints';
 import { isCanceledRequest } from '../../../utils/http';
 import { useTheme } from '../../../contexts/ThemeContext';
 
-export const fa = (n: number, d = 0) => n.toLocaleString('fa-IR', { maximumFractionDigits: d });
+export const fa = (n: number | null | undefined, d = 0) =>
+  Number.isFinite(n) ? Number(n).toLocaleString('fa-IR', { maximumFractionDigits: d }) : '۰';
 
 export function scoreColor(v: number | null) {
   if (v == null) return '#94a3b8';
@@ -72,13 +73,14 @@ export function ScorePill({ value, size = 'md' }: { value: number | null; size?:
   return (
     <span className={`font-bold rounded-lg tabular-nums ${sizes[size]}`}
       style={{ background: scoreBg(value, mode === 'dark'), color: scoreColor(value) }}>
-      {value != null ? value.toFixed(1) : '—'}
+      {value != null ? fa(value, 1) : '—'}
     </span>
   );
 }
 
 export function Bar({ value, max = 10, h = 6, showLabel = false }: { value: number | null; max?: number; h?: number; showLabel?: boolean }) {
-  const pct = value != null ? Math.min(100, (value / max) * 100) : 0;
+  const safeMax = max > 0 ? max : 10;
+  const pct = value != null ? Math.min(100, (value / safeMax) * 100) : 0;
   return (
     <div className="flex items-center gap-2.5 w-full">
       <div className="flex-1 rounded-full overflow-hidden bg-slate-100" style={{ height: h }}>
@@ -88,7 +90,7 @@ export function Bar({ value, max = 10, h = 6, showLabel = false }: { value: numb
       {showLabel && (
         <span className="text-xs font-semibold w-7 text-right tabular-nums flex-shrink-0"
           style={{ color: scoreColor(value) }}>
-          {value != null ? value.toFixed(1) : '—'}
+          {value != null ? fa(value, 1) : '—'}
         </span>
       )}
     </div>
@@ -97,26 +99,28 @@ export function Bar({ value, max = 10, h = 6, showLabel = false }: { value: numb
 
 export function Avatar({ name, photo, size = 10 }: { name: string; photo: string | null; size?: number }) {
   const cls = `w-${size} h-${size} rounded-full overflow-hidden bg-slate-100 flex-shrink-0 flex items-center justify-center font-bold text-slate-400`;
+  const displayName = name || '؟';
   return (
     <div className={cls} style={{ width: size * 4, height: size * 4 }}>
       {photo
-        ? <img src={photo} alt={name} className="w-full h-full object-cover" />
-        : <span style={{ fontSize: size * 1.5 }}>{name[0]}</span>}
+        ? <img src={photo} alt={displayName} className="w-full h-full object-cover" />
+        : <span style={{ fontSize: size * 1.5 }}>{displayName[0]}</span>}
     </div>
   );
 }
 
 export function RankMedal({ rank }: { rank: number }) {
   const { mode } = useTheme();
+  const safeRank = Number.isFinite(rank) ? rank : 0;
   const style =
-    rank === 1 ? { background: '#fbbf24', color: '#fff' } :
-    rank === 2 ? { background: '#94a3b8', color: '#fff' } :
-    rank === 3 ? { background: '#b45309', color: '#fff' } :
+    safeRank === 1 ? { background: '#fbbf24', color: '#fff' } :
+    safeRank === 2 ? { background: '#94a3b8', color: '#fff' } :
+    safeRank === 3 ? { background: '#b45309', color: '#fff' } :
     mode === 'dark' ? { background: 'rgba(148,163,184,0.18)', color: '#94a3b8' } :
                { background: '#f1f5f9', color: '#64748b' };
   return (
     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={style}>
-      {rank.toLocaleString('fa-IR')}
+      {safeRank > 0 ? safeRank.toLocaleString('fa-IR') : '—'}
     </div>
   );
 }
@@ -146,7 +150,15 @@ export function LazyComments({ surveyId, personId, questionId, total }: {
         { person_id: personId, question_id: questionId, page: p, page_size: 20 },
         controller.signal,
       );
-      setResp(r.data); setPage(p);
+      setResp({
+        ...r.data,
+        total: Number.isFinite(r.data?.total) ? r.data.total : 0,
+        page: Number.isFinite(r.data?.page) ? r.data.page : p,
+        page_size: Number.isFinite(r.data?.page_size) ? r.data.page_size : 20,
+        total_pages: Number.isFinite(r.data?.total_pages) ? r.data.total_pages : 1,
+        comments: Array.isArray(r.data?.comments) ? r.data.comments : [],
+      });
+      setPage(p);
     } catch (error) {
       if (isCanceledRequest(error, controller.signal)) return;
       toast.error('خطا در بارگذاری نظرات');

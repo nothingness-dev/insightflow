@@ -140,9 +140,25 @@ export const employeeApi = {
 export const adminHashLinkApi = {
   list: (surveyId: number, signal?: AbortSignal) =>
     api.get<import('../types').SurveyHashLink[]>(`/admin/surveys/${surveyId}/hash-links/`, { signal }),
-  create: (surveyId: number, label?: string) =>
-    api.post<import('../types').SurveyHashLink>(`/admin/surveys/${surveyId}/hash-links/`, { label: label || '' }),
-  update: (id: number, data: { label?: string; is_active?: boolean }) =>
+  create: (surveyId: number, data: {
+    label?: string;
+    max_participants?: number | null;
+    expiry_value?: number | null;
+    expiry_unit?: import('../types').HashLinkExpiryUnit | null;
+  }) =>
+    api.post<import('../types').SurveyHashLink>(`/admin/surveys/${surveyId}/hash-links/`, {
+      label: data.label || '',
+      max_participants: data.max_participants ?? null,
+      expiry_value: data.expiry_value ?? null,
+      expiry_unit: data.expiry_unit ?? null,
+    }),
+  update: (id: number, data: {
+    label?: string;
+    is_active?: boolean;
+    max_participants?: number | null;
+    expiry_value?: number | null;
+    expiry_unit?: import('../types').HashLinkExpiryUnit | null;
+  }) =>
     api.patch<import('../types').SurveyHashLink>(`/admin/hash-links/${id}/`, data),
   delete: (id: number) =>
     api.delete(`/admin/hash-links/${id}/`),

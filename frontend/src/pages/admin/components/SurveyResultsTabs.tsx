@@ -60,10 +60,10 @@ export function TabOverview({ results, survey }: { results: PersonResult[]; surv
     <div className="space-y-4">
 <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'میانگین کل', value: avg != null ? avg.toFixed(1) : '—', sub: scoreGrade(avg), color: scoreColor(avg), bg: scoreBg(avg, dark) },
+          { label: 'میانگین کل', value: avg != null ? fa(avg, 1) : '—', sub: scoreGrade(avg), color: scoreColor(avg), bg: scoreBg(avg, dark) },
           { label: 'رأی‌دهندگان', value: fa(maxVoters), sub: 'نفر شرکت‌کننده', color: '#6366f1', bg: dark ? 'rgba(99,102,241,0.16)' : '#eef2ff' },
-          { label: 'افراد ارزیابی‌شده', value: fa(results.length), sub: `از ${survey.people_count} نفر`, color: '#0891b2', bg: dark ? 'rgba(8,145,178,0.16)' : '#ecfeff' },
-          { label: 'بهترین امتیاز', value: results[0]?.average_score != null ? results[0].average_score.toFixed(1) : '—', sub: results[0]?.full_name ?? '—', color: '#d97706', bg: dark ? 'rgba(217,119,6,0.16)' : '#fffbeb' },
+          { label: 'افراد ارزیابی‌شده', value: fa(results.length), sub: `از ${fa(survey.people_count)} نفر`, color: '#0891b2', bg: dark ? 'rgba(8,145,178,0.16)' : '#ecfeff' },
+          { label: 'بهترین امتیاز', value: results[0]?.average_score != null ? fa(results[0].average_score, 1) : '—', sub: results[0]?.full_name ?? '—', color: '#d97706', bg: dark ? 'rgba(217,119,6,0.16)' : '#fffbeb' },
         ].map((c, i) => (
           <div key={i} className="card p-4">
             <p className="text-xs text-slate-400 mb-2">{c.label}</p>
@@ -241,7 +241,7 @@ export function TabQuestions({ results, surveyId }: { results: PersonResult[]; s
                         style={{ width: `${q.avg != null ? (q.avg / maxAvg) * 100 : 0}%`, background: scoreColor(q.avg) }} />
                     </div>
                     <span className="text-sm font-bold flex-shrink-0 w-8 text-right" style={{ color: scoreColor(q.avg) }}>
-                      {q.avg != null ? q.avg.toFixed(1) : '—'}
+                      {q.avg != null ? fa(q.avg, 1) : '—'}
                     </span>
                     <span className="text-xs text-slate-400 flex-shrink-0 hidden sm:inline">{fa(q.responses)} پاسخ</span>
                   </div>
@@ -278,7 +278,7 @@ export function TabQuestions({ results, surveyId }: { results: PersonResult[]; s
                 <div className="flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center"
                   style={{ background: scoreBg(q.avg, dark) }}>
                   <span className="text-lg font-bold leading-none" style={{ color: scoreColor(q.avg) }}>
-                    {q.avg != null ? q.avg.toFixed(1) : '—'}
+                    {q.avg != null ? fa(q.avg, 1) : '—'}
                   </span>
                   <span className="text-[9px] mt-0.5 font-medium" style={{ color: scoreColor(q.avg) }}>
                     {scoreGrade(q.avg)}
@@ -322,7 +322,7 @@ function QuestionRow({ q, surveyId, personId }: { q: QuestionResult; surveyId: n
       {q.has_score && (
         <span className="flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-md"
           style={{ background: scoreBg(q.average_score, dark), color: scoreColor(q.average_score) }}>
-          {q.average_score != null ? q.average_score.toFixed(1) : '—'}
+          {q.average_score != null ? fa(q.average_score, 1) : '—'}
         </span>
       )}
       {!q.has_score && q.has_emoji && (
@@ -408,12 +408,12 @@ export function TabPeople({ results, surveyId }: { results: PersonResult[]; surv
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(r =>
-        r.full_name.toLowerCase().includes(q) ||
+        (r.full_name ?? '').toLowerCase().includes(q) ||
         (r.department ?? '').toLowerCase().includes(q) ||
         (r.role_title ?? '').toLowerCase().includes(q)
       );
     }
-    if (sort === 'name') list.sort((a, b) => a.full_name.localeCompare(b.full_name, 'fa'));
+    if (sort === 'name') list.sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? '', 'fa'));
     return list;
   }, [results, search, sort]);
 
@@ -473,4 +473,3 @@ export function TabPeople({ results, surveyId }: { results: PersonResult[]; surv
     </div>
   );
 }
-

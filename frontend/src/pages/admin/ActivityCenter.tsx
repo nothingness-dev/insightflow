@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { activityApi } from '../../api/endpoints';
 import {
@@ -8,7 +8,7 @@ import {
   ActivityCharts, ActivityCriticalPanel, ActivityFilterOptions,
   ActivityLog, ActivityLogFilters, ActivityStats,
 } from '../../types';
-import { downloadBlob, formatDateTime, getBlobErrorMessage, getErrorMessage } from '../../utils/helpers';
+import { downloadBlob, formatDateTime, formatNumber, getBlobErrorMessage, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 
 const PAGE_SIZE = 20;
@@ -54,6 +54,82 @@ const Ic = {
   download: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>,
 };
 
+const METADATA_KEY_LABELS: Record<string, string> = {
+  token: 'توکن لینک',
+  label: 'نام لینک',
+  is_active: 'وضعیت فعال بودن',
+  max_participants: 'حداکثر شرکت‌کنندگان',
+  expiry_value: 'مقدار انقضا',
+  expiry_unit: 'واحد انقضا',
+  ip_address: 'آدرس IP',
+  survey_id: 'شناسه نظرسنجی',
+  person_id: 'شناسه شخص',
+  question_id: 'شناسه سؤال',
+  file_format: 'قالب فایل',
+  count: 'تعداد',
+  reason: 'دلیل',
+};
+
+const EXPIRY_UNIT_FA: Record<string, string> = { hours: 'ساعت', days: 'روز', weeks: 'هفته' };
+
+function formatMetadataValue(key: string, value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'boolean') return value ? 'بله' : 'خیر';
+  if (key === 'expiry_unit' && typeof value === 'string') return EXPIRY_UNIT_FA[value] || value;
+  if (Array.isArray(value)) return value.join('، ');
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`}
+      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
+function ActivityLogDetails({ log }: { log: ActivityLog }) {
+  const metadataEntries = Object.entries(log.metadata || {}).filter(([, v]) => v !== null && v !== undefined && v !== '');
+
+  return (
+    <div className="px-3 py-3 bg-slate-50/60 border-t border-b border-gray-100 text-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+        {log.target_repr && (
+          <div className="flex gap-2">
+            <span className="text-gray-400 flex-shrink-0">هدف:</span>
+            <span className="text-slate-700 font-medium">{log.target_repr}</span>
+          </div>
+        )}
+        {log.ip_address && (
+          <div className="flex gap-2">
+            <span className="text-gray-400 flex-shrink-0">آدرس IP کامل:</span>
+            <span className="text-slate-700 font-mono" dir="ltr">{log.ip_address}</span>
+          </div>
+        )}
+        {log.user_agent && (
+          <div className="flex gap-2 sm:col-span-2">
+            <span className="text-gray-400 flex-shrink-0">مرورگر:</span>
+            <span className="text-slate-600 truncate" dir="ltr">{log.user_agent}</span>
+          </div>
+        )}
+        {metadataEntries.map(([key, value]) => (
+          <div key={key} className="flex gap-2">
+            <span className="text-gray-400 flex-shrink-0">{METADATA_KEY_LABELS[key] || key}:</span>
+            <span className="text-slate-700 font-medium break-all">{formatMetadataValue(key, value)}</span>
+          </div>
+        ))}
+        {metadataEntries.length === 0 && !log.target_repr && !log.user_agent && (
+          <p className="text-gray-400">اطلاعات تکمیلی دیگری ثبت نشده است.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ActivityCenter() {
   const [stats, setStats] = useState<ActivityStats | null>(null);
   const [charts, setCharts] = useState<ActivityCharts | null>(null);
@@ -73,6 +149,7 @@ export default function ActivityCenter() {
   const [statusFilter, setStatusFilter] = useState('');
   const [actor, setActor] = useState('');
   const [criticalOnly, setCriticalOnly] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const [exportOpen, setExportOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -283,30 +360,50 @@ export default function ActivityCenter() {
                 <th className="text-right font-medium px-3 py-2.5">شرح</th>
                 <th className="text-right font-medium px-3 py-2.5 whitespace-nowrap">وضعیت</th>
                 <th className="text-right font-medium px-3 py-2.5 whitespace-nowrap">IP</th>
+                <th className="w-8 px-3 py-2.5"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loadingTable ? (
-                <tr><td colSpan={6} className="py-10 text-center"><Spinner /></td></tr>
+                <tr><td colSpan={7} className="py-10 text-center"><Spinner /></td></tr>
               ) : logs.length === 0 ? (
-                <tr><td colSpan={6} className="py-10">
+                <tr><td colSpan={7} className="py-10">
                   <EmptyState title="فعالیتی یافت نشد" description="با فیلترهای انتخابی هیچ گزارشی موجود نیست." />
                 </td></tr>
-              ) : logs.map(log => (
-                <tr key={log.id} className={log.is_critical ? 'bg-red-50/40' : 'hover:bg-slate-50/60'}>
-                  <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">{formatDateTime(log.created_at)}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${actionDotColor(log.action, log.is_critical)}`} />
-                      <span className="text-xs font-medium text-slate-700">{log.action_label}</span>
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5 text-xs text-slate-600 whitespace-nowrap">{log.actor_display}</td>
-                  <td className="px-3 py-2.5 text-xs text-gray-500 max-w-[280px]"><span className="line-clamp-2">{log.description || '—'}</span></td>
-                  <td className="px-3 py-2.5"><StatusPill status={log.status} /></td>
-                  <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap" dir="ltr">{log.ip_address || '—'}</td>
-                </tr>
-              ))}
+              ) : logs.map(log => {
+                const isOpen = expandedId === log.id;
+                const hasDetails = Boolean(log.target_repr || log.user_agent || Object.keys(log.metadata || {}).length > 0);
+                return (
+                  <Fragment key={log.id}>
+                    <tr
+                      onClick={() => hasDetails && setExpandedId(isOpen ? null : log.id)}
+                      className={`${log.is_critical ? 'bg-red-50/40' : 'hover:bg-slate-50/60'} ${hasDetails ? 'cursor-pointer' : ''}`}
+                    >
+                      <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">{formatDateTime(log.created_at)}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${actionDotColor(log.action, log.is_critical)}`} />
+                          <span className="text-xs font-medium text-slate-700">{log.action_label}</span>
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-slate-600 whitespace-nowrap">{log.actor_display}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-500 max-w-[280px]"><span className="line-clamp-2">{log.description || '—'}</span></td>
+                      <td className="px-3 py-2.5"><StatusPill status={log.status} /></td>
+                      <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap" dir="ltr">{log.ip_address || '—'}</td>
+                      <td className="px-3 py-2.5 text-gray-300">
+                        {hasDetails && <ChevronIcon open={isOpen} />}
+                      </td>
+                    </tr>
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={7} className="p-0">
+                          <ActivityLogDetails log={log} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -352,10 +449,10 @@ function DailyChart({ data }: { data: { date: string; total: number; failed: num
             key={d.date}
             className="flex-1 flex flex-col items-center justify-end group"
             style={{ height: CHART_HEIGHT }}
-            title={`${label} — ${d.total} فعالیت · ${successCount} موفق · ${d.failed} ناموفق`}
+            title={`${label} — ${formatNumber(d.total)} فعالیت · ${formatNumber(successCount)} موفق · ${formatNumber(d.failed)} ناموفق`}
           >
 <span className="text-[10px] text-gray-400 mb-1 opacity-0 group-hover:opacity-100 transition-opacity leading-none">
-              {d.total > 0 ? d.total : ''}
+              {d.total > 0 ? formatNumber(d.total) : ''}
             </span>
 {d.total > 0 ? (
               <div className="w-full flex flex-col justify-end rounded-t-md overflow-hidden" style={{ height: barPx }}>

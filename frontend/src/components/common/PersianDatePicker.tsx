@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { formatNumber, toPersianDigits } from '../../utils/helpers';
 
 
 function g2j(gy: number, gm: number, gd: number): [number, number, number] {
@@ -200,7 +201,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
               </svg>
             </button>
             <span className="text-sm font-bold text-slate-800">
-              {MONTHS[viewM-1]} <span className="text-purple-600">{viewY}</span>
+              {MONTHS[viewM-1]} <span className="text-purple-600">{formatNumber(viewY)}</span>
             </span>
             <button type="button" onClick={prevM} disabled={!canPrev}
               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-purple-50 text-gray-500 hover:text-purple-700 transition-colors disabled:opacity-25 disabled:cursor-not-allowed">
@@ -236,7 +237,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
                     :              'hover:bg-purple-50 text-slate-700 hover:text-purple-700',
                   ].join(' ')}
                 >
-                  {day}
+                  {formatNumber(day)}
                 </button>
               );
             })}
@@ -250,7 +251,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
                   ＋
                 </button>
                 <div className="w-14 h-10 border-2 border-purple-200 rounded-xl flex items-center justify-center text-base font-bold text-slate-800 bg-white">
-                  {z(hour)}
+                  {toPersianDigits(z(hour))}
                 </div>
                 <button type="button" onClick={() => adjHour(-1)}
                   className="w-8 h-8 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-lg leading-none transition-colors">
@@ -266,7 +267,7 @@ export default function PersianDatePicker({ value, onChange, placeholder='انت
                   ＋
                 </button>
                 <div className="w-14 h-10 border-2 border-purple-200 rounded-xl flex items-center justify-center text-base font-bold text-slate-800 bg-white">
-                  {z(min)}
+                  {toPersianDigits(z(min))}
                 </div>
                 <button type="button" onClick={() => adjMin(-5)}
                   className="w-8 h-8 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-lg leading-none transition-colors">

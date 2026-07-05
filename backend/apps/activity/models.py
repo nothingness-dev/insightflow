@@ -33,6 +33,7 @@ class ActivityActions:
     HASH_LINK_CREATE = 'hash_link_create'
     HASH_LINK_DELETE = 'hash_link_delete'
     HASH_LINK_TOGGLE = 'hash_link_toggle'
+    HASH_LINK_UPDATE_LIMITS = 'hash_link_update_limits'
     ANONYMOUS_VOTE = 'anonymous_vote'
 
 
@@ -64,6 +65,7 @@ ACTION_LABELS = {
     ActivityActions.HASH_LINK_CREATE: 'ایجاد لینک هش',
     ActivityActions.HASH_LINK_DELETE: 'حذف لینک هش',
     ActivityActions.HASH_LINK_TOGGLE: 'تغییر وضعیت لینک هش',
+    ActivityActions.HASH_LINK_UPDATE_LIMITS: 'تغییر محدودیت‌های لینک هش',
     ActivityActions.ANONYMOUS_VOTE: 'رأی ناشناس',
 }
 

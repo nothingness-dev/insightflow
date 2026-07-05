@@ -275,6 +275,8 @@ export interface ActivityLogFilters {
   page_size?: string;
 }
 
+export type HashLinkExpiryUnit = 'hours' | 'days' | 'weeks';
+
 export interface SurveyHashLink {
   id: number;
   survey: number;
@@ -283,4 +285,10 @@ export interface SurveyHashLink {
   is_active: boolean;
   anonymous_participant_count: number;
   created_at: string;
+  max_participants: number | null;
+  expiry_value: number | null;
+  expiry_unit: HashLinkExpiryUnit | null;
+  expires_at: string | null;
+  is_expired: boolean;
+  is_full: boolean;
 }

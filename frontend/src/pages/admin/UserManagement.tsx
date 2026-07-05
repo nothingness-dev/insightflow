@@ -2,7 +2,7 @@ import { useState, FormEvent, useRef } from 'react';
 import { adminUserApi, dashboardApi } from '../../api/endpoints';
 import { BulkImportResult, User } from '../../types';
 import { PageHeader, SearchInput, EmptyState, TableSkeleton, ConfirmModal, Modal, PasswordInput } from '../../components/common/index';
-import { formatDate, getErrorMessage } from '../../utils/helpers';
+import { formatDate, formatNumber, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import { RoleBadge } from './components/RoleBadge';
 import { USERS_PER_PAGE, useUserDirectory } from './hooks/useUserDirectory';
@@ -148,7 +148,7 @@ export default function UserManagement() {
       const r = await adminUserApi.bulkImport(importFile);
       setImportResult(r.data);
       if (r.data.created_count > 0) {
-        toast.success(`${r.data.created_count} کاربر ایجاد شد`);
+        toast.success(`${formatNumber(r.data.created_count)} کاربر ایجاد شد`);
         refreshFirstPage();
       }
     } catch (err) { toast.error(getErrorMessage(err)); }
@@ -161,7 +161,7 @@ export default function UserManagement() {
     try {
       const r = await dashboardApi.deleteAllData();
       const d = (r.data as any).deleted;
-      toast.success(`${d.employees} کارمند، ${d.surveys} نظرسنجی، ${d.people} فرد و ${d.ratings} امتیاز حذف شدند`);
+      toast.success(`${formatNumber(d.employees)} کارمند، ${formatNumber(d.surveys)} نظرسنجی، ${formatNumber(d.people)} فرد و ${formatNumber(d.ratings)} امتیاز حذف شدند`);
       setDeleteAllModal(false);
       setDeleteAllConfirmText('');
       refreshFirstPage();
@@ -277,7 +277,7 @@ export default function UserManagement() {
           {totalUsers > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-5 py-4 border-t border-gray-100 bg-gray-50/60">
               <p className="text-xs text-gray-500">
-                نمایش {((page - 1) * USERS_PER_PAGE) + 1} تا {Math.min(page * USERS_PER_PAGE, totalUsers)} از {totalUsers} کاربر
+                نمایش {formatNumber(((page - 1) * USERS_PER_PAGE) + 1)} تا {formatNumber(Math.min(page * USERS_PER_PAGE, totalUsers))} از {formatNumber(totalUsers)} کاربر
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <button
@@ -289,7 +289,7 @@ export default function UserManagement() {
                   قبلی
                 </button>
                 <span className="min-w-20 text-center text-xs font-semibold text-gray-600">
-                  صفحه {page} از {Math.max(1, Math.ceil(totalUsers / USERS_PER_PAGE))}
+                  صفحه {formatNumber(page)} از {formatNumber(Math.max(1, Math.ceil(totalUsers / USERS_PER_PAGE)))}
                 </span>
                 <button
                   type="button"
@@ -465,7 +465,7 @@ export default function UserManagement() {
                 </svg>
                 <div className="text-right">
                   <p className="font-medium text-slate-700">{importFile.name}</p>
-                  <p className="text-xs text-gray-400">{(importFile.size / 1024).toFixed(1)} KB — کلیک کنید تا تغییر دهید</p>
+                  <p className="text-xs text-gray-400">{formatNumber(importFile.size / 1024, 1)} KB — کلیک کنید تا تغییر دهید</p>
                 </div>
               </div>
             ) : (
@@ -483,15 +483,15 @@ export default function UserManagement() {
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-emerald-700">{importResult.created_count}</p>
+                  <p className="text-2xl font-bold text-emerald-700">{formatNumber(importResult.created_count)}</p>
                   <p className="text-xs text-emerald-600 mt-0.5">ایجاد شد</p>
                 </div>
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-amber-700">{importResult.skipped_count}</p>
+                  <p className="text-2xl font-bold text-amber-700">{formatNumber(importResult.skipped_count)}</p>
                   <p className="text-xs text-amber-600 mt-0.5">نادیده گرفته شد</p>
                 </div>
                 <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-red-700">{importResult.error_count}</p>
+                  <p className="text-2xl font-bold text-red-700">{formatNumber(importResult.error_count)}</p>
                   <p className="text-xs text-red-600 mt-0.5">خطا</p>
                 </div>
               </div>
@@ -501,11 +501,11 @@ export default function UserManagement() {
                   <p className="text-xs font-semibold text-amber-700 mb-1.5">نادیده گرفته‌شده‌ها:</p>
                   <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
                     {importResult.skipped.map((s, i) => (
-                      <p key={`${s.line}-${s.username}-${i}`} className="text-xs text-amber-700">خط {s.line}: {s.username} — {s.reason}</p>
+                      <p key={`${s.line}-${s.username}-${i}`} className="text-xs text-amber-700">خط {formatNumber(s.line)}: {s.username} — {s.reason}</p>
                     ))}
                   </div>
                   {importResult.skipped_details_omitted > 0 && (
-                    <p className="text-xs text-amber-700 mt-2">و {importResult.skipped_details_omitted} مورد دیگر نمایش داده نمی‌شود.</p>
+                    <p className="text-xs text-amber-700 mt-2">و {formatNumber(importResult.skipped_details_omitted)} مورد دیگر نمایش داده نمی‌شود.</p>
                   )}
                 </div>
               )}
@@ -515,17 +515,17 @@ export default function UserManagement() {
                   <p className="text-xs font-semibold text-red-700 mb-1.5">خطاها:</p>
                   <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
                     {importResult.errors.map((e, i) => (
-                      <p key={`${e.line}-${i}`} className="text-xs text-red-700">خط {e.line}: {e.error}</p>
+                      <p key={`${e.line}-${i}`} className="text-xs text-red-700">خط {formatNumber(e.line)}: {e.error}</p>
                     ))}
                   </div>
                   {importResult.error_details_omitted > 0 && (
-                    <p className="text-xs text-red-700 mt-2">و {importResult.error_details_omitted} مورد دیگر نمایش داده نمی‌شود.</p>
+                    <p className="text-xs text-red-700 mt-2">و {formatNumber(importResult.error_details_omitted)} مورد دیگر نمایش داده نمی‌شود.</p>
                   )}
                 </div>
               )}
 
               {importResult.created_details_omitted > 0 && (
-                <p className="text-xs text-gray-500">جزئیات {importResult.created_details_omitted} کاربر ایجادشده برای حفظ سرعت نمایش داده نمی‌شود.</p>
+                <p className="text-xs text-gray-500">جزئیات {formatNumber(importResult.created_details_omitted)} کاربر ایجادشده برای حفظ سرعت نمایش داده نمی‌شود.</p>
               )}
             </div>
           )}

@@ -95,25 +95,34 @@ try {
   await page.locator('input[autocomplete="username"]').fill('admin');
   await page.locator('input[autocomplete="current-password"]').fill('Admin@1234');
   const loginFailures = [];
+  let loginAccess = null;
   page.on('response', response => {
     if (response.url().includes('/api/auth/login/') && response.status() >= 400) {
       loginFailures.push(`${response.status()} ${response.url()}`);
     }
   });
+  const loginResponsePromise = page.waitForResponse(response =>
+    response.url().includes('/api/auth/login/') && response.request().method() === 'POST'
+  );
   await page.locator('button[type="submit"]').click();
+  const loginResponse = await loginResponsePromise;
+  if (loginResponse.ok()) {
+    const loginPayload = await loginResponse.json().catch(() => null);
+    loginAccess = loginPayload?.access || null;
+  }
   await page.waitForTimeout(3000);
   step('Admin can log in through UI', page.url().endsWith('/admin'), page.url());
   if (!page.url().endsWith('/admin')) {
     const loginBody = await page.locator('body').innerText().catch(() => '');
     const loginStorage = await page.evaluate(() => ({
-      access: Boolean(localStorage.getItem('access_token')),
-      user: localStorage.getItem('user'),
+      refresh: Boolean(sessionStorage.getItem('refresh_token')),
+      user: sessionStorage.getItem('user'),
     }));
     throw new Error(`Login did not navigate. url=${page.url()} failures=${loginFailures.join(',') || 'none'} storage=${JSON.stringify(loginStorage)} body=${loginBody.slice(0, 500)}`);
   }
 
-  const access = await page.evaluate(() => localStorage.getItem('access_token'));
-  if (!access) throw new Error('No access token in localStorage after login');
+  const access = loginAccess;
+  if (!access) throw new Error('No access token captured from login response');
 
   const unique = Date.now();
   const surveyRes = await api('/admin/surveys/', {

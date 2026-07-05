@@ -130,6 +130,48 @@
   .dark .input-field { @apply border-transparent text-gray-100; background-color: var(--surface-alt); }
   .dark .input-field::placeholder { color: #79869b; }
 
+  .hash-limit-card,
+  .hash-limit-editor,
+  .hash-limit-duration-field {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+  .hash-limit-title {
+    font-family: inherit;
+    line-height: 1.35;
+  }
+  .dark .hash-limit-card {
+    border-color: #334155;
+    background-color: rgba(30, 41, 59, 0.72);
+  }
+  .dark .hash-limit-editor {
+    border-color: #334155;
+    background-color: rgba(15, 23, 42, 0.82);
+  }
+  .dark .hash-limit-title {
+    color: #e2e8f0;
+  }
+  .dark .hash-limit-duration-field {
+    border-color: #475569;
+    background-color: #1e293b;
+  }
+  .dark .hash-limit-duration-label {
+    color: #cbd5e1;
+  }
+  .dark .hash-limit-duration-input {
+    color: #f8fafc;
+  }
+  .dark .hash-limit-duration-input::placeholder {
+    color: #64748b;
+  }
+  .dark .hash-limit-number-input {
+    border-color: #475569;
+    background-color: #1e293b;
+    color: #f8fafc;
+  }
+  .dark .hash-limit-number-input::placeholder {
+    color: #64748b;
+  }
+
   
   .label { @apply block text-sm font-medium text-gray-700 mb-1.5; }
   .dark .label { color: #d1d5db; }
