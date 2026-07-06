@@ -110,7 +110,7 @@ class AdminSurveyListCreateView(generics.ListCreateAPIView):
         log_activity(
             ActivityActions.SURVEY_CREATE,
             request=request,
-            description=f'Created survey "{survey.title}"',
+            description=f'ایجاد نظرسنجی «{survey.title}»',
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
@@ -120,7 +120,7 @@ class AdminSurveyListCreateView(generics.ListCreateAPIView):
             log_activity(
                 ActivityActions.QUESTION_ADD,
                 request=request,
-                description=f'Added {active_questions} question(s) to survey "{survey.title}"',
+                description=f'افزودن {active_questions} سوال به نظرسنجی «{survey.title}»',
                 target_type='survey',
                 target_id=survey.id,
                 target_repr=survey.title,
@@ -166,7 +166,7 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
         log_activity(
             ActivityActions.SURVEY_EDIT,
             request=request,
-            description=f'Edited survey "{instance.title}"',
+            description=f'ویرایش نظرسنجی «{instance.title}»',
             target_type='survey',
             target_id=instance.id,
             target_repr=instance.title,
@@ -175,7 +175,7 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
             log_activity(
                 ActivityActions.QUESTION_ADD,
                 request=request,
-                description=f'Added {added} question(s) to survey "{instance.title}"',
+                description=f'افزودن {added} سوال به نظرسنجی «{instance.title}»',
                 target_type='survey', target_id=instance.id, target_repr=instance.title,
                 metadata={'questions_added': added},
             )
@@ -183,7 +183,7 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
             log_activity(
                 ActivityActions.QUESTION_EDIT,
                 request=request,
-                description=f'Edited {edited} question(s) in survey "{instance.title}"',
+                description=f'ویرایش {edited} سوال در نظرسنجی «{instance.title}»',
                 target_type='survey', target_id=instance.id, target_repr=instance.title,
                 metadata={'questions_edited': edited},
             )
@@ -191,7 +191,7 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
             log_activity(
                 ActivityActions.QUESTION_DELETE,
                 request=request,
-                description=f'Removed {deactivated} question(s) from survey "{instance.title}"',
+                description=f'حذف {deactivated} سوال از نظرسنجی «{instance.title}»',
                 target_type='survey', target_id=instance.id, target_repr=instance.title,
                 metadata={'questions_deleted': deactivated},
             )
@@ -210,7 +210,7 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
         log_activity(
             ActivityActions.SURVEY_DELETE,
             request=request,
-            description=f'Deleted survey "{survey_title}"',
+            description=f'حذف نظرسنجی «{survey_title}»',
             target_type='survey',
             target_id=survey_id,
             target_repr=survey_title,
@@ -248,7 +248,7 @@ class AdminSurveyDuplicateView(APIView):
         log_activity(
             ActivityActions.SURVEY_DUPLICATE,
             request=request,
-            description=f'Duplicated survey "{source_survey.title}" to "{duplicate.title}"',
+            description=f'تکثیر نظرسنجی «{source_survey.title}» به «{duplicate.title}»',
             target_type='survey',
             target_id=duplicate.id,
             target_repr=duplicate.title,
@@ -290,7 +290,7 @@ class AdminSurveyPublishView(APIView):
         log_activity(
             ActivityActions.SURVEY_PUBLISH,
             request=request,
-            description=f'Published survey "{survey.title}"',
+            description=f'انتشار نظرسنجی «{survey.title}»',
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
@@ -320,7 +320,7 @@ class AdminSurveyCloseView(APIView):
         log_activity(
             ActivityActions.SURVEY_CLOSE,
             request=request,
-            description=f'Closed survey "{survey.title}"',
+            description=f'بستن نظرسنجی «{survey.title}»',
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
@@ -385,7 +385,7 @@ class AdminSurveyExportCSVView(APIView):
         log_activity(
             ActivityActions.EXPORT_CSV,
             request=request,
-            description=f'Exported CSV results for survey "{survey.title}"',
+            description=f'خروجی CSV نتایج نظرسنجی «{survey.title}»',
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
@@ -820,7 +820,7 @@ class AdminSurveyExportExcelView(APIView):
         log_activity(
             ActivityActions.EXPORT_EXCEL,
             request=request,
-            description=f'Exported Excel results for survey "{survey.title}"',
+            description=f'خروجی Excel نتایج نظرسنجی «{survey.title}»',
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
@@ -866,7 +866,7 @@ class AdminSurveyExportPDFView(APIView):
         log_activity(
             ActivityActions.EXPORT_PDF,
             request=request,
-            description=f'Exported PDF results for survey "{survey.title}"',
+            description=f'خروجی PDF نتایج نظرسنجی «{survey.title}»',
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
@@ -901,7 +901,7 @@ class AdminPersonListCreateView(generics.ListCreateAPIView):
         log_activity(
             ActivityActions.PERSON_ADD,
             request=self.request,
-            description=f'Added "{person.full_name}" to survey "{survey.title}"',
+            description=f'افزودن «{person.full_name}» به نظرسنجی «{survey.title}»',
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
@@ -928,7 +928,7 @@ class AdminPersonDetailView(generics.RetrieveUpdateDestroyAPIView):
         log_activity(
             ActivityActions.PERSON_EDIT,
             request=request,
-            description=f'Edited "{instance.full_name}" in survey "{instance.survey.title}"',
+            description=f'ویرایش «{instance.full_name}» در نظرسنجی «{instance.survey.title}»',
             target_type='survey',
             target_id=instance.survey.id,
             target_repr=instance.survey.title,
@@ -947,7 +947,7 @@ class AdminPersonDetailView(generics.RetrieveUpdateDestroyAPIView):
         log_activity(
             ActivityActions.PERSON_DELETE,
             request=request,
-            description=f'Removed "{person_name}" from survey "{survey.title}"',
+            description=f'حذف «{person_name}» از نظرسنجی «{survey.title}»',
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
@@ -1287,8 +1287,8 @@ class AdminDeleteAllDataView(APIView):
             ActivityActions.DELETE_ALL_DATA,
             request=request,
             description=(
-                f'Deleted all data: {surveys_count} survey(s), '
-                f'{ratings_count} response(s), {employees_count} employee(s)'
+                f'حذف تمام داده‌ها: {surveys_count} نظرسنجی، '
+                f'{ratings_count} پاسخ، {employees_count} کارمند'
             ),
             target_type='system',
             target_repr='کل داده‌های سیستم',
@@ -1443,7 +1443,7 @@ class AdminHashLinkListCreateView(APIView):
         log_activity(
             ActivityActions.HASH_LINK_CREATE,
             request=request,
-            description=f'Created hash link for survey "{survey.title}"',
+            description=f'ایجاد لینک هش برای نظرسنجی «{survey.title}»',
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
@@ -1492,11 +1492,11 @@ class AdminHashLinkDetailView(APIView):
         link.save()
 
         if old_active != link.is_active:
-            state = 'active' if link.is_active else 'inactive'
+            state = 'فعال' if link.is_active else 'غیرفعال'
             log_activity(
                 ActivityActions.HASH_LINK_TOGGLE,
                 request=request,
-                description=f'Hash link for survey "{link.survey.title}" set to {state}',
+                description=f'لینک هش نظرسنجی «{link.survey.title}» {state} شد',
                 target_type='survey',
                 target_id=link.survey.id,
                 target_repr=link.survey.title,
@@ -1507,7 +1507,7 @@ class AdminHashLinkDetailView(APIView):
             log_activity(
                 ActivityActions.HASH_LINK_UPDATE_LIMITS,
                 request=request,
-                description=f'Hash link limits updated for survey "{link.survey.title}"',
+                description=f'محدودیت‌های لینک هش نظرسنجی «{link.survey.title}» تغییر کرد',
                 target_type='survey',
                 target_id=link.survey.id,
                 target_repr=link.survey.title,
@@ -1535,7 +1535,7 @@ class AdminHashLinkDetailView(APIView):
         log_activity(
             ActivityActions.HASH_LINK_DELETE,
             request=request,
-            description=f'Deleted hash link for survey "{survey.title}"',
+            description=f'حذف لینک هش نظرسنجی «{survey.title}»',
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
@@ -1711,7 +1711,7 @@ class AnonymousRatePersonView(APIView):
             log_activity(
                 ActivityActions.ANONYMOUS_VOTE,
                 request=request,
-                description=f'An anonymous participant completed survey "{survey.title}"',
+                description=f'یک شرکت‌کننده ناشناس نظرسنجی «{survey.title}» را تکمیل کرد',
                 target_type='survey',
                 target_id=survey.id,
                 target_repr=survey.title,

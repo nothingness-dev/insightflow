@@ -347,7 +347,7 @@ class ActivityExportView(APIView):
         log_activity(
             action=action_map[export_format],
             request=request,
-            description=f'Exported {export_format.upper()} activity report',
+            description=f'خروجی {export_format.upper()} گزارش فعالیت‌ها',
             target_type='activity_export',
             target_repr='گزارش فعالیت‌ها',
             metadata={
