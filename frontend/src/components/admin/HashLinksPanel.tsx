@@ -263,6 +263,10 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
   const baseUrl = rawBase || window.location.origin;
 
   const load = (signal?: AbortSignal) => {
+    if (!Number.isFinite(surveyId)) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     adminHashLinkApi.list(surveyId, signal)
       .then(r => {
