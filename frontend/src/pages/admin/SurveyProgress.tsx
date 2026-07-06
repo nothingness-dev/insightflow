@@ -156,7 +156,7 @@ function PendingUsersList({ users }: { users: SurveyProgress['pending_users'] })
     <div>
       <ul className="divide-y divide-gray-100 rounded-xl border border-gray-100 overflow-hidden">
         {pageUsers.map((user) => (
-          <li key={user.id} className="flex items-center justify-between gap-3 bg-white px-4 py-3">
+          <li key={user.id} className="flex items-center justify-between gap-3 bg-white px-4 py-3.5">
             <span className="text-sm font-medium text-slate-700 truncate">{user.full_name}</span>
             <span className="text-xs text-gray-400 flex-shrink-0">@{user.username}</span>
           </li>
@@ -205,7 +205,7 @@ function SurveyProgressCard({ survey }: { survey: SurveyProgress }) {
 
   return (
     <article className="card overflow-hidden">
-      <div className="p-4 sm:p-5">
+      <div className="p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -247,11 +247,11 @@ function SurveyProgressCard({ survey }: { survey: SurveyProgress }) {
             <div className="mt-3">
               <ProgressBar percentage={survey.completion_percentage} />
             </div>
-<p className="mt-2 text-[11px] text-gray-400">
+<p className="mt-3 text-[11px] text-gray-400">
               کارمند «تکمیل‌شده» یعنی به تمام سوال‌ها برای تمام افراد فعال پاسخ داده است.
             </p>
 
-            <dl className="mt-5 grid grid-cols-2 min-[420px]:grid-cols-4 divide-y-0 divide-x min-[420px]:divide-x divide-x-reverse min-[420px]:divide-x-reverse divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/70">
+            <dl className="mt-5 mb-1 grid grid-cols-2 min-[420px]:grid-cols-4 divide-y-0 divide-x min-[420px]:divide-x divide-x-reverse min-[420px]:divide-x-reverse divide-gray-100 rounded-xl border border-gray-100 bg-gray-50/70">
               <div className="p-3 text-center">
                 <dt className="text-xs text-gray-400">تخصیص‌یافته</dt>
                 <dd className="mt-1 text-lg font-bold text-slate-700">{formatNumber(survey.assigned_employees)}</dd>
@@ -286,7 +286,7 @@ function SurveyProgressCard({ survey }: { survey: SurveyProgress }) {
           <button
             type="button"
             onClick={handleToggle}
-            className="w-full px-5 py-3.5 flex items-center justify-between text-sm font-medium text-slate-600 hover:bg-gray-50 transition-colors"
+            className="w-full px-5 py-4 flex items-center justify-between text-sm font-medium text-slate-600 hover:bg-gray-50 transition-colors"
             aria-expanded={expanded}
           >
             <span className="flex items-center gap-3">
@@ -309,7 +309,7 @@ function SurveyProgressCard({ survey }: { survey: SurveyProgress }) {
           </button>
 
           {expanded && (
-            <div className="px-5 pb-5">
+            <div className="px-5 pb-5 pt-1">
               <PendingUsersList users={survey.pending_users} />
             </div>
           )}

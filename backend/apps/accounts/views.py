@@ -54,8 +54,8 @@ class LoginView(APIView):
                 ActivityActions.LOGIN_FAILED,
                 request=request,
                 description=(
-                    f'تلاش ناموفق برای ورود با نام کاربری «{attempted_username}»'
-                    if attempted_username else 'تلاش ناموفق برای ورود'
+                    f'Failed login attempt with username "{attempted_username}"'
+                    if attempted_username else 'Failed login attempt'
                 ),
                 status=ActivityLog.STATUS_FAILED,
                 target_type='user',
@@ -71,7 +71,7 @@ class LoginView(APIView):
             ActivityActions.LOGIN,
             request=request,
             actor=user,
-            description=f'ورود موفق به سیستم: {user.username}',
+            description=f'Successful login: {user.username}',
             target_type='user',
             target_id=user.id,
             target_repr=user.full_name or user.username,
@@ -97,7 +97,7 @@ class LogoutView(APIView):
         log_activity(
             ActivityActions.LOGOUT,
             request=request,
-            description='خروج از سیستم',
+            description='Logged out',
             target_type='user',
             target_id=getattr(request.user, 'id', ''),
             target_repr=getattr(request.user, 'username', ''),
@@ -128,7 +128,7 @@ class ChangePasswordView(APIView):
             ActivityActions.PASSWORD_CHANGE,
             request=request,
             actor=user,
-            description=f'تغییر رمز عبور توسط {user.username}',
+            description=f'Password changed by {user.username}',
             target_type='user',
             target_id=user.id,
             target_repr=user.full_name or user.username,
@@ -166,7 +166,7 @@ class UserListCreateView(generics.ListCreateAPIView):
         log_activity(
             ActivityActions.USER_CREATE,
             request=request,
-            description=f'ایجاد کاربر «{user.full_name or user.username}» با نقش {user.get_role_display()}',
+            description=f'Created user "{user.full_name or user.username}" with role {user.get_role_display()}',
             target_type='user',
             target_id=user.id,
             target_repr=user.full_name or user.username,
@@ -192,7 +192,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         log_activity(
             ActivityActions.USER_EDIT,
             request=request,
-            description=f'ویرایش کاربر «{user.full_name or user.username}»',
+            description=f'Edited user "{user.full_name or user.username}"',
             target_type='user',
             target_id=user.id,
             target_repr=user.full_name or user.username,
@@ -217,7 +217,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         log_activity(
             ActivityActions.USER_DELETE,
             request=request,
-            description=f'حذف کاربر «{full_name or username}»',
+            description=f'Deleted user "{full_name or username}"',
             target_type='user',
             target_id=user_id,
             target_repr=full_name or username,
@@ -244,7 +244,7 @@ class UserResetPasswordView(APIView):
         log_activity(
             ActivityActions.PASSWORD_RESET,
             request=request,
-            description=f'بازنشانی رمز عبور کاربر «{user.full_name or user.username}»',
+            description=f'Reset password for user "{user.full_name or user.username}"',
             target_type='user',
             target_id=user.id,
             target_repr=user.full_name or user.username,
@@ -266,7 +266,7 @@ class UserActivateView(APIView):
         log_activity(
             ActivityActions.USER_ACTIVATE,
             request=request,
-            description=f'فعال‌سازی حساب کاربر «{user.full_name or user.username}»',
+            description=f'Activated account for user "{user.full_name or user.username}"',
             target_type='user',
             target_id=user.id,
             target_repr=user.full_name or user.username,
@@ -293,7 +293,7 @@ class UserDeactivateView(APIView):
         log_activity(
             ActivityActions.USER_DEACTIVATE,
             request=request,
-            description=f'غیرفعال‌سازی حساب کاربر «{user.full_name or user.username}»',
+            description=f'Deactivated account for user "{user.full_name or user.username}"',
             target_type='user',
             target_id=user.id,
             target_repr=user.full_name or user.username,
@@ -466,8 +466,8 @@ class UserBulkImportView(APIView):
             ActivityActions.BULK_IMPORT,
             request=request,
             description=(
-                f'ورود گروهی کارکنان: {len(created)} ایجاد، '
-                f'{len(skipped)} رد شده، {len(errors)} خطا'
+                f'Bulk employee import: {len(created)} created, '
+                f'{len(skipped)} skipped, {len(errors)} errors'
             ),
             target_type='user_import',
             target_repr=file.name,

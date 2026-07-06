@@ -4,6 +4,7 @@ import { adminHashLinkApi } from '../../api/endpoints';
 import { HashLinkExpiryUnit, SurveyHashLink } from '../../types';
 import { getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
+import { Skeleton } from '../common';
 import QrCodeModal from './QrCodeModal';
 
 interface Props {
@@ -64,6 +65,36 @@ function UsersIcon() {
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
+  );
+}
+
+function HashLinksSkeleton() {
+  return (
+    <div className="space-y-3" aria-busy="true">
+      {Array.from({ length: 2 }).map((_, index) => (
+        <div key={index} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 space-y-3">
+              <Skeleton className="h-3 w-28" />
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-6 w-full max-w-xs rounded" />
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-4 w-4 rounded" />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Skeleton className="h-5 w-14 rounded-full" />
+                <Skeleton className="h-5 w-32 rounded-full" />
+                <Skeleton className="h-5 w-24 rounded-full" />
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <Skeleton className="h-7 w-16 rounded" />
+              <Skeleton className="h-7 w-7 rounded" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -234,9 +265,12 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
   const load = (signal?: AbortSignal) => {
     setLoading(true);
     adminHashLinkApi.list(surveyId, signal)
-      .then(r => setLinks(r.data))
+      .then(r => {
+        if (signal?.aborted) return;
+        setLinks(r.data);
+      })
       .catch(error => {
-        if (isCanceledRequest(error, signal)) return;
+        if (isCanceledRequest(error, signal) || signal?.aborted) return;
         toast.error('خطا در بارگذاری لینک‌ها');
       })
       .finally(() => {
@@ -527,7 +561,7 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
       )}
 
       {loading ? (
-        <p className="text-sm text-gray-400 text-center py-4">در حال بارگذاری...</p>
+        <HashLinksSkeleton />
       ) : links.length === 0 && surveyStatus !== 'draft' ? (
         <p className="text-sm text-gray-400 text-center py-4">هنوز لینک ناشناسی ایجاد نشده است.</p>
       ) : (

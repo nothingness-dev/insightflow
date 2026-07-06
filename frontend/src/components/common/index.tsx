@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
@@ -514,6 +514,110 @@ export function ResultsSkeleton() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+interface SelectProps {
+  value: string;
+  onChange: (v: string) => void;
+  options: SelectOption[];
+  placeholder?: string;
+  className?: string;
+  searchable?: boolean;
+  disabled?: boolean;
+}
+
+export function Select({ value, onChange, options, placeholder = 'انتخاب کنید', className = '', searchable, disabled }: SelectProps) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') { setOpen(false); setQuery(''); }
+    }
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
+
+  const selected = options.find(o => o.value === value);
+  const shouldSearch = searchable ?? options.length > 6;
+  const filtered = shouldSearch && query.trim()
+    ? options.filter(o => o.label.toLowerCase().includes(query.trim().toLowerCase()))
+    : options;
+
+  return (
+    <div className={`relative ${className}`} ref={rootRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(o => !o)}
+        className={`select-trigger w-full ${open ? 'select-trigger-open' : ''}`}
+      >
+        <span className={`truncate ${!selected ? 'text-gray-400' : ''}`}>{selected ? selected.label : placeholder}</span>
+        <svg className={`w-4 h-4 flex-shrink-0 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
+        </svg>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.14, ease: 'easeOut' }}
+            className="select-panel absolute z-50 mt-1.5 w-full min-w-[10rem]"
+          >
+            {shouldSearch && (
+              <div className="p-2 select-panel-border">
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="جستجو..."
+                  className="select-search w-full"
+                />
+              </div>
+            )}
+            <div className="max-h-60 overflow-y-auto p-1.5 space-y-0.5">
+              {filtered.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-3">موردی یافت نشد</p>
+              ) : filtered.map(o => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => { onChange(o.value); setOpen(false); setQuery(''); }}
+                  className={`select-option ${o.value === value ? 'select-option-active' : ''}`}
+                >
+                  <span className="truncate">{o.label}</span>
+                  {o.value === value && (
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

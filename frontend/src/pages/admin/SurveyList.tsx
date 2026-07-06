@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { adminSurveyApi } from '../../api/endpoints';
 import { Survey } from '../../types';
-import { StatusBadge, PageHeader, EmptyState, SearchInput, ConfirmModal, TableSkeleton } from '../../components/common/index';
+import { StatusBadge, PageHeader, EmptyState, SearchInput, Select, ConfirmModal, TableSkeleton } from '../../components/common/index';
 import { formatDate, formatNumber, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
@@ -118,16 +118,18 @@ export default function AdminSurveyList() {
         <div className="flex-1">
           <SearchInput value={search} onChange={setSearch} placeholder="جستجو در عنوان یا سوال..." />
         </div>
-        <select
+        <Select
           value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="input-field w-full sm:w-44"
-        >
-          <option value="">همه وضعیت‌ها</option>
-          <option value="draft">پیش‌نویس</option>
-          <option value="published">منتشر شده</option>
-          <option value="closed">بسته شده</option>
-        </select>
+          onChange={setStatusFilter}
+          className="w-full sm:w-44"
+          placeholder="همه وضعیت‌ها"
+          options={[
+            { value: '', label: 'همه وضعیت‌ها' },
+            { value: 'draft', label: 'پیش‌نویس' },
+            { value: 'published', label: 'منتشر شده' },
+            { value: 'closed', label: 'بسته شده' },
+          ]}
+        />
       </div>
 
       {loading ? <TableSkeleton rows={6} /> : surveys.length === 0 ? (

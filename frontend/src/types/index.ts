@@ -154,7 +154,6 @@ export interface MyRatings {
   total_questions: number;
   required_answers_count: number;
   is_complete: boolean;
-  ip_locked?: boolean;
 }
 
 export interface PendingSurveyEmployee {

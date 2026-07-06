@@ -1,7 +1,7 @@
 import { useState, FormEvent, useRef } from 'react';
 import { adminUserApi, dashboardApi } from '../../api/endpoints';
 import { BulkImportResult, User } from '../../types';
-import { PageHeader, SearchInput, EmptyState, TableSkeleton, ConfirmModal, Modal, PasswordInput } from '../../components/common/index';
+import { PageHeader, SearchInput, Select, EmptyState, TableSkeleton, ConfirmModal, Modal, PasswordInput } from '../../components/common/index';
 import { formatDate, formatNumber, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import { RoleBadge } from './components/RoleBadge';
@@ -200,11 +200,17 @@ export default function UserManagement() {
 
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="flex-1"><SearchInput value={search} onChange={handleSearchChange} placeholder="جستجو بر اساس نام یا نام کاربری..." /></div>
-        <select value={roleFilter} onChange={e => handleRoleChange(e.target.value)} className="input-field w-full sm:w-36">
-          <option value="">همه نقش‌ها</option>
-          <option value="admin">مدیر</option>
-          <option value="employee">کارمند</option>
-        </select>
+        <Select
+          value={roleFilter}
+          onChange={handleRoleChange}
+          className="w-full sm:w-36"
+          placeholder="همه نقش‌ها"
+          options={[
+            { value: '', label: 'همه نقش‌ها' },
+            { value: 'admin', label: 'مدیر' },
+            { value: 'employee', label: 'کارمند' },
+          ]}
+        />
       </div>
 
       {loading ? <TableSkeleton rows={6} /> : loadError ? (
@@ -347,10 +353,14 @@ export default function UserManagement() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">نقش</label>
-              <select value={form.role} onChange={set('role')} className="input-field">
-                <option value="employee">کارمند</option>
-                <option value="admin">مدیر</option>
-              </select>
+              <Select
+                value={form.role}
+                onChange={v => setForm(f => ({ ...f, role: v as typeof f.role }))}
+                options={[
+                  { value: 'employee', label: 'کارمند' },
+                  { value: 'admin', label: 'مدیر' },
+                ]}
+              />
             </div>
             <div className="flex items-end pb-0.5">
               <label className="flex items-center gap-2 cursor-pointer">

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { PersonResult, QuestionResult } from '../../../types';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { Select } from '../../../components/common';
 import {
   Avatar,
   Bar,
@@ -76,15 +77,15 @@ export function TabOverview({ results, survey }: { results: PersonResult[]; surv
       <div className={`grid grid-cols-1 ${emojiBuckets ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-4`}>
 <div className="card p-5">
           <p className="text-sm font-semibold text-slate-700 mb-4">توزیع امتیازات</p>
-          <div className="flex items-end gap-2" style={{ height: 100 }}>
+          <div className="flex items-end gap-2" style={{ minHeight: 116 }}>
             {buckets.map((b, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                <span className="text-xs font-bold" style={{ color: b.color }}>
-                  {b.count > 0 ? fa(b.count) : ''}
+              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <span className="text-xs font-bold leading-none" style={{ color: b.color }}>
+                  {b.count > 0 ? fa(b.count) : '\u00a0'}
                 </span>
                 <div className="w-full rounded-t-md"
                   style={{ height: Math.max(4, (b.count / maxBucket) * 72), background: b.color, opacity: 0.85 }} />
-                <span className="text-[11px] text-slate-400">{b.label}</span>
+                <span className="text-[11px] text-slate-400 leading-none">{b.label}</span>
               </div>
             ))}
           </div>
@@ -97,15 +98,15 @@ export function TabOverview({ results, survey }: { results: PersonResult[]; surv
         {emojiBuckets && (
           <div className="card p-5">
             <p className="text-sm font-semibold text-slate-700 mb-4">توزیع امتیاز ایموجی</p>
-            <div className="flex items-end gap-2" style={{ height: 100 }}>
+            <div className="flex items-end gap-2" style={{ minHeight: 116 }}>
               {emojiBuckets.map((b, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                  <span className="text-xs font-bold" style={{ color: b.color }}>
-                    {b.count > 0 ? fa(b.count) : ''}
+                <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                  <span className="text-xs font-bold leading-none" style={{ color: b.color }}>
+                    {b.count > 0 ? fa(b.count) : '\u00a0'}
                   </span>
                   <div className="w-full rounded-t-md"
                     style={{ height: Math.max(4, (b.count / maxEmojiBucket) * 72), background: b.color, opacity: 0.85 }} />
-                  <span className="text-[11px] text-slate-400">{b.label}</span>
+                  <span className="text-[11px] text-slate-400 leading-none">{b.label}</span>
                 </div>
               ))}
             </div>
@@ -432,13 +433,18 @@ export function TabPeople({ results, surveyId }: { results: PersonResult[]; surv
           </svg>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="جستجو بر اساس نام، واحد یا سمت…"
-            className="w-full pr-9 pl-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 placeholder:text-slate-400" />
+            style={{ paddingRight: '2.25rem' }}
+            className="input-field py-2 text-sm" />
         </div>
-        <select value={sort} onChange={e => setSort(e.target.value as any)}
-          className="w-full min-[420px]:w-auto text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 text-slate-600">
-          <option value="rank">مرتب‌سازی: رتبه</option>
-          <option value="name">مرتب‌سازی: نام</option>
-        </select>
+        <Select
+          value={sort}
+          onChange={v => setSort(v as any)}
+          className="w-full min-[420px]:w-auto"
+          options={[
+            { value: 'rank', label: 'مرتب‌سازی: رتبه' },
+            { value: 'name', label: 'مرتب‌سازی: نام' },
+          ]}
+        />
       </div>
 
       <div className="card overflow-hidden">

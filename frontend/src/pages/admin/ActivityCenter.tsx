@@ -1,14 +1,14 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { activityApi } from '../../api/endpoints';
 import {
-  EmptyState, Modal, PageHeader, SearchInput, Spinner,
+  EmptyState, Modal, PageHeader, SearchInput, Select, Skeleton, Spinner,
 } from '../../components/common';
 import {
   ActivityCharts, ActivityCriticalPanel, ActivityFilterOptions,
   ActivityLog, ActivityLogFilters, ActivityStats,
 } from '../../types';
-import { downloadBlob, formatDateTime, formatNumber, getBlobErrorMessage, getErrorMessage } from '../../utils/helpers';
+import { downloadBlob, formatDateTime, formatNumber, getBlobErrorMessage, getErrorMessage, toPersianDigits } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 
 const PAGE_SIZE = 20;
@@ -37,7 +37,7 @@ function StatusPill({ status }: { status: 'success' | 'failed' }) {
 function actionDotColor(action: string, isCritical: boolean) {
   if (isCritical) return 'bg-red-500';
   if (action.startsWith('survey')) return 'bg-indigo-500';
-  if (action.startsWith('question')) return 'bg-violet-500';
+  if (action.startsWith('question') || action.startsWith('person')) return 'bg-violet-500';
   if (action.startsWith('export')) return 'bg-amber-500';
   if (action.startsWith('user') || action.includes('password') || action.includes('import')) return 'bg-sky-500';
   if (action.startsWith('login') || action === 'logout') return 'bg-emerald-500';
@@ -55,30 +55,119 @@ const Ic = {
 };
 
 const METADATA_KEY_LABELS: Record<string, string> = {
-  token: 'توکن لینک',
-  label: 'نام لینک',
-  is_active: 'وضعیت فعال بودن',
-  max_participants: 'حداکثر شرکت‌کنندگان',
-  expiry_value: 'مقدار انقضا',
-  expiry_unit: 'واحد انقضا',
-  ip_address: 'آدرس IP',
-  survey_id: 'شناسه نظرسنجی',
-  person_id: 'شناسه شخص',
-  question_id: 'شناسه سؤال',
-  file_format: 'قالب فایل',
-  count: 'تعداد',
-  reason: 'دلیل',
+  token: 'Link token',
+  label: 'Link name',
+  is_active: 'Active status',
+  max_participants: 'Max participants',
+  expiry_value: 'Expiry value',
+  expiry_unit: 'Expiry unit',
+  ip_address: 'IP address',
+  survey_id: 'Survey ID',
+  person_id: 'Person ID',
+  question_id: 'Question ID',
+  file_format: 'File format',
+  count: 'Count',
+  reason: 'Reason',
+  person_name: 'Person name',
 };
 
-const EXPIRY_UNIT_FA: Record<string, string> = { hours: 'ساعت', days: 'روز', weeks: 'هفته' };
+const EXPIRY_UNIT_EN: Record<string, string> = { hours: 'hours', days: 'days', weeks: 'weeks' };
+
+// Identifiers / technical tokens are kept in Latin digits (like IP addresses) since
+// they're copied, searched, or matched against raw system values rather than read as
+// human quantities. Everything else — counts, durations, etc. — is shown in Persian digits.
+const _RAW_DIGIT_KEYS = new Set(['token', 'person_id', 'survey_id', 'question_id', 'ip_address']);
 
 function formatMetadataValue(key: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';
-  if (typeof value === 'boolean') return value ? 'بله' : 'خیر';
-  if (key === 'expiry_unit' && typeof value === 'string') return EXPIRY_UNIT_FA[value] || value;
-  if (Array.isArray(value)) return value.join('، ');
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (key === 'expiry_unit' && typeof value === 'string') return EXPIRY_UNIT_EN[value] || value;
+  if (Array.isArray(value)) return value.join(', ');
   if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
+  const str = String(value);
+  return str;
+}
+
+function ActivityChartSkeleton() {
+  const barHeights = [
+    'h-20', 'h-28', 'h-16', 'h-32', 'h-24', 'h-36', 'h-28',
+    'h-20', 'h-32', 'h-24', 'h-36', 'h-28', 'h-16', 'h-32',
+  ];
+
+  return (
+    <div className="space-y-5" aria-busy="true">
+      <div className="flex items-end gap-1.5 h-40" dir="ltr">
+        {barHeights.map((heightClass, index) => (
+          <div key={index} className="flex-1 flex flex-col items-center justify-end gap-1">
+            <Skeleton className={`w-full rounded-t-md ${heightClass}`} />
+            <Skeleton className="h-2 w-full" />
+          </div>
+        ))}
+      </div>
+      <div className="pt-5 border-t border-gray-100 space-y-3">
+        <Skeleton className="h-4 w-32" />
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="flex items-center gap-3">
+            <Skeleton className="h-3 w-28 flex-shrink-0" />
+            <Skeleton className="h-2.5 flex-1 rounded-full" />
+            <Skeleton className="h-3 w-8 flex-shrink-0" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CriticalActionsSkeleton() {
+  return (
+    <div className="space-y-3" aria-busy="true">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="flex items-start gap-3 p-2.5 rounded-lg border border-gray-100">
+          <Skeleton className="w-5 h-5 rounded-full flex-shrink-0" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-3 w-5/6" />
+            <Skeleton className="h-2.5 w-1/2" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TimelineSkeleton() {
+  return (
+    <div className="relative border-r border-gray-200 pr-5 space-y-4" aria-busy="true">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="relative space-y-2">
+          <Skeleton className="absolute -right-[26px] top-1 w-3 h-3 rounded-full ring-4 ring-white" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-5 w-14 rounded-full" />
+          </div>
+          <Skeleton className="h-3 w-3/4" />
+          <Skeleton className="h-2.5 w-40" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ActivityLogTableSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 7 }).map((_, index) => (
+        <tr key={index}>
+          <td className="px-3 py-3"><Skeleton className="h-3 w-24" /></td>
+          <td className="px-3 py-3"><Skeleton className="h-3 w-28" /></td>
+          <td className="px-3 py-3"><Skeleton className="h-3 w-24" /></td>
+          <td className="px-3 py-3"><Skeleton className="h-3 w-48" /></td>
+          <td className="px-3 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+          <td className="px-3 py-3"><Skeleton className="h-3 w-20" /></td>
+          <td className="px-3 py-3"><Skeleton className="h-4 w-4" /></td>
+        </tr>
+      ))}
+    </>
+  );
 }
 
 function ChevronIcon({ open }: { open: boolean }) {
@@ -92,40 +181,109 @@ function ChevronIcon({ open }: { open: boolean }) {
   );
 }
 
+function DetailField({ label, value, icon, mono, dir, span }: {
+  label: string; value: ReactNode; icon: JSX.Element; mono?: boolean; dir?: 'ltr' | 'rtl'; span?: boolean;
+}) {
+  return (
+    <div className={`flex items-start gap-2.5 rounded-lg px-3 py-2.5 bg-white dark:bg-transparent border border-gray-100 dark:border-[color:var(--border-soft)] ${span ? 'sm:col-span-2' : ''}`}>
+      <span className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 bg-gray-50 dark:bg-[color:var(--border-soft)] text-gray-400">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] text-gray-400 mb-0.5">{label}</p>
+        <p className={`text-slate-700 font-medium truncate ${mono ? 'font-mono' : ''}`} dir={dir}>{value}</p>
+      </div>
+    </div>
+  );
+}
+
+const DetailIc = {
+  target: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+  ip: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zM3.6 9h16.8M3.6 15h16.8M12 3a13.5 13.5 0 013 9 13.5 13.5 0 01-3 9 13.5 13.5 0 01-3-9 13.5 13.5 0 013-9z" /></svg>,
+  browser: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" /></svg>,
+  info: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>,
+};
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={e => {
+        e.stopPropagation();
+        navigator.clipboard?.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+      className="text-gray-300 hover:text-[color:var(--c-600)] dark:hover:text-[color:var(--c-300)] transition-colors flex-shrink-0"
+      title="کپی"
+    >
+      {copied ? (
+        <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+      ) : (
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5A2.25 2.25 0 0117.25 21.75H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" /></svg>
+      )}
+    </button>
+  );
+}
+
+function formatDetailDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  try {
+    return new Date(dateStr).toLocaleString('en-GB', {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
 function ActivityLogDetails({ log }: { log: ActivityLog }) {
   const metadataEntries = Object.entries(log.metadata || {}).filter(([, v]) => v !== null && v !== undefined && v !== '');
+  const isEmpty = metadataEntries.length === 0 && !log.target_repr && !log.ip_address && !log.user_agent;
 
   return (
-    <div className="px-3 py-3 bg-slate-50/60 border-t border-b border-gray-100 text-xs">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-        {log.target_repr && (
-          <div className="flex gap-2">
-            <span className="text-gray-400 flex-shrink-0">هدف:</span>
-            <span className="text-slate-700 font-medium">{log.target_repr}</span>
-          </div>
-        )}
-        {log.ip_address && (
-          <div className="flex gap-2">
-            <span className="text-gray-400 flex-shrink-0">آدرس IP کامل:</span>
-            <span className="text-slate-700 font-mono" dir="ltr">{log.ip_address}</span>
-          </div>
-        )}
-        {log.user_agent && (
-          <div className="flex gap-2 sm:col-span-2">
-            <span className="text-gray-400 flex-shrink-0">مرورگر:</span>
-            <span className="text-slate-600 truncate" dir="ltr">{log.user_agent}</span>
-          </div>
-        )}
-        {metadataEntries.map(([key, value]) => (
-          <div key={key} className="flex gap-2">
-            <span className="text-gray-400 flex-shrink-0">{METADATA_KEY_LABELS[key] || key}:</span>
-            <span className="text-slate-700 font-medium break-all">{formatMetadataValue(key, value)}</span>
-          </div>
-        ))}
-        {metadataEntries.length === 0 && !log.target_repr && !log.user_agent && (
-          <p className="text-gray-400">اطلاعات تکمیلی دیگری ثبت نشده است.</p>
-        )}
+    <div className="px-3 py-3 bg-slate-50/60 dark:bg-[color:var(--surface-alt)]/60 border-t border-b border-gray-100 dark:border-[color:var(--border-soft)] text-xs">
+      <div className="flex items-center justify-between mb-2.5">
+        <p className="text-[11px] font-semibold text-gray-400">Full event details</p>
+        <p className="text-[11px] text-gray-400" dir="ltr">{formatDetailDateTime(log.created_at)}</p>
       </div>
+      {isEmpty ? (
+        <p className="text-gray-400 py-2">No additional information was recorded for this event.</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {log.target_repr && (
+            <DetailField label="Target" value={log.target_repr} icon={DetailIc.target} />
+          )}
+          {log.ip_address && (
+            <DetailField
+              label="Full IP address"
+              icon={DetailIc.ip}
+              mono
+              dir="ltr"
+              value={
+                <span className="inline-flex items-center gap-1.5">
+                  {log.ip_address}
+                  <CopyButton text={log.ip_address} />
+                </span>
+              }
+            />
+          )}
+          {log.user_agent && (
+            <DetailField label="Browser" value={log.user_agent} icon={DetailIc.browser} dir="ltr" span />
+          )}
+          {metadataEntries.map(([key, value]) => (
+            <DetailField
+              key={key}
+              label={METADATA_KEY_LABELS[key] || key}
+              value={formatMetadataValue(key, value)}
+              icon={DetailIc.info}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -264,7 +422,7 @@ export default function ActivityCenter() {
             )}
           </div>
           {loadingTop ? (
-            <div className="flex justify-center py-12"><Spinner /></div>
+            <ActivityChartSkeleton />
           ) : charts && charts.daily.length > 0 ? (
             <DailyChart data={charts.daily} />
           ) : (
@@ -285,7 +443,7 @@ export default function ActivityCenter() {
             {critical && <span className="text-xs text-gray-400">({critical.count.toLocaleString('fa-IR')})</span>}
           </div>
           {loadingTop ? (
-            <div className="flex justify-center py-12"><Spinner /></div>
+            <CriticalActionsSkeleton />
           ) : critical && critical.items.length > 0 ? (
             <ul className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
               {critical.items.map(item => (
@@ -306,7 +464,7 @@ export default function ActivityCenter() {
 <div className="card p-4 sm:p-5 mb-5">
         <h2 className="text-sm font-bold text-slate-800 mb-4">جدول زمانی فعالیت‌ها</h2>
         {loadingTop ? (
-          <div className="flex justify-center py-8"><Spinner /></div>
+          <TimelineSkeleton />
         ) : timeline.length > 0 ? (
           <ol className="relative border-r border-gray-200 pr-5 space-y-4">
             {timeline.map(item => (
@@ -332,22 +490,45 @@ export default function ActivityCenter() {
           <div className="lg:col-span-2">
             <SearchInput value={search} onChange={handleSearch} placeholder="جستجو در شرح، کاربر یا IP..." />
           </div>
-          <select className="input-field w-full" value={action} onChange={e => onFilterChange(() => setAction(e.target.value))}>
-            <option value="">همه فعالیت‌ها</option>
-            {options?.actions.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-          </select>
-          <select className="input-field w-full" value={actor} onChange={e => onFilterChange(() => setActor(e.target.value))}>
-            <option value="">همه کاربران</option>
-            {options?.actors.map(a => <option key={a.id} value={String(a.id)}>{a.full_name || a.username}</option>)}
-          </select>
-          <select className="input-field w-full" value={statusFilter} onChange={e => onFilterChange(() => setStatusFilter(e.target.value))}>
-            <option value="">همه وضعیت‌ها</option>
-            {options?.statuses.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none px-1">
-            <input type="checkbox" checked={criticalOnly} onChange={e => onFilterChange(() => setCriticalOnly(e.target.checked))} className="w-4 h-4 rounded accent-red-500" />
-            فقط اقدامات حساس
-          </label>
+          <Select
+            className="w-full"
+            value={action}
+            onChange={v => onFilterChange(() => setAction(v))}
+            placeholder="همه فعالیت‌ها"
+            options={[{ value: '', label: 'همه فعالیت‌ها' }, ...(options?.actions.map(a => ({ value: a.value, label: a.label })) || [])]}
+          />
+          <Select
+            className="w-full"
+            value={actor}
+            onChange={v => onFilterChange(() => setActor(v))}
+            placeholder="همه کاربران"
+            options={[{ value: '', label: 'همه کاربران' }, ...(options?.actors.map(a => ({ value: String(a.id), label: a.full_name || a.username })) || [])]}
+          />
+          <Select
+            className="w-full"
+            value={statusFilter}
+            onChange={v => onFilterChange(() => setStatusFilter(v))}
+            placeholder="همه وضعیت‌ها"
+            options={[{ value: '', label: 'همه وضعیت‌ها' }, ...(options?.statuses.map(s => ({ value: s.value, label: s.label })) || [])]}
+          />
+          <div className="flex items-center justify-between gap-3 lg:col-span-4">
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none px-1">
+              <input type="checkbox" checked={criticalOnly} onChange={e => onFilterChange(() => setCriticalOnly(e.target.checked))} className="w-4 h-4 rounded accent-red-500" />
+              فقط اقدامات حساس
+            </label>
+            {(action || actor || statusFilter || criticalOnly || search) && (
+              <button
+                type="button"
+                onClick={() => onFilterChange(() => { setAction(''); setActor(''); setStatusFilter(''); setCriticalOnly(false); handleSearch(''); })}
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-[color:var(--c-600)] dark:hover:text-[color:var(--c-300)] transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                بازنشانی
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="table-wrapper overflow-x-auto rounded-lg border border-gray-100">
@@ -365,7 +546,7 @@ export default function ActivityCenter() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loadingTable ? (
-                <tr><td colSpan={7} className="py-10 text-center"><Spinner /></td></tr>
+                <ActivityLogTableSkeleton />
               ) : logs.length === 0 ? (
                 <tr><td colSpan={7} className="py-10">
                   <EmptyState title="فعالیتی یافت نشد" description="با فیلترهای انتخابی هیچ گزارشی موجود نیست." />

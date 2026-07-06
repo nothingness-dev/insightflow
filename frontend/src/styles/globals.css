@@ -130,6 +130,47 @@
   .dark .input-field { @apply border-transparent text-gray-100; background-color: var(--surface-alt); }
   .dark .input-field::placeholder { color: #79869b; }
 
+  
+  .select-trigger {
+    @apply px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 text-right
+           flex items-center justify-between gap-2 cursor-pointer select-none
+           transition-all duration-200 ease-out;
+    background-color: var(--surface);
+  }
+  .select-trigger:hover { border-color: var(--c-300); }
+  .select-trigger:disabled { @apply cursor-not-allowed opacity-60; }
+  .select-trigger-open { border-color: var(--c-400) !important; box-shadow: 0 0 0 3px var(--c-200); }
+  .dark .select-trigger { @apply border-transparent text-gray-100; background-color: var(--surface-alt); }
+  .dark .select-trigger:hover { background-color: var(--border-soft); }
+  .dark .select-trigger-open { box-shadow: 0 0 0 3px rgba(168,85,247,0.28); }
+
+  .select-panel {
+    @apply rounded-xl border border-gray-100 shadow-xl overflow-hidden;
+    background-color: var(--surface);
+  }
+  .dark .select-panel { @apply border-transparent; box-shadow: 0 10px 28px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.35); }
+
+  .select-panel-border { border-bottom: 1px solid var(--border-soft); }
+
+  .select-search {
+    @apply px-3 py-2 rounded-lg border border-gray-200 text-sm text-right text-gray-700
+           focus:outline-none placeholder-gray-400;
+    background-color: var(--surface-alt);
+  }
+  .select-search:focus { box-shadow: 0 0 0 3px var(--c-200); border-color: var(--c-400); }
+  .dark .select-search { @apply border-transparent text-gray-100; }
+  .dark .select-search::placeholder { color: #79869b; }
+
+  .select-option {
+    @apply w-full px-3 py-2 rounded-lg text-sm text-gray-700 text-right
+           flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer;
+  }
+  .select-option:hover { background-color: var(--c-50); }
+  .select-option-active { background-color: var(--c-100); color: var(--c-700); font-weight: 600; }
+  .dark .select-option { color: #d1d5db; }
+  .dark .select-option:hover { background-color: var(--border-soft); }
+  .dark .select-option-active { background-color: rgba(168,85,247,0.2); color: #d8b4fe; }
+
   .hash-limit-card,
   .hash-limit-editor,
   .hash-limit-duration-field {

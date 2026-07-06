@@ -26,6 +26,9 @@ class ActivityActions:
     QUESTION_ADD = 'question_add'
     QUESTION_EDIT = 'question_edit'
     QUESTION_DELETE = 'question_delete'
+    PERSON_ADD = 'person_add'
+    PERSON_EDIT = 'person_edit'
+    PERSON_DELETE = 'person_delete'
     EXPORT_CSV = 'export_csv'
     EXPORT_EXCEL = 'export_excel'
     EXPORT_PDF = 'export_pdf'
@@ -58,6 +61,9 @@ ACTION_LABELS = {
     ActivityActions.QUESTION_ADD: 'افزودن سوال',
     ActivityActions.QUESTION_EDIT: 'ویرایش سوال',
     ActivityActions.QUESTION_DELETE: 'حذف سوال',
+    ActivityActions.PERSON_ADD: 'افزودن فرد',
+    ActivityActions.PERSON_EDIT: 'ویرایش فرد',
+    ActivityActions.PERSON_DELETE: 'حذف فرد',
     ActivityActions.EXPORT_CSV: 'خروجی CSV',
     ActivityActions.EXPORT_EXCEL: 'خروجی Excel',
     ActivityActions.EXPORT_PDF: 'خروجی PDF',

@@ -1,9 +1,11 @@
    
 import csv
 import io
+import json
 
 from django.utils import timezone
 
+from apps.core.export_security import sanitize_cell
 from .models import ActivityLog
 
 
@@ -17,7 +19,8 @@ _STATUS_LABELS = {
 
 _HEADERS = [
     'زمان', 'نوع فعالیت', 'کاربر', 'نام کاربری', 'نقش',
-    'وضعیت', 'حساس', 'شرح', 'نوع هدف', 'عنوان هدف', 'آدرس IP',
+    'وضعیت', 'حساس', 'شرح', 'نوع هدف', 'شناسه هدف', 'عنوان هدف', 'آدرس IP',
+    'مرورگر', 'اطلاعات تکمیلی',
 ]
 
 
@@ -31,6 +34,15 @@ def _role_label(role):
     return {'admin': 'مدیر', 'employee': 'کارمند'}.get(role, role or '')
 
 
+def _metadata_repr(metadata):
+    if not metadata:
+        return ''
+    try:
+        return json.dumps(metadata, ensure_ascii=False, separators=(', ', ': '))
+    except (TypeError, ValueError):
+        return str(metadata)
+
+
 def _row_values(log):
     return [
         _fmt_dt(log.created_at),
@@ -40,10 +52,13 @@ def _row_values(log):
         _role_label(log.actor_role),
         _STATUS_LABELS.get(log.status, log.status),
         'بله' if log.is_critical else 'خیر',
-        log.description or '',
+        sanitize_cell(log.description),
         log.target_type or '',
-        log.target_repr or '',
+        log.target_id or '',
+        sanitize_cell(log.target_repr),
         log.ip_address or '',
+        sanitize_cell(log.user_agent),
+        sanitize_cell(_metadata_repr(log.metadata)),
     ]
 
 
@@ -104,7 +119,7 @@ def _build_excel(qs):
             if log.status == ActivityLog.STATUS_FAILED and col_idx == 6:
                 cell.font = failed_font
 
-    widths = [20, 18, 22, 16, 10, 10, 8, 40, 16, 26, 16]
+    widths = [20, 18, 22, 16, 10, 10, 8, 40, 14, 12, 26, 16, 26, 34]
     for col_idx, width in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(col_idx)].width = width
     ws.freeze_panes = 'A2'
