@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# InsightFlow — PostgreSQL backup script.
+# InsightFlow PostgreSQL backup script.
 # Dumps the database, compresses it, and removes backups older than 7 days.
-# Designed to be run by cron — safe to call manually too.
+# Designed to be run by cron; safe to call manually too.
 #
 # Usage:
-#   ./backup.sh               — run a backup now
-#   ./backup.sh --restore     — list available backups
+#   ./backup.sh               run a backup now
+#   ./backup.sh --restore     list available backups
 set -euo pipefail
 
-# ── Config ────────────────────────────────────────────────────────────────────
-BACKUP_DIR="/opt/insightflow/backups"
+BACKUP_DIR="/opt/InsightFlow/backups"
 KEEP_DAYS=7
 COMPOSE_FILE="$(cd "$(dirname "$0")" && pwd)/docker-compose.yml"
 
@@ -27,7 +26,6 @@ DB_USER=$(grep -E '^DB_USER=' "$ENV_FILE" | cut -d= -f2 | tr -d '"'"'" | tr -d '
 DB_NAME="${DB_NAME:-surveydb}"
 DB_USER="${DB_USER:-surveyuser}"
 
-# ── List mode ─────────────────────────────────────────────────────────────────
 if [ "${1:-}" = "--restore" ]; then
     echo "Available backups in $BACKUP_DIR:"
     echo ""
@@ -38,14 +36,13 @@ if [ "${1:-}" = "--restore" ]; then
     exit 0
 fi
 
-# ── Backup ────────────────────────────────────────────────────────────────────
 mkdir -p "$BACKUP_DIR"
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-OUTPUT_FILE="$BACKUP_DIR/insightflow_${TIMESTAMP}.sql.gz"
+OUTPUT_FILE="$BACKUP_DIR/InsightFlow_${TIMESTAMP}.sql.gz"
 TEMP_FILE="${OUTPUT_FILE}.tmp"
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting backup → $OUTPUT_FILE"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting backup: $OUTPUT_FILE"
 
 # Check the db container is running
 DB_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q db 2>/dev/null || true)
@@ -54,17 +51,16 @@ if [ -z "$DB_CONTAINER" ]; then
     exit 1
 fi
 
-# Dump and compress — write to temp file first so a partial dump is never kept
+# Dump and compress to a temp file first so a partial dump is never kept.
 docker exec "$DB_CONTAINER" \
     pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$TEMP_FILE"
 
 mv "$TEMP_FILE" "$OUTPUT_FILE"
 
 SIZE=$(du -sh "$OUTPUT_FILE" | cut -f1)
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Backup complete — $SIZE"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Backup complete: $SIZE"
 
-# ── Cleanup old backups ───────────────────────────────────────────────────────
-DELETED=$(find "$BACKUP_DIR" -name "insightflow_*.sql.gz" -mtime +"$KEEP_DAYS" -print -delete | wc -l)
+DELETED=$(find "$BACKUP_DIR" -name "InsightFlow_*.sql.gz" -mtime +"$KEEP_DAYS" -print -delete | wc -l)
 if [ "$DELETED" -gt 0 ]; then
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Removed $DELETED backup(s) older than $KEEP_DAYS days"
 fi

@@ -8,7 +8,7 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_PUBLIC_BASE_URL=$VITE_PUBLIC_BASE_URL
 
 COPY package.json package-lock.json ./
-RUN npm ci --include=dev
+RUN npm ci --include=dev --foreground-scripts
 
 COPY . .
 RUN ./node_modules/.bin/vite build

@@ -136,7 +136,7 @@ CACHES = {
 
             'IGNORE_EXCEPTIONS': True,
         },
-        'KEY_PREFIX': 'insightflow',
+        'KEY_PREFIX': 'InsightFlow',
         'TIMEOUT': 60 * 5,
     }
 }

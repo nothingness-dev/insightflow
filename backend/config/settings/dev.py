@@ -14,6 +14,6 @@ CORS_ALLOWED_ORIGINS = [
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'insightflow-dev',
+        'LOCATION': 'InsightFlow-dev',
     }
 }
