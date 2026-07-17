@@ -2,19 +2,38 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
-def reset_custom_people_to_default(apps, schema_editor):
-    """Reset every person that used the old checkbox-based custom question
-    assignment back to the shared/default question set, since the new
-    person-owned question model replaces that flow entirely."""
+def migrate_assigned_questions_to_person_owned(apps, schema_editor):
+    """For each person that had custom assigned questions (uses_default_questions=False),
+    clone those questions as person-owned records so the data is preserved."""
     SurveyPerson = apps.get_model('surveys', 'SurveyPerson')
-    SurveyPerson.objects.filter(uses_default_questions=False).update(uses_default_questions=True)
+    SurveyQuestion = apps.get_model('surveys', 'SurveyQuestion')
+
+    for person in SurveyPerson.objects.filter(uses_default_questions=False):
+        assigned = person.assigned_questions.all()
+        for idx, question in enumerate(assigned):
+            SurveyQuestion.objects.create(
+                survey=person.survey,
+                text=question.text,
+                help_text=question.help_text,
+                has_score=question.has_score,
+                score_required=question.score_required,
+                has_comment=question.has_comment,
+                comment_required=question.comment_required,
+                has_emoji=question.has_emoji,
+                emoji_required=question.emoji_required,
+                display_order=idx,
+                is_active=question.is_active,
+                person=person,
+                created_at=question.created_at,
+                updated_at=question.updated_at,
+            )
 
 
 class Migration(migrations.Migration):
     dependencies = [('surveys', '0014_alter_rating_emoji_rating')]
 
     operations = [
-        migrations.RunPython(reset_custom_people_to_default, migrations.RunPython.noop),
+        migrations.RunPython(migrate_assigned_questions_to_person_owned, migrations.RunPython.noop),
         migrations.RemoveField(model_name='surveyperson', name='assigned_questions'),
         migrations.RemoveField(model_name='surveyquestion', name='default_for_everyone'),
         migrations.AddField(

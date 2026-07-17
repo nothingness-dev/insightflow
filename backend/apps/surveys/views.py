@@ -1299,8 +1299,10 @@ class EmployeeSurveyResultsView(APIView):
         except Survey.DoesNotExist:
             return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
-        can_view = survey.status == Survey.STATUS_CLOSED
-        if not can_view:
+        if survey.results_visibility == Survey.VISIBILITY_ADMIN_ONLY:
+            return Response({'detail': 'نتایج این نظرسنجی فقط برای مدیر قابل مشاهده است.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if survey.status != Survey.STATUS_CLOSED:
             return Response({'detail': 'نتایج پس از بسته شدن نظرسنجی در دسترس خواهد بود.'}, status=status.HTTP_403_FORBIDDEN)
 
         results = calculate_survey_results(survey, request)
