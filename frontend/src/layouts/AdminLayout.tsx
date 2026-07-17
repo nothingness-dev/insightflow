@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import ThemeSwitcher from "../components/common/ThemeSwitcher";
 import ChangePasswordModal from "../components/common/ChangePasswordModal";
 import PageTransition from "../components/common/PageTransition";
+import CopyrightNotice from "../components/common/CopyrightNotice";
 import toast from "react-hot-toast";
 
 interface NavItem {
@@ -296,7 +297,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <MenuIcon />
             </button>
             <p className="text-sm text-gray-400 hidden sm:block">
-              سامانه نظرسنجی سازمانی
+              سامانه نظرسنجی انستیتو قلب شهید رجایی
             </p>
           </div>
           <ThemeSwitcher />
@@ -304,6 +305,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
         <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-7">
           <PageTransition>{children}</PageTransition>
+          <CopyrightNotice className="mt-8 border-t border-gray-100 pt-5" />
         </main>
       </div>
 

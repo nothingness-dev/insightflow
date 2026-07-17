@@ -23,11 +23,11 @@ class SurveyQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SurveyQuestion
         fields = [
-            'id', 'survey', 'text', 'help_text', 'has_score', 'score_required',
+            'id', 'survey', 'person', 'text', 'help_text', 'has_score', 'score_required',
             'has_comment', 'comment_required', 'has_emoji', 'emoji_required',
             'display_order', 'is_active', 'created_at'
         ]
-        read_only_fields = ['id', 'survey', 'created_at']
+        read_only_fields = ['id', 'survey', 'person', 'created_at']
 
     def validate(self, attrs):
         has_score = attrs.get('has_score', getattr(self.instance, 'has_score', True))
@@ -72,15 +72,23 @@ class SurveyQuestionPublicSerializer(serializers.ModelSerializer):
 
 class SurveyPersonSerializer(serializers.ModelSerializer):
     photo_url = serializers.SerializerMethodField()
+    question_ids = serializers.SerializerMethodField()
+    questions = serializers.SerializerMethodField()
 
     class Meta:
         model = SurveyPerson
         fields = [
             'id', 'survey', 'full_name', 'photo', 'photo_url',
             'role_title', 'department', 'description',
-            'display_order', 'is_active', 'created_at'
+            'display_order', 'is_active', 'uses_default_questions', 'question_ids', 'questions', 'created_at'
         ]
-        read_only_fields = ['id', 'created_at', 'photo_url']
+        # `uses_default_questions` is intentionally read-only here: it must only
+        # ever change via AdminPersonQuestionsView (dedicated endpoint), never
+        # through person create/update. This also sidesteps a DRF BooleanField
+        # gotcha - form/multipart submissions that omit a boolean field are
+        # treated as an explicit False (BooleanField.default_empty_html=False),
+        # which silently forced every newly created person into "custom" mode.
+        read_only_fields = ['id', 'created_at', 'photo_url', 'uses_default_questions']
         extra_kwargs = {'photo': {'write_only': True, 'required': False}, 'survey': {'read_only': True}}
 
     def get_photo_url(self, obj):
@@ -94,14 +102,40 @@ class SurveyPersonSerializer(serializers.ModelSerializer):
     def validate_photo(self, value):
         return validate_photo(value)
 
+    def get_question_ids(self, obj):
+        from .services import effective_questions_for_person
+        return list(effective_questions_for_person(obj).values_list('id', flat=True))
+
+    def get_questions(self, obj):
+        # Full question objects currently in effect for this person (shared
+        # pool, or their own private questions) - the admin UI uses this to
+        # pre-fill the per-person question editor with live data instead of
+        # relying on a possibly-stale survey-level question list.
+        from .services import effective_questions_for_person
+        return SurveyQuestionSerializer(effective_questions_for_person(obj), many=True, context=self.context).data
+
 
 class SurveyPersonPublicSerializer(serializers.ModelSerializer):
     """نسخه عمومی برای نمایش به کارکنان - بدون اطلاعات حساس"""
     photo_url = serializers.SerializerMethodField()
+    question_ids = serializers.SerializerMethodField()
+    questions = serializers.SerializerMethodField()
 
     class Meta:
         model = SurveyPerson
-        fields = ['id', 'full_name', 'photo_url', 'role_title', 'department', 'description', 'display_order']
+        fields = ['id', 'full_name', 'photo_url', 'role_title', 'department', 'description', 'display_order', 'question_ids', 'questions']
+
+    def get_question_ids(self, obj):
+        from .services import effective_questions_for_person
+        return list(effective_questions_for_person(obj).values_list('id', flat=True))
+
+    def get_questions(self, obj):
+        # Full question objects for this specific person - includes their own
+        # private questions when they don't use the shared/default set, so
+        # the voting form can render them even though the survey-level
+        # `questions` list only carries the shared question pool.
+        from .services import effective_questions_for_person
+        return SurveyQuestionPublicSerializer(effective_questions_for_person(obj), many=True, context=self.context).data
 
     def get_photo_url(self, obj):
         if obj.photo:
@@ -142,19 +176,9 @@ class SurveySerializer(serializers.ModelSerializer):
 
     def get_total_responses(self, obj):
         """Count authenticated voters who fully completed the survey."""
-        active_people_count = obj.people.filter(is_active=True).count()
-        active_questions_count = obj.questions.filter(is_active=True).count()
-        required = active_people_count * active_questions_count
-        if not required:
-            return 0
-        return (
-            obj.ratings
-            .filter(person__is_active=True, question__is_active=True, voter__isnull=False)
-            .values('voter_id')
-            .annotate(answered_count=Count('id', distinct=True))
-            .filter(answered_count=required)
-            .count()
-        )
+        from .services import completed_participants
+        voter_ids, _anonymous = completed_participants(obj)
+        return len(voter_ids)
 
     def get_anonymous_participants_count(self, obj):
         """Sum of anonymous_participant_count across all hash links for this survey."""
@@ -320,7 +344,10 @@ class SurveyPublicSerializer(serializers.ModelSerializer):
         return SurveyPersonPublicSerializer(active_people, many=True, context=self.context).data
 
     def get_questions(self, obj):
-        active_questions = obj.questions.filter(is_active=True)
+        # Only the shared/default question pool - a particular person's
+        # private questions are never mixed into this general list, they
+        # only surface through that person's own `questions`/`question_ids`.
+        active_questions = obj.questions.filter(is_active=True, person__isnull=True)
         return SurveyQuestionPublicSerializer(active_questions, many=True, context=self.context).data
 
 

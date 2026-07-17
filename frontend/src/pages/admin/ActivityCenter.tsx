@@ -241,7 +241,12 @@ function formatDetailDateTime(dateStr: string | null | undefined): string {
 }
 
 function ActivityLogDetails({ log }: { log: ActivityLog }) {
-  const metadataEntries = Object.entries(log.metadata || {}).filter(([, v]) => v !== null && v !== undefined && v !== '');
+  const metadataEntries = Object.entries(log.metadata || {}).filter(([key, value]) =>
+    value !== null && value !== undefined && value !== '' &&
+    // Older add-person events stored the global database primary key. It is
+    // not a user-facing person number, so keep it out of event details too.
+    !(log.action === 'person_add' && key === 'person_id')
+  );
   const isEmpty = metadataEntries.length === 0 && !log.target_repr && !log.ip_address && !log.user_agent;
 
   return (

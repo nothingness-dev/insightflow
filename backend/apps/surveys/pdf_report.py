@@ -95,7 +95,7 @@ def _emoji_palette(key):
     return _EMOJI_PALETTE.get(key, (colors.HexColor('#94a3b8'), colors.HexColor('#f8fafc')))
 
 
-_EMOJI_LABEL_TO_KEY = {'بد': 'bad', 'متوسط': 'average', 'خوب': 'good', 'عالی': 'excellent'}
+_EMOJI_LABEL_TO_KEY = {'ضعیف': 'bad', 'بد': 'bad', 'متوسط': 'average', 'خوب': 'good', 'عالی': 'excellent'}
 
 
 def _score_grade(v):
@@ -115,6 +115,7 @@ _SLATE = colors.HexColor('#64748b')
 _LIGHT = colors.HexColor('#e2e8f0')
 _BRAND = colors.HexColor('#4f46e5')
 _ALT_ROW = colors.HexColor('#f8fafc')
+_COPYRIGHT_NOTICE = 'این محصول توسط nothingness-dev توسعه یافته است. تمامی حقوق محفوظ میباشد. | © ۱۴۰۵ | https://github.com/nothingness-dev'
 
 
 class _GradientBand(Flowable):
@@ -146,14 +147,15 @@ class _GradientBand(Flowable):
 
 
 def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
-                     comments_truncated=False):
+                     comments_truncated=False, custom_sections=None):
     """Build the survey results PDF and return it as bytes.
 
     Args:
         survey: the Survey instance (uses ``.title``).
         results: list of result dicts from ``calculate_survey_results``.
         questions_meta: list of dicts with keys
-            ``text, avg, responses, comments, has_score, has_comment``.
+            ``text, avg, responses, comments, has_score, has_comment`` for the
+            shared/general question set only (particular persons excluded).
         comment_groups: list of dicts (one per question with comments):
             ``{question, items: [(person, dept, comment)], total, extra}``.
             ``extra`` is how many comments were omitted for brevity.
@@ -161,6 +163,10 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
             ``overall_avg, questions, people, voters, distribution`` where
             ``distribution`` is a list of ``(label, count, hex_color)``.
         comments_truncated: True if any comments were omitted across the report.
+        custom_sections: optional list of dicts, one per particular person,
+            each with ``{title, questions_meta, comment_groups, truncated}`` -
+            rendered as fully isolated blocks after the shared report, never
+            compared against the shared results or each other.
     """
     _ensure_fonts()
 
@@ -180,7 +186,7 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
         canvas.setFillColor(_SLATE)
         canvas.drawCentredString(
             page_w / 2, 9 * mm,
-            _rtl(f'نتایج کاملاً ناشناس هستند  ·  صفحه {_fa_num(_doc.page)}'),
+            _rtl(f'{_COPYRIGHT_NOTICE}'),
         )
         canvas.setStrokeColor(_LIGHT)
         canvas.setLineWidth(0.5)
@@ -303,98 +309,117 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
         story.append(emoji_dist_table)
 
     story.append(P('رتبه‌بندی افراد', 'h2'))
-    header = [P('رتبه', 'th'), P('نام و نام خانوادگی', 'th'), P('واحد', 'th'),
-              P('سمت', 'th'), P('میانگین', 'th'), P('کیفیت', 'th'), P('رأی', 'th')]
-    data = [header]
-    style_cmds = [
-        ('BACKGROUND', (0, 0), (-1, 0), _INK),
-        ('GRID', (0, 0), (-1, -1), 0.4, _LIGHT),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, _ALT_ROW]),
-    ]
-    for r in results:
-        av = r['average_score']
-        fg, bg = _score_palette(av)
-        data.append([
-            Paragraph(_rtlp(_fa_num(r['rank'])), styles['cellc']),
-            Paragraph(_rtlp(r['full_name']), styles['cell']),
-            Paragraph(_rtlp(r.get('department') or '—'), styles['cell']),
-            Paragraph(_rtlp(r.get('role_title') or '—'), styles['cell']),
-            Paragraph(_rtlp(_fa_num(av, 2) if av is not None else '—'),
-                      ParagraphStyle('sc', parent=styles['cellc'], textColor=fg, fontName='Vazir-Bold')),
-            Paragraph(_rtlp(_score_grade(av)),
-                      ParagraphStyle('g', parent=styles['cellc'], textColor=fg)),
-            Paragraph(_rtlp(_fa_num(r['votes_count'])), styles['cellc']),
-        ])
-        ri = len(data) - 1
-        style_cmds.append(('BACKGROUND', (4, ri), (4, ri), bg))
-    rank_table = Table(
-        data,
-        colWidths=[content_w * x for x in (0.08, 0.27, 0.18, 0.17, 0.12, 0.10, 0.08)],
-        repeatRows=1,
-    )
-    rank_table.setStyle(TableStyle(style_cmds))
-    story.append(rank_table)
 
-    story.append(P('تحلیل سوال‌به‌سوال', 'h2'))
-    qheader = [P('#', 'th'), P('متن سوال', 'th'), P('میانگین کل', 'th'),
-               P('تعداد پاسخ', 'th'), P('امتیاز ایموجی', 'th'), P('نظرات متنی', 'th')]
-    qdata = [qheader]
-    qstyle = [
-        ('BACKGROUND', (0, 0), (-1, 0), _INK),
-        ('GRID', (0, 0), (-1, -1), 0.4, _LIGHT),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, _ALT_ROW]),
+    # People with the full default question set and people with a custom/partial
+    # question set are rendered as separate tables under their own heading - never
+    # mixed into the same table - and each custom person gets their own table.
+    all_group = [r for r in results if r.get('result_section') == 'all' or not r.get('result_section')]
+    custom_groups = [
+        (r['full_name'], [r]) for r in results if str(r.get('result_section', '')).startswith('custom:')
     ]
-    for idx, q in enumerate(questions_meta, 1):
-        av = q['avg']
-        fg, bg = _score_palette(av)
-        emoji_label = q.get('emoji_avg_label')
-        has_emoji_value = bool(q.get('has_emoji') and emoji_label)
-        emoji_fg, emoji_bg = _emoji_palette(_EMOJI_LABEL_TO_KEY.get(emoji_label))
-        emoji_cell_style = ParagraphStyle('qem', parent=styles['cellc'], textColor=emoji_fg, fontName='Vazir-Bold')
-        qdata.append([
-            Paragraph(_rtlp(_fa_num(idx)), styles['cellc']),
-            Paragraph(_rtlp(q['text']), styles['cell']),
-            Paragraph(_rtlp(_fa_num(av, 2) if av is not None else 'متنی'),
-                      ParagraphStyle('qsc', parent=styles['cellc'], textColor=fg, fontName='Vazir-Bold')),
-            Paragraph(_rtlp(_fa_num(q['responses']) if q['has_score'] else '—'), styles['cellc']),
-            Paragraph(_rtlp(emoji_label) if has_emoji_value else _rtlp('—'), emoji_cell_style if has_emoji_value else styles['cellc']),
-            Paragraph(_rtlp(_fa_num(q['comments']) if q['has_comment'] else '—'), styles['cellc']),
-        ])
-        ri = len(qdata) - 1
-        if av is not None:
-            qstyle.append(('BACKGROUND', (2, ri), (2, ri), bg))
-        if has_emoji_value:
-            qstyle.append(('BACKGROUND', (4, ri), (4, ri), emoji_bg))
-    qtable = Table(
-        qdata,
-        colWidths=[content_w * x for x in (0.06, 0.40, 0.14, 0.12, 0.14, 0.14)],
-        repeatRows=1,
-    )
-    qtable.setStyle(TableStyle(qstyle))
-    story.append(qtable)
+    rank_groups = ([('افراد دارای همه سوال‌ها', all_group)] if all_group else []) + custom_groups
 
-    if comment_groups:
-        total_all = sum(g['total'] for g in comment_groups)
-        shown_all = sum(len(g['items']) for g in comment_groups)
+    def _rank_table(group_results):
+        header = [P('رتبه', 'th'), P('نام و نام خانوادگی', 'th'), P('واحد', 'th'),
+                  P('سمت', 'th'), P('میانگین', 'th'), P('کیفیت', 'th'), P('رأی', 'th')]
+        data = [header]
+        style_cmds = [
+            ('BACKGROUND', (0, 0), (-1, 0), _INK),
+            ('GRID', (0, 0), (-1, -1), 0.4, _LIGHT),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, _ALT_ROW]),
+        ]
+        for r in group_results:
+            av = r['average_score']
+            fg, bg = _score_palette(av)
+            data.append([
+                Paragraph(_rtlp(_fa_num(r['rank'])), styles['cellc']),
+                Paragraph(_rtlp(r['full_name']), styles['cell']),
+                Paragraph(_rtlp(r.get('department') or '—'), styles['cell']),
+                Paragraph(_rtlp(r.get('role_title') or '—'), styles['cell']),
+                Paragraph(_rtlp(_fa_num(av, 2) if av is not None else '—'),
+                          ParagraphStyle('sc', parent=styles['cellc'], textColor=fg, fontName='Vazir-Bold')),
+                Paragraph(_rtlp(_score_grade(av)),
+                          ParagraphStyle('g', parent=styles['cellc'], textColor=fg)),
+                Paragraph(_rtlp(_fa_num(r['votes_count'])), styles['cellc']),
+            ])
+            ri = len(data) - 1
+            style_cmds.append(('BACKGROUND', (4, ri), (4, ri), bg))
+        table = Table(
+            data,
+            colWidths=[content_w * x for x in (0.09, 0.26, 0.17, 0.16, 0.13, 0.11, 0.08)],
+            repeatRows=1,
+        )
+        table.setStyle(TableStyle(style_cmds))
+        return table
+
+    for title, group_results in rank_groups:
+        story.append(P(title, 'muted'))
+        story.append(Spacer(1, 4))
+        story.append(_rank_table(group_results))
+        story.append(Spacer(1, 10))
+
+    def _questions_table(meta_list):
+        qheader = [P('#', 'th'), P('متن سوال', 'th'), P('میانگین کل', 'th'),
+                   P('تعداد پاسخ', 'th'), P('امتیاز ایموجی', 'th'), P('نظرات متنی', 'th')]
+        qdata = [qheader]
+        qstyle = [
+            ('BACKGROUND', (0, 0), (-1, 0), _INK),
+            ('GRID', (0, 0), (-1, -1), 0.4, _LIGHT),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, _ALT_ROW]),
+        ]
+        for idx, q in enumerate(meta_list, 1):
+            av = q['avg']
+            fg, bg = _score_palette(av)
+            emoji_label = q.get('emoji_avg_label')
+            has_emoji_value = bool(q.get('has_emoji') and emoji_label)
+            emoji_fg, emoji_bg = _emoji_palette(_EMOJI_LABEL_TO_KEY.get(emoji_label))
+            emoji_cell_style = ParagraphStyle('qem', parent=styles['cellc'], textColor=emoji_fg, fontName='Vazir-Bold')
+            qdata.append([
+                Paragraph(_rtlp(_fa_num(idx)), styles['cellc']),
+                Paragraph(_rtlp(q['text']), styles['cell']),
+                Paragraph(_rtlp(_fa_num(av, 2) if av is not None else 'متنی'),
+                          ParagraphStyle('qsc', parent=styles['cellc'], textColor=fg, fontName='Vazir-Bold')),
+                Paragraph(_rtlp(_fa_num(q['responses']) if q['has_score'] else '—'), styles['cellc']),
+                Paragraph(_rtlp(emoji_label) if has_emoji_value else _rtlp('—'), emoji_cell_style if has_emoji_value else styles['cellc']),
+                Paragraph(_rtlp(_fa_num(q['comments']) if q['has_comment'] else '—'), styles['cellc']),
+            ])
+            ri = len(qdata) - 1
+            if av is not None:
+                qstyle.append(('BACKGROUND', (2, ri), (2, ri), bg))
+            if has_emoji_value:
+                qstyle.append(('BACKGROUND', (4, ri), (4, ri), emoji_bg))
+        qtable = Table(
+            qdata,
+            colWidths=[content_w * x for x in (0.06, 0.40, 0.14, 0.12, 0.14, 0.14)],
+            repeatRows=1,
+        )
+        qtable.setStyle(TableStyle(qstyle))
+        return qtable
+
+    def _render_comments(groups, truncated):
+        if not groups:
+            return
+        total_all = sum(g['total'] for g in groups)
+        shown_all = sum(len(g['items']) for g in groups)
         heading = 'نظرات متنی'
         if total_all:
             heading += f'  ({_fa_num(shown_all)} از {_fa_num(total_all)})'
         story.append(P(heading, 'h2'))
 
-        if comments_truncated:
+        if truncated:
             note = Paragraph(
                 _rtl('برای مشاهدهٔ فهرست کامل نظرات، خروجی اکسل یا CSV را دانلود کنید.'),
                 ParagraphStyle('cm_note', fontName='Vazir', fontSize=8, textColor=_SLATE,
                                alignment=TA_RIGHT, leading=12, spaceAfter=6))
             story.append(note)
 
-        for group in comment_groups:
+        for group in groups:
             q_title = Paragraph(
                 _rtl(f"{group['question']}  ·  {_fa_num(group['total'])} نظر"),
                 ParagraphStyle('cm_q', fontName='Vazir-Bold', fontSize=9.5, textColor=_INK,
@@ -424,6 +449,19 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
                     _rtl(f"+ {_fa_num(group['extra'])} نظر دیگر برای این سوال"),
                     ParagraphStyle('cm_more', fontName='Vazir', fontSize=8, textColor=_SLATE,
                                    alignment=TA_RIGHT, leading=12, spaceAfter=4)))
+
+    story.append(P('تحلیل سوال‌به‌سوال', 'h2'))
+    story.append(_questions_table(questions_meta))
+    _render_comments(comment_groups, comments_truncated)
+
+    # Each particular person gets a fully isolated block - their own question
+    # analysis and comments - never merged into the shared tables above.
+    for section in (custom_sections or []):
+        story.append(Spacer(1, 14))
+        story.append(P(section['title'], 'h2'))
+        if section.get('questions_meta'):
+            story.append(_questions_table(section['questions_meta']))
+        _render_comments(section.get('comment_groups') or [], section.get('truncated', False))
 
     doc.build(story)
     return buf.getvalue()

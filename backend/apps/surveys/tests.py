@@ -9,7 +9,92 @@ from apps.surveys.models import (
     AnonymousParticipation, Rating, Survey, SurveyHashLink,
     SurveyQuestion, SurveyPerson,
 )
-from apps.surveys.services import calculate_survey_progress
+from apps.surveys.services import calculate_survey_progress, calculate_survey_results
+
+
+class PerPersonQuestionAssignmentTests(APITestCase):
+    def setUp(self):
+        self.admin = create_admin(username='assignment_admin')
+        self.employee = create_employee(username='assignment_employee')
+        self.survey = create_survey(self.admin, status=Survey.STATUS_DRAFT)
+        self.q1 = self.survey.questions.get()
+        self.all_person = create_person(self.survey, full_name='فرد کامل')
+        self.custom_person = create_person(self.survey, full_name='فرد اختصاصی')
+
+    def _custom_question_payload(self, text='سوال اختصاصی'):
+        return {
+            'questions': [{
+                'text': text, 'help_text': '', 'has_score': True, 'score_required': True,
+                'has_comment': False, 'comment_required': False,
+                'has_emoji': False, 'emoji_required': False, 'display_order': 0, 'is_active': True,
+            }],
+        }
+
+    def test_admin_assignment_controls_public_questions_and_rating(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.put(
+            f'/api/admin/people/{self.custom_person.id}/questions/',
+            self._custom_question_payload(), format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data['uses_default_questions'])
+        custom_question_id = response.data['question_ids'][0]
+        self.assertEqual(response.data['question_ids'], [custom_question_id])
+
+        self.survey.status = Survey.STATUS_PUBLISHED
+        self.survey.save(update_fields=['status'])
+        self.client.force_authenticate(self.employee)
+        detail = self.client.get(f'/api/surveys/{self.survey.id}/')
+        person_data = next(p for p in detail.data['people'] if p['id'] == self.custom_person.id)
+        self.assertEqual(person_data['question_ids'], [custom_question_id])
+
+        rated = self.client.post(
+            f'/api/surveys/{self.survey.id}/people/{self.custom_person.id}/rate/',
+            {'answers': [{'question_id': custom_question_id, 'score': 8}]}, format='json',
+        )
+        self.assertEqual(rated.status_code, status.HTTP_201_CREATED)
+
+    def test_results_and_csv_separate_each_partial_person(self):
+        SurveyQuestion.objects.create(
+            survey=self.survey, person=self.custom_person, text='سوال اختصاصی',
+            has_score=True, score_required=True, display_order=0,
+        )
+        self.custom_person.uses_default_questions = False
+        self.custom_person.save(update_fields=['uses_default_questions'])
+
+        results = calculate_survey_results(self.survey)
+        by_person = {row['person_id']: row for row in results}
+        # A person on the shared/default question set stays in the general
+        # comparison, unaffected by another person's private questions.
+        self.assertEqual(by_person[self.all_person.id]['result_section'], 'all')
+        self.assertEqual(by_person[self.custom_person.id]['result_section'], 'custom:%s' % self.custom_person.id)
+
+        self.client.force_authenticate(self.admin)
+        csv_response = self.client.get(f'/api/admin/surveys/{self.survey.id}/export/csv/')
+        self.assertEqual(csv_response.status_code, status.HTTP_200_OK)
+        body = csv_response.content.decode('utf-8-sig')
+        # The particular person gets their own clearly separated section,
+        # never mixed into the general comparison table.
+        self.assertIn(f'بخش اختصاصی: {self.custom_person.full_name}', body)
+        self.assertNotIn(f'بخش اختصاصی: {self.all_person.full_name}', body)
+
+    def test_person_can_be_reset_to_default_questions(self):
+        self.client.force_authenticate(self.admin)
+        self.client.put(
+            f'/api/admin/people/{self.custom_person.id}/questions/',
+            self._custom_question_payload(), format='json',
+        )
+
+        response = self.client.put(
+            f'/api/admin/people/{self.custom_person.id}/questions/',
+            {'use_default_questions': True}, format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.custom_person.refresh_from_db()
+        self.assertTrue(self.custom_person.uses_default_questions)
+        self.assertEqual(list(self.custom_person.custom_questions.all()), [])
+        # Back on defaults, this person tracks the shared question set - just q1.
+        self.assertEqual(response.data['question_ids'], [self.q1.id])
 
 
 def create_admin(**kwargs):
@@ -235,6 +320,11 @@ class AnonymousHashLinkParticipationTests(APITestCase):
         second = self.submit('anon-token-2')
         self.assertEqual(second.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(AnonymousParticipation.objects.count(), 1)
+        self.assertEqual(
+            Rating.objects.filter(survey=self.survey).count(),
+            1,
+            'Rejected duplicate-IP submissions must not leave orphaned answers.',
+        )
 
     def test_anonymous_my_ratings_reports_ip_locked_completion(self):
         self.submit('anon-token-1')

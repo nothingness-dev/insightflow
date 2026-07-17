@@ -72,7 +72,6 @@ export default function ChangePasswordModal({ open, onClose, forced = false }: P
     const e: Record<string, string> = {};
     if (!current) e.current = 'رمز عبور فعلی را وارد کنید.';
     if (!next) e.next = 'رمز عبور جدید را وارد کنید.';
-    else if (next === current) e.next = 'رمز جدید باید با رمز فعلی متفاوت باشد.';
     if (confirmPass !== next) e.confirm = 'تکرار رمز عبور مطابقت ندارد.';
     setErrors(e);
     return Object.keys(e).length === 0;

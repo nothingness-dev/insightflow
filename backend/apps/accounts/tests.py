@@ -35,6 +35,37 @@ class UserManagementApiTests(APITestCase):
         self.assertIsNotNone(response.data['previous'])
         self.assertIsNotNone(response.data['next'])
 
+    def test_password_strength_is_not_restricted(self):
+        create_response = self.client.post('/api/admin/users/', {
+            'username': 'weak_password_user',
+            'full_name': 'کاربر آزمایشی',
+            'role': 'employee',
+            'password': '1',
+            'password_confirm': '1',
+            'is_active': True,
+        })
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        created = User.objects.get(username='weak_password_user')
+        self.assertTrue(created.check_password('1'))
+
+        reset_response = self.client.post(
+            f'/api/admin/users/{created.id}/reset-password/',
+            {'new_password': '2', 'new_password_confirm': '2'},
+        )
+        self.assertEqual(reset_response.status_code, status.HTTP_200_OK)
+        created.refresh_from_db()
+        self.assertTrue(created.check_password('2'))
+
+    def test_user_can_keep_the_same_password(self):
+        response = self.client.post('/api/auth/change-password/', {
+            'current_password': 'AdminPass@1',
+            'new_password': 'AdminPass@1',
+            'new_password_confirm': 'AdminPass@1',
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
     @override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
     def test_bulk_import_creates_rows_in_one_batch_response(self):
         payload = (

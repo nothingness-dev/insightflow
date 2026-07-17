@@ -6,6 +6,7 @@ import { AdminRoute, EmployeeRoute, GuestRoute } from './routes/Guards';
 import AdminLayout from './layouts/AdminLayout';
 import EmployeeLayout from './layouts/EmployeeLayout';
 import RouteLoadingBar from './components/common/RouteLoadingBar';
+import MediaProtection from './components/common/MediaProtection';
 import NotFound from './pages/NotFound';
 
 
@@ -45,6 +46,7 @@ function EmployeeWrapper({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <AuthProvider>
+      <MediaProtection />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <RouteLoadingBar />
         <Suspense fallback={<PageFallback />}>

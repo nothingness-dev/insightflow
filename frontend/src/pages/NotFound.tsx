@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import CopyrightNotice from '../components/common/CopyrightNotice';
 
 export default function NotFound() {
   const { user } = useAuth();
@@ -62,6 +63,7 @@ export default function NotFound() {
             {homeLabel}
           </Link>
         </div>
+        <CopyrightNotice className="mt-8" />
       </motion.div>
     </div>
   );

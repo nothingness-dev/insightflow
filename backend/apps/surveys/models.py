@@ -83,6 +83,10 @@ class SurveyQuestion(models.Model):
     emoji_required = models.BooleanField(default=False, verbose_name='امتیاز ایموجی الزامی است')
     display_order = models.PositiveIntegerField(default=0, verbose_name='ترتیب نمایش')
     is_active = models.BooleanField(default=True, verbose_name='فعال')
+    person = models.ForeignKey(
+        'SurveyPerson', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='custom_questions', verbose_name='سوال اختصاصی برای فرد'
+    )
     created_at = models.DateTimeField(default=timezone.now, verbose_name='تاریخ ایجاد')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='تاریخ به‌روزرسانی')
 
@@ -104,6 +108,7 @@ class SurveyPerson(models.Model):
     description = models.TextField(blank=True, verbose_name='توضیحات')
     display_order = models.PositiveIntegerField(default=0, verbose_name='ترتیب نمایش')
     is_active = models.BooleanField(default=True, verbose_name='فعال')
+    uses_default_questions = models.BooleanField(default=True, verbose_name='استفاده از سوال‌های پیش‌فرض')
     created_at = models.DateTimeField(default=timezone.now, verbose_name='تاریخ ایجاد')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='تاریخ به‌روزرسانی')
 
@@ -243,7 +248,7 @@ class Rating(models.Model):
     EMOJI_EXCELLENT = 'excellent'
 
     EMOJI_CHOICES = [
-        (EMOJI_BAD, 'بد'),
+        (EMOJI_BAD, 'ضعیف'),
         (EMOJI_AVERAGE, 'متوسط'),
         (EMOJI_GOOD, 'خوب'),
         (EMOJI_EXCELLENT, 'عالی'),

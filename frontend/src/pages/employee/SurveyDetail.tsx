@@ -67,7 +67,7 @@ const ExcellentFaceIcon = () => (
 );
 
 const EMOJI_OPTIONS: { value: EmojiRatingValue; label: string; Icon: () => JSX.Element; selectedClass: string; idleClass: string }[] = [
-  { value: 'bad', label: 'بد', Icon: BadFaceIcon, selectedClass: 'bg-red-500 border-red-500 text-white shadow-lg scale-105', idleClass: 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' },
+  { value: 'bad', label: 'ضعیف', Icon: BadFaceIcon, selectedClass: 'bg-red-500 border-red-500 text-white shadow-lg scale-105', idleClass: 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' },
   { value: 'average', label: 'متوسط', Icon: AverageFaceIcon, selectedClass: 'bg-amber-500 border-amber-500 text-white shadow-lg scale-105', idleClass: 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' },
   { value: 'good', label: 'خوب', Icon: GoodFaceIcon, selectedClass: 'bg-lime-500 border-lime-500 text-white shadow-lg scale-105', idleClass: 'bg-lime-50 border-lime-200 text-lime-700 hover:bg-lime-100' },
   { value: 'excellent', label: 'عالی', Icon: ExcellentFaceIcon, selectedClass: 'bg-emerald-500 border-emerald-500 text-white shadow-lg scale-105', idleClass: 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' },
@@ -243,8 +243,22 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
     })));
   };
 
+  const handleCloseAttempt = () => {
+    if (submitting) return;
+    if (!person?.has_rated) {
+      const incomplete = questions.some(question => {
+        const answer = answers[question.id] || { score: null, emoji_rating: null, comment: '' };
+        const comment = answer.comment.trim();
+        const hasVal = (question.has_score && answer.score !== null) || (question.has_emoji && answer.emoji_rating !== null) || (question.has_comment && comment.length > 0);
+        return !hasVal;
+      });
+      if (incomplete) toast.error('شما باید به همه سوالات پاسخ دهید.');
+    }
+    onClose();
+  };
+
   return (
-    <Modal open={open} onClose={onClose} size="lg">
+    <Modal open={open} onClose={handleCloseAttempt} size="lg">
       <div className="p-3 sm:p-6 max-h-[88dvh] overflow-y-auto">
         {person && (
           <>
@@ -339,16 +353,16 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
               })}
             </div>
 
-            <div className="flex flex-col-reverse sm:flex-row gap-3 sticky -bottom-3 sm:bottom-0 bg-white/95 backdrop-blur pt-3 pb-1 border-t border-gray-100">
+            <div className="flex gap-2 sm:gap-3 pt-3 pb-1 border-t border-gray-100">
               <button
                 onClick={submit}
                 disabled={submitting}
-                className="btn-primary w-full sm:flex-1 flex items-center justify-center gap-2"
+                className="btn-primary flex-1 min-w-0 flex items-center justify-center gap-2"
               >
-                {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}
-                ثبت همه پاسخ‌ها
+                {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
+                <span className="truncate">ثبت همه پاسخ‌ها</span>
               </button>
-              <button onClick={onClose} className="btn-secondary w-full sm:w-auto" disabled={submitting}>انصراف</button>
+              <button onClick={handleCloseAttempt} className="btn-secondary flex-1 min-w-0" disabled={submitting}>انصراف</button>
             </div>
           </>
         )}
@@ -390,11 +404,16 @@ export default function EmployeeSurveyDetail() {
     setSubmitting(true);
     try {
       await employeeApi.rate(surveyId, ratingPerson.id, answers);
-      toast.success('پاسخ‌ها با موفقیت ثبت شد ✓');
-      setSurvey(s => s ? {
-        ...s,
-        people: s.people.map(p => p.id === ratingPerson.id ? { ...p, has_rated: true } : p)
-      } : s);
+      toast.success('پاسخ‌ها با موفقیت ثبت شد');
+      setSurvey(s => {
+        if (!s) return s;
+        const updatedPeople = s.people.map(p => p.id === ratingPerson.id ? { ...p, has_rated: true } : p);
+        const remaining = updatedPeople.filter(p => !p.has_rated).length;
+        if (remaining > 0) {
+          toast(`شما باید به ${formatNumber(remaining)} نفر دیگر پاسخ دهید.`);
+        }
+        return { ...s, people: updatedPeople };
+      });
       setRatingPerson(null);
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -430,7 +449,6 @@ export default function EmployeeSurveyDetail() {
   const questionCount = survey.questions.length;
   const closed = survey.status === 'closed';
   const isEnded = closed;
-  const pct = totalCount > 0 ? Math.round((ratedCount / totalCount) * 100) : 0;
   const allDone = ratedCount === totalCount && totalCount > 0;
 
   return (
@@ -472,41 +490,8 @@ export default function EmployeeSurveyDetail() {
           </span>
         </div>
 
-        <p className="text-gray-600 leading-relaxed">برای هر فرد باید به {formatNumber(questionCount)} سوال پاسخ دهید.</p>
         {survey.description && (
           <p className="text-sm text-gray-400 leading-relaxed border-t border-gray-100 pt-3 mt-3">{survey.description}</p>
-        )}
-
-        {questionCount > 0 && (
-          <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
-            <p className="text-xs font-semibold text-gray-500 mb-2">سوال‌ها</p>
-            <ol className="space-y-2 text-sm text-slate-700 list-decimal pr-5">
-              {survey.questions.map(question => (
-                <li key={question.id}>
-                  {question.text}
-                  <span className="mr-2 text-[11px] text-gray-400">({getQuestionTypeLabel(question)})</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
-
-        {totalCount > 0 && (
-          <div className="mt-4">
-            <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
-              <span>پیشرفت پاسخ‌دهی</span>
-              <span className="font-semibold" style={{ color: 'var(--c-700)' }}>{formatNumber(ratedCount)} از {formatNumber(totalCount)} نفر — {formatNumber(pct)}٪</span>
-            </div>
-            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full rounded-full"
-                style={{ backgroundColor: allDone ? '#10b981' : 'var(--c-500)' }}
-                initial={{ width: 0 }}
-                animate={{ width: `${pct}%` }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-              />
-            </div>
-          </div>
         )}
       </div>
 
@@ -520,15 +505,6 @@ export default function EmployeeSurveyDetail() {
         </div>
       ) : (
         <>
-          {!isEnded && !allDone && (
-            <div className="mb-4 flex items-start gap-3 rounded-xl px-4 py-3 border text-sm"
-              style={{ backgroundColor: 'var(--c-50)', borderColor: 'var(--c-200)', color: 'var(--c-700)' }}>
-              <span>برای هر یک از <strong>{formatNumber(totalCount)} نفر</strong> باید به <strong>{formatNumber(questionCount)} سوال</strong> پاسخ دهید. هیچ سوالی نباید خالی بماند.
-                {ratedCount > 0 && <span className="mr-1">({formatNumber(totalCount - ratedCount)} نفر باقی‌مانده)</span>}
-              </span>
-            </div>
-          )}
-
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold text-slate-700">{formatNumber(totalCount)} نفر در این نظرسنجی</p>
             {!isEnded && ratedCount > 0 && !allDone && (
@@ -564,7 +540,7 @@ export default function EmployeeSurveyDetail() {
         open={!!ratingPerson}
         onClose={() => setRatingPerson(null)}
         person={ratingPerson}
-        questions={survey.questions}
+        questions={ratingPerson?.questions ?? survey.questions.filter(q => !ratingPerson?.question_ids || ratingPerson.question_ids.includes(q.id))}
         onSubmit={handleSubmitRating}
         submitting={submitting}
       />

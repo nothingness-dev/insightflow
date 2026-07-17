@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import ThemeSwitcher from "../components/common/ThemeSwitcher";
 import ChangePasswordModal from "../components/common/ChangePasswordModal";
 import PageTransition from "../components/common/PageTransition";
+import CopyrightNotice from "../components/common/CopyrightNotice";
 import toast from "react-hot-toast";
 
 export default function EmployeeLayout({ children }: { children: ReactNode }) {
@@ -152,6 +153,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
       </header>
       <main className="responsive-page max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
         <PageTransition>{children}</PageTransition>
+        <CopyrightNotice className="mt-8 border-t border-gray-100 pt-5" />
       </main>
       <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />
       <ChangePasswordModal

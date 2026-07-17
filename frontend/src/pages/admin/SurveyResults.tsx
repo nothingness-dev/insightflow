@@ -98,6 +98,11 @@ export default function SurveyResultsPage() {
 
   const survey = data.survey;
   const results = Array.isArray(data.results) ? data.results : [];
+  // The general/comparison group only - particular persons (with private
+  // questions) must never surface in aggregate counts shown outside their
+  // own isolated sections.
+  const sharedResults = results.filter(r => r.result_section === 'all' || !r.result_section);
+  const sharedQuestionsCount = (survey.questions ?? []).filter(q => q.person == null).length;
 
   return (
     <div className="responsive-page max-w-4xl">
@@ -113,11 +118,11 @@ export default function SurveyResultsPage() {
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-slate-800 truncate">{survey.title}</h1>
             <p className="text-sm text-slate-400 mt-1">
-              {fa(survey.questions?.length ?? survey.questions_count ?? 0)} سوال
+              {fa(sharedQuestionsCount)} سوال
               &nbsp;·&nbsp;
-              {fa(survey.people_count)} فرد ارزیابی‌شونده
+              {fa(sharedResults.length)} فرد ارزیابی‌شونده
               &nbsp;·&nbsp;
-              {fa(results.length)} نتیجه ثبت‌شده
+              {fa(sharedResults.length)} نتیجه ثبت‌شده
             </p>
           </div>
           <div className="flex flex-wrap gap-2 flex-shrink-0">
@@ -172,9 +177,20 @@ export default function SurveyResultsPage() {
             ))}
           </div>
 
-          {tab === 'overview'  && <TabOverview  results={results} survey={survey} />}
+          {tab === 'overview'  && <TabOverview  results={sharedResults} survey={survey} />}
           {tab === 'questions' && <TabQuestions results={results} surveyId={surveyId} />}
-          {tab === 'people'    && <TabPeople    results={results} surveyId={surveyId} />}
+          {tab === 'people' && (
+            <div className="space-y-8">
+              {sharedResults.length > 0 && (
+                <section><h2 className="mb-3 text-sm font-bold text-slate-700 dark:text-slate-200">افراد با همه سوال‌های عمومی</h2>
+                  <TabPeople results={sharedResults} surveyId={surveyId} /></section>
+              )}
+              {results.filter(r => r.result_section?.startsWith('custom:')).map(r => (
+                <section key={r.person_id}><h2 className="mb-3 text-sm font-bold text-amber-700 dark:text-amber-300">بخش اختصاصی: {r.full_name}</h2>
+                  <TabPeople results={[r]} surveyId={surveyId} showControls={false} /></section>
+              ))}
+            </div>
+          )}
 
           <p className="text-xs text-slate-400 text-center mt-8">
             نتایج کاملاً ناشناس هستند — هیچ اطلاعاتی از هویت رأی‌دهندگان نمایش داده نمی‌شود

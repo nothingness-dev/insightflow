@@ -1,6 +1,7 @@
 import csv
 import io
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Q, F
@@ -16,9 +17,9 @@ from .models import Survey, SurveyQuestion, SurveyPerson, Rating, SurveyHashLink
 from .serializers import (
     SurveySerializer, SurveyCreateUpdateSerializer, SurveyPersonSerializer,
     SurveyPersonPublicSerializer, SurveyPublicSerializer, RatingCreateSerializer,
-    SurveyProgressDashboardSerializer, SurveyHashLinkSerializer
+    SurveyProgressDashboardSerializer, SurveyHashLinkSerializer, SurveyQuestionSerializer,
 )
-from .services import calculate_survey_results, duplicate_survey, calculate_survey_progress, validate_question_answers
+from .services import calculate_survey_results, duplicate_survey, calculate_survey_progress, validate_question_answers, effective_questions_for_person, required_question_pairs, completed_participants, completed_participants_for, completed_person_ids as participant_completed_person_ids
 from apps.activity.models import ActivityActions
 from apps.activity.services import log_activity
 from .export_data import (
@@ -376,9 +377,9 @@ class AdminSurveyExportCSVView(APIView):
             return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
         ds = build_export_dataset(survey, request)
-        results, questions = ds['results'], ds['questions']
         comments_map, summary = ds['comments_map'], ds['summary']
         questions_meta = ds['questions_meta']
+        result_groups = ds['result_groups']
 
         response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
         response['Content-Disposition'] = f'attachment; filename="survey_{pk}_results.csv"'
@@ -408,21 +409,27 @@ class AdminSurveyExportCSVView(APIView):
         writer.writerow(['مجموع نظرات متنی', summary['total_comments']])
 
         # ---- 2) Per-person results matrix ------------------------------------------
+        # People with the full default question set and people with a custom/partial
+        # question set are kept in clearly separated blocks (never mixed in the same
+        # rows) - each custom person gets their own dedicated sub-section too, since
+        # each one may have answered a different subset of questions.
         section_title('نتایج به تفکیک افراد')
-        headers = ['رتبه', 'نام و نام خانوادگی', 'واحد سازمانی', 'سمت',
-                   'میانگین کلی', 'کیفیت', 'تعداد رأی‌دهنده', 'تعداد پاسخ امتیازی']
-        for q in questions:
-            if q.has_score:
-                headers.append(f"میانگین: {q.text}")
-                headers.append(f"تعداد پاسخ: {q.text}")
-            if q.has_emoji:
-                headers.append(f"امتیاز ایموجی: {q.text}")
-                headers.append(f"تعداد پاسخ ایموجی: {q.text}")
-            if q.has_comment:
-                headers.append(f"تعداد نظرات: {q.text}")
-        writer.writerow(headers)
 
-        for r in results:
+        def _headers_for(qs):
+            headers = ['رتبه', 'نام و نام خانوادگی', 'واحد سازمانی', 'سمت',
+                       'میانگین کلی', 'کیفیت', 'تعداد رأی‌دهنده', 'تعداد پاسخ امتیازی']
+            for q in qs:
+                if q.has_score:
+                    headers.append(f"میانگین: {q.text}")
+                    headers.append(f"تعداد پاسخ: {q.text}")
+                if q.has_emoji:
+                    headers.append(f"امتیاز ایموجی: {q.text}")
+                    headers.append(f"تعداد پاسخ ایموجی: {q.text}")
+                if q.has_comment:
+                    headers.append(f"تعداد نظرات: {q.text}")
+            return headers
+
+        def _row_for(r, qs):
             row = [
                 r['rank'], r['full_name'], r['department'] or '', r['role_title'] or '',
                 r['average_score'] if r['average_score'] is not None else '',
@@ -430,7 +437,7 @@ class AdminSurveyExportCSVView(APIView):
                 r['votes_count'], r['scored_answers_count'],
             ]
             by_q = {item['question_id']: item for item in r.get('question_results', [])}
-            for q in questions:
+            for q in qs:
                 item = by_q.get(q.id, {})
                 if q.has_score:
                     row.append(item.get('average_score') if item.get('average_score') is not None else '')
@@ -440,21 +447,45 @@ class AdminSurveyExportCSVView(APIView):
                     row.append(item.get('emoji_responses_count') or 0)
                 if q.has_comment:
                     row.append(len(comments_map.get((r['person_id'], q.id), [])))
-            writer.writerow(row)
+            return row
+
+        # Each result group (shared + one per particular person) has its own
+        # question set, so headers are rebuilt per group instead of reused.
+        for group in result_groups:
+            if not group['results']:
+                continue
+            group_questions = group['questions']
+            writer.writerow([])
+            writer.writerow([f'-- {group["title"]} --'])
+            writer.writerow(_headers_for(group_questions))
+            for r in group['results']:
+                writer.writerow(_row_for(r, group_questions))
 
         # ---- 3) Question-by-question analysis ---------------------------------------
+        def _write_questions_meta(meta_list):
+            writer.writerow(['#', 'متن سوال', 'میانگین کل', 'کیفیت', 'تعداد پاسخ', 'امتیاز ایموجی', 'تعداد پاسخ ایموجی', 'تعداد نظرات متنی'])
+            for idx, q in enumerate(meta_list, 1):
+                writer.writerow([
+                    idx, q['text'],
+                    q['avg'] if q['avg'] is not None else ('متنی' if not q['has_score'] else ''),
+                    score_grade(q['avg']) if q['has_score'] else '—',
+                    q['responses'] if q['has_score'] else '—',
+                    q['emoji_avg_label'] if q['has_emoji'] else '—',
+                    q['emoji_responses'] if q['has_emoji'] else '—',
+                    q['comments'] if q['has_comment'] else '—',
+                ])
+
         section_title('تحلیل سوال‌به‌سوال')
-        writer.writerow(['#', 'متن سوال', 'میانگین کل', 'کیفیت', 'تعداد پاسخ', 'امتیاز ایموجی', 'تعداد پاسخ ایموجی', 'تعداد نظرات متنی'])
-        for idx, q in enumerate(questions_meta, 1):
-            writer.writerow([
-                idx, q['text'],
-                q['avg'] if q['avg'] is not None else ('متنی' if not q['has_score'] else ''),
-                score_grade(q['avg']) if q['has_score'] else '—',
-                q['responses'] if q['has_score'] else '—',
-                q['emoji_avg_label'] if q['has_emoji'] else '—',
-                q['emoji_responses'] if q['has_emoji'] else '—',
-                q['comments'] if q['has_comment'] else '—',
-            ])
+        _write_questions_meta(questions_meta)
+
+        # Particular persons get their own titled question-analysis sub-table,
+        # never merged into the shared table above.
+        for group in result_groups[1:]:
+            if not group['questions_meta']:
+                continue
+            writer.writerow([])
+            writer.writerow([f'-- {group["title"]} --'])
+            _write_questions_meta(group['questions_meta'])
 
         # ---- 4) Distributions --------------------------------------------------------
         section_title('توزیع امتیازات')
@@ -476,6 +507,15 @@ class AdminSurveyExportCSVView(APIView):
                 writer.writerow([idx, person_name, dept, q_text, sanitize_cell(comment)])
         else:
             writer.writerow(['در این نظرسنجی هیچ نظر متنی ثبت نشده است.'])
+
+        for group in result_groups[1:]:
+            if not group['comments_flat']:
+                continue
+            writer.writerow([])
+            writer.writerow([f'-- {group["title"]} --'])
+            writer.writerow(['#', 'نام فرد ارزیابی‌شده', 'واحد سازمانی', 'سوال', 'نظر'])
+            for idx, (person_name, dept, q_text, comment) in enumerate(group['comments_flat'], 1):
+                writer.writerow([idx, person_name, dept, q_text, sanitize_cell(comment)])
 
         return response
 
@@ -503,11 +543,11 @@ class AdminSurveyExportExcelView(APIView):
         from openpyxl.utils import get_column_letter
 
         ds = build_export_dataset(survey, request)
-        results, questions = ds['results'], ds['questions']
         comments_map, summary = ds['comments_map'], ds['summary']
         questions_meta = ds['questions_meta']
+        result_groups = ds['result_groups']
 
-        BRAND_FILL    = PatternFill('solid', fgColor='4F46E5')           
+        BRAND_FILL    = PatternFill('solid', fgColor='4F46E5')
         BRAND2_FILL   = PatternFill('solid', fgColor='7C3AED')           
         HEADER_FILL   = PatternFill('solid', fgColor='1E293B')              
         HEADER_FONT   = Font(name='Calibri', bold=True, color='FFFFFF', size=10)
@@ -672,78 +712,97 @@ class AdminSurveyExportExcelView(APIView):
         ws1.append([f'رتبه‌بندی افراد: {survey.title}'])
         base_cols = ['رتبه', 'نام و نام خانوادگی', 'واحد سازمانی', 'سمت',
                      'میانگین کلی', 'کیفیت', 'رأی‌دهنده', 'پاسخ امتیازی']
-        ncols = len(base_cols)
-        q_headers = []
-        for q in questions:
-            if q.has_score:
-                q_headers.append(f"میانگین\n{q.text}")
-                q_headers.append(f"تعداد پاسخ\n{q.text}")
-            if q.has_emoji:
-                q_headers.append(f"امتیاز ایموجی\n{q.text}")
-                q_headers.append(f"تعداد پاسخ ایموجی\n{q.text}")
-            if q.has_comment:
-                q_headers.append(f"تعداد نظرات\n{q.text}")
-        ncols += len(q_headers)
-        ws1.merge_cells(start_row=1, start_column=1, end_row=1, end_column=ncols)
+        max_ncols = len(base_cols)
+        ws1.append([])
+
+        # Each result group (shared + one per particular person) has its own
+        # question set, so headers/columns are rebuilt per group instead of
+        # being shared - a particular person's private questions never share
+        # a column with the general comparison table.
+        for group in result_groups:
+            if not group['results']:
+                continue
+            q_headers = []
+            for q in group['questions']:
+                if q.has_score:
+                    q_headers.append(f"میانگین\n{q.text}")
+                    q_headers.append(f"تعداد پاسخ\n{q.text}")
+                if q.has_emoji:
+                    q_headers.append(f"امتیاز ایموجی\n{q.text}")
+                    q_headers.append(f"تعداد پاسخ ایموجی\n{q.text}")
+                if q.has_comment:
+                    q_headers.append(f"تعداد نظرات\n{q.text}")
+            group_ncols = len(base_cols) + len(q_headers)
+            max_ncols = max(max_ncols, group_ncols)
+
+            title_row = ws1.max_row + 1
+            ws1.append([group['title']])
+            ws1.merge_cells(start_row=title_row, start_column=1, end_row=title_row, end_column=group_ncols)
+            gt_cell = ws1.cell(row=title_row, column=1)
+            gt_cell.font = SUBHEAD_FONT
+            gt_cell.fill = SUBHEAD_FILL
+            gt_cell.alignment = RIGHT
+            ws1.row_dimensions[title_row].height = 20
+
+            header_row = ws1.max_row + 1
+            ws1.append(base_cols + q_headers)
+            style_header_row(ws1, header_row, HEADER_FILL, HEADER_FONT, height=40 if q_headers else 22)
+
+            for r in group['results']:
+                avg_v = r['average_score']
+                row = [
+                    r['rank'], r['full_name'], r['department'] or '', r['role_title'] or '',
+                    round(avg_v, 2) if avg_v is not None else '',
+                    score_grade(avg_v),
+                    r['votes_count'], r.get('scored_answers_count') or 0,
+                ]
+                by_q = {item['question_id']: item for item in r.get('question_results', [])}
+                for q in group['questions']:
+                    item = by_q.get(q.id, {})
+                    if q.has_score:
+                        q_avg = item.get('average_score')
+                        row.append(round(q_avg, 2) if q_avg is not None else '')
+                        row.append(item.get('responses_count') or 0)
+                    if q.has_emoji:
+                        row.append(item.get('average_emoji_label') or '')
+                        row.append(item.get('emoji_responses_count') or 0)
+                    if q.has_comment:
+                        row.append(len(comments_map.get((r['person_id'], q.id), [])))
+                ws1.append(row)
+                data_row = ws1.max_row
+                ws1.row_dimensions[data_row].height = 18
+                for col_idx, cell in enumerate(ws1[data_row], 1):
+                    cell.border = BORDER
+                    cell.alignment = CENTER if col_idx in (1, 5, 6, 7, 8) else RIGHT
+                    if col_idx == 5:
+                        cell.fill = score_fill(avg_v); cell.font = score_font(avg_v)
+                    elif col_idx == 6:
+                        cell.font = score_font(avg_v)
+
+                offset = len(base_cols)
+                for q in group['questions']:
+                    if q.has_score:
+                        q_avg_val = by_q.get(q.id, {}).get('average_score')
+                        cell = ws1.cell(row=data_row, column=offset + 1)
+                        cell.fill = score_fill(q_avg_val); cell.font = score_font(q_avg_val)
+                        offset += 2
+                    if q.has_emoji:
+                        q_emoji_label = by_q.get(q.id, {}).get('average_emoji_label')
+                        emoji_key = next((k for k, label in Rating.EMOJI_CHOICES if label == q_emoji_label), None)
+                        cell = ws1.cell(row=data_row, column=offset + 1)
+                        cell.fill = emoji_fill(emoji_key); cell.font = emoji_font(emoji_key)
+                        offset += 2
+                    if q.has_comment:
+                        offset += 1
+
+        ws1.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max_ncols)
         ws1['A1'].font = TITLE_FONT
         ws1['A1'].alignment = RIGHT
         ws1.row_dimensions[1].height = 26
-        ws1.append([])
-        ws1.append(base_cols + q_headers)
-        style_header_row(ws1, 3, HEADER_FILL, HEADER_FONT, height=40 if q_headers else 22)
-
-        for r in results:
-            avg_v = r['average_score']
-            row = [
-                r['rank'], r['full_name'], r['department'] or '', r['role_title'] or '',
-                round(avg_v, 2) if avg_v is not None else '',
-                score_grade(avg_v),
-                r['votes_count'], r.get('scored_answers_count') or 0,
-            ]
-            by_q = {item['question_id']: item for item in r.get('question_results', [])}
-            for q in questions:
-                item = by_q.get(q.id, {})
-                if q.has_score:
-                    q_avg = item.get('average_score')
-                    row.append(round(q_avg, 2) if q_avg is not None else '')
-                    row.append(item.get('responses_count') or 0)
-                if q.has_emoji:
-                    row.append(item.get('average_emoji_label') or '')
-                    row.append(item.get('emoji_responses_count') or 0)
-                if q.has_comment:
-                    row.append(len(comments_map.get((r['person_id'], q.id), [])))
-            ws1.append(row)
-            data_row = ws1.max_row
-            ws1.row_dimensions[data_row].height = 18
-            for col_idx, cell in enumerate(ws1[data_row], 1):
-                cell.border = BORDER
-                cell.alignment = CENTER if col_idx in (1, 5, 6, 7, 8) else RIGHT
-                if col_idx == 5:
-                    cell.fill = score_fill(avg_v); cell.font = score_font(avg_v)
-                elif col_idx == 6:
-                    cell.font = score_font(avg_v)
-
-            offset = len(base_cols)
-            for q in questions:
-                if q.has_score:
-                    q_avg_val = by_q.get(q.id, {}).get('average_score')
-                    cell = ws1.cell(row=data_row, column=offset + 1)
-                    cell.fill = score_fill(q_avg_val); cell.font = score_font(q_avg_val)
-                    offset += 2
-                if q.has_emoji:
-                    q_emoji_label = by_q.get(q.id, {}).get('average_emoji_label')
-                    emoji_key = next((k for k, label in Rating.EMOJI_CHOICES if label == q_emoji_label), None)
-                    cell = ws1.cell(row=data_row, column=offset + 1)
-                    cell.fill = emoji_fill(emoji_key); cell.font = emoji_font(emoji_key)
-                    offset += 2
-                if q.has_comment:
-                    offset += 1
-
         ws1.freeze_panes = 'A4'
-        ws1.auto_filter.ref = f'A3:{get_column_letter(ncols)}3'
         for col, w in (('A', 8), ('B', 24), ('C', 18), ('D', 18), ('E', 12), ('F', 10), ('G', 10), ('H', 12)):
             ws1.column_dimensions[col].width = w
-        for ci in range(len(base_cols) + 1, ncols + 1):
+        for ci in range(len(base_cols) + 1, max_ncols + 1):
             ws1.column_dimensions[get_column_letter(ci)].width = 14
 
         ws2 = wb.create_sheet('تحلیل سوال‌ها')
@@ -754,38 +813,62 @@ class AdminSurveyExportExcelView(APIView):
         ws2['A1'].alignment = RIGHT
         ws2.row_dimensions[1].height = 26
         ws2.append([])
-        ws2.append(['#', 'متن سوال', 'میانگین کل', 'کیفیت', 'تعداد پاسخ', 'امتیاز ایموجی', 'تعداد پاسخ ایموجی', 'تعداد نظرات متنی'])
-        style_header_row(ws2, 3, HEADER_FILL, HEADER_FONT)
-        for idx, q in enumerate(questions_meta, 1):
-            q_avg = q['avg']
-            q_emoji_label = q['emoji_avg_label']
-            ws2.append([
-                idx, q['text'],
-                q_avg if q_avg is not None else 'متنی',
-                score_grade(q_avg) if q['has_score'] else '—',
-                q['responses'] if q['has_score'] else '—',
-                q_emoji_label if q['has_emoji'] else '—',
-                q['emoji_responses'] if q['has_emoji'] else '—',
-                q['comments'] if q['has_comment'] else '—',
-            ])
-            row_num = ws2.max_row
-            ws2.row_dimensions[row_num].height = 20
-            for col_idx, cell in enumerate(ws2[row_num], 1):
-                cell.border = BORDER
-                cell.alignment = CENTER if col_idx in (1, 3, 4, 5, 6, 7, 8) else RIGHT
-                if col_idx == 3 and isinstance(cell.value, (int, float)):
-                    cell.fill = score_fill(q_avg); cell.font = score_font(q_avg)
-                elif col_idx == 4 and q['has_score']:
-                    cell.font = score_font(q_avg)
-                elif col_idx == 6 and q['has_emoji']:
-                    emoji_key = next((k for k, label in Rating.EMOJI_CHOICES if label == q_emoji_label), None)
-                    cell.fill = emoji_fill(emoji_key); cell.font = emoji_font(emoji_key)
+
+        def _append_questions_meta_block(meta_list, title=None):
+            if title is not None:
+                title_row = ws2.max_row + 1
+                ws2.append([title])
+                ws2.merge_cells(start_row=title_row, start_column=1, end_row=title_row, end_column=8)
+                tc = ws2.cell(row=title_row, column=1)
+                tc.font = SUBHEAD_FONT
+                tc.fill = SUBHEAD_FILL
+                tc.alignment = RIGHT
+                ws2.row_dimensions[title_row].height = 20
+            header_row = ws2.max_row + 1
+            ws2.append(['#', 'متن سوال', 'میانگین کل', 'کیفیت', 'تعداد پاسخ', 'امتیاز ایموجی', 'تعداد پاسخ ایموجی', 'تعداد نظرات متنی'])
+            style_header_row(ws2, header_row, HEADER_FILL, HEADER_FONT)
+            for idx, q in enumerate(meta_list, 1):
+                q_avg = q['avg']
+                q_emoji_label = q['emoji_avg_label']
+                ws2.append([
+                    idx, q['text'],
+                    q_avg if q_avg is not None else 'متنی',
+                    score_grade(q_avg) if q['has_score'] else '—',
+                    q['responses'] if q['has_score'] else '—',
+                    q_emoji_label if q['has_emoji'] else '—',
+                    q['emoji_responses'] if q['has_emoji'] else '—',
+                    q['comments'] if q['has_comment'] else '—',
+                ])
+                row_num = ws2.max_row
+                ws2.row_dimensions[row_num].height = 20
+                for col_idx, cell in enumerate(ws2[row_num], 1):
+                    cell.border = BORDER
+                    cell.alignment = CENTER if col_idx in (1, 3, 4, 5, 6, 7, 8) else RIGHT
+                    if col_idx == 3 and isinstance(cell.value, (int, float)):
+                        cell.fill = score_fill(q_avg); cell.font = score_font(q_avg)
+                    elif col_idx == 4 and q['has_score']:
+                        cell.font = score_font(q_avg)
+                    elif col_idx == 6 and q['has_emoji']:
+                        emoji_key = next((k for k, label in Rating.EMOJI_CHOICES if label == q_emoji_label), None)
+                        cell.fill = emoji_fill(emoji_key); cell.font = emoji_font(emoji_key)
+
+        _append_questions_meta_block(questions_meta)
+
+        # Particular persons get their own titled question-analysis block,
+        # never merged into the shared table above.
+        for group in result_groups[1:]:
+            if not group['questions_meta']:
+                continue
+            ws2.append([])
+            _append_questions_meta_block(group['questions_meta'], title=group['title'])
+
         ws2.freeze_panes = 'A4'
         ws2.auto_filter.ref = 'A3:H3'
         for col, w in (('A', 6), ('B', 40), ('C', 12), ('D', 10), ('E', 12), ('F', 12), ('G', 14), ('H', 14)):
             ws2.column_dimensions[col].width = w
 
-        if ds['comments_flat']:
+        any_comments = ds['comments_flat'] or any(g['comments_flat'] for g in result_groups[1:])
+        if any_comments:
             ws3 = wb.create_sheet('نظرات متنی')
             ws3.sheet_view.rightToLeft = True
             ws3.append([f"نظرات متنی: {survey.title}  (مجموع {summary['total_comments']})"])
@@ -794,16 +877,35 @@ class AdminSurveyExportExcelView(APIView):
             ws3['A1'].alignment = RIGHT
             ws3.row_dimensions[1].height = 26
             ws3.append([])
-            ws3.append(['#', 'نام فرد ارزیابی‌شده', 'واحد سازمانی', 'سوال', 'نظر'])
-            style_header_row(ws3, 3, SUBHEAD_FILL, SUBHEAD_FONT)
-            for i, (person_name, dept, q_text, comment) in enumerate(ds['comments_flat'], 1):
 
-                safe_comment = comment if len(comment) <= EXCEL_CELL_LIMIT else comment[:EXCEL_CELL_LIMIT] + '…'
-                ws3.append([i, person_name, dept, q_text, sanitize_cell(safe_comment)])
-                row_num = ws3.max_row
-                for col_idx, cell in enumerate(ws3[row_num], 1):
-                    cell.border = BORDER
-                    cell.alignment = CENTER if col_idx == 1 else RIGHT
+            def _append_comments_block(comments_flat, title=None):
+                if title is not None:
+                    title_row = ws3.max_row + 1
+                    ws3.append([title])
+                    ws3.merge_cells(start_row=title_row, start_column=1, end_row=title_row, end_column=5)
+                    tc = ws3.cell(row=title_row, column=1)
+                    tc.font = SUBHEAD_FONT
+                    tc.fill = SUBHEAD_FILL
+                    tc.alignment = RIGHT
+                    ws3.row_dimensions[title_row].height = 20
+                header_row = ws3.max_row + 1
+                ws3.append(['#', 'نام فرد ارزیابی‌شده', 'واحد سازمانی', 'سوال', 'نظر'])
+                style_header_row(ws3, header_row, SUBHEAD_FILL, SUBHEAD_FONT)
+                for i, (person_name, dept, q_text, comment) in enumerate(comments_flat, 1):
+                    safe_comment = comment if len(comment) <= EXCEL_CELL_LIMIT else comment[:EXCEL_CELL_LIMIT] + '…'
+                    ws3.append([i, person_name, dept, q_text, sanitize_cell(safe_comment)])
+                    row_num = ws3.max_row
+                    for col_idx, cell in enumerate(ws3[row_num], 1):
+                        cell.border = BORDER
+                        cell.alignment = CENTER if col_idx == 1 else RIGHT
+
+            _append_comments_block(ds['comments_flat'])
+            for group in result_groups[1:]:
+                if not group['comments_flat']:
+                    continue
+                ws3.append([])
+                _append_comments_block(group['comments_flat'], title=group['title'])
+
             ws3.freeze_panes = 'A4'
             ws3.auto_filter.ref = 'A3:E3'
             for col, w in (('A', 6), ('B', 22), ('C', 16), ('D', 32), ('E', 60)):
@@ -851,9 +953,19 @@ class AdminSurveyExportPDFView(APIView):
         try:
             ds = build_export_dataset(survey, request)
             comment_groups, truncated = build_pdf_comment_groups(ds)
+            custom_sections = []
+            for group in ds['result_groups'][1:]:
+                group_comments, group_truncated = build_pdf_comment_groups(ds, group=group)
+                custom_sections.append({
+                    'title': group['title'],
+                    'questions_meta': group['questions_meta'],
+                    'comment_groups': group_comments,
+                    'truncated': group_truncated,
+                })
             pdf_bytes = build_survey_pdf(
                 survey, ds['results'], ds['questions_meta'],
                 comment_groups, ds['summary'], comments_truncated=truncated,
+                custom_sections=custom_sections,
             )
         except Exception:
 
@@ -905,9 +1017,13 @@ class AdminPersonListCreateView(generics.ListCreateAPIView):
             target_type='survey',
             target_id=survey.id,
             target_repr=survey.title,
-            metadata={'person_id': person.id, 'person_name': person.full_name},
+            # The database primary key is an internal, globally increasing
+            # identifier. It is not a survey-local person number and exposing
+            # it here made normal sequence growth look like a data problem.
+            metadata={'person_name': person.full_name},
         )
         invalidate_dashboard()
+        invalidate_survey_results(survey_id)
 
 
 class AdminPersonDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -940,23 +1056,70 @@ class AdminPersonDetailView(generics.RetrieveUpdateDestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self._check_draft(instance)
-        survey = instance.survey
-        person_name = instance.full_name
-        person_id = instance.id
+        survey, person_name, person_id = instance.survey, instance.full_name, instance.id
         response = super().destroy(request, *args, **kwargs)
-        log_activity(
-            ActivityActions.PERSON_DELETE,
-            request=request,
+        log_activity(ActivityActions.PERSON_DELETE, request=request,
             description=f'حذف «{person_name}» از نظرسنجی «{survey.title}»',
-            target_type='survey',
-            target_id=survey.id,
-            target_repr=survey.title,
-            metadata={'person_id': person_id, 'person_name': person_name},
-        )
+            target_type='survey', target_id=survey.id, target_repr=survey.title,
+            metadata={'person_id': person_id, 'person_name': person_name})
         invalidate_dashboard()
         return response
 
 
+class AdminPersonQuestionsView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def put(self, request, pk):
+        person = get_object_or_404(SurveyPerson.objects.select_related('survey'), pk=pk)
+        if person.survey.status != Survey.STATUS_DRAFT:
+            return Response({'detail': 'تخصیص سوال فقط در حالت پیش‌نویس قابل تغییر است.'}, status=403)
+
+        use_default = request.data.get('use_default_questions')
+
+        if use_default:
+            # Revert this person to the survey-wide shared question set and
+            # permanently delete their private questions - they belong only
+            # to this person under the new model, so there is nothing to keep.
+            person.custom_questions.all().delete()
+            person.uses_default_questions = True
+            person.save(update_fields=['uses_default_questions', 'updated_at'])
+            invalidate_survey_results(person.survey_id)
+            invalidate_dashboard()
+            log_activity(ActivityActions.PERSON_EDIT, request=request,
+                description=f'بازگشت «{person.full_name}» به سوال‌های پیش‌فرض',
+                target_type='survey', target_id=person.survey_id, target_repr=person.survey.title,
+                metadata={'person_id': person.id, 'custom_questions': False})
+            return Response(SurveyPersonSerializer(person, context={'request': request}).data)
+
+        questions_data = request.data.get('questions')
+        if not isinstance(questions_data, list) or not questions_data:
+            return Response({'questions': 'برای این فرد باید حداقل یک سوال اختصاصی تعریف شود.'}, status=400)
+
+        serializer = SurveyQuestionSerializer(data=questions_data, many=True)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            person.custom_questions.all().delete()
+            SurveyQuestion.objects.bulk_create([
+                SurveyQuestion(
+                    survey=person.survey,
+                    person=person,
+                    display_order=index,
+                    is_active=True,
+                    **{k: v for k, v in item.items() if k not in ('display_order', 'is_active')},
+                )
+                for index, item in enumerate(serializer.validated_data)
+            ])
+            person.uses_default_questions = False
+            person.save(update_fields=['uses_default_questions', 'updated_at'])
+
+        invalidate_survey_results(person.survey_id)
+        invalidate_dashboard()
+        log_activity(ActivityActions.PERSON_EDIT, request=request,
+            description=f'افزودن سوال‌های اختصاصی برای «{person.full_name}»',
+            target_type='survey', target_id=person.survey_id, target_repr=person.survey.title,
+            metadata={'person_id': person.id, 'questions_count': len(questions_data), 'custom_questions': True})
+        return Response(SurveyPersonSerializer(person, context={'request': request}).data)
 
 class EmployeeSurveyListView(generics.ListAPIView):
     permission_classes = [IsEmployeeUser]
@@ -1019,26 +1182,7 @@ class EmployeeSurveyDetailView(APIView):
         serializer = SurveyPublicSerializer(survey, context={'request': request})
         data = serializer.data
 
-        active_questions_count = survey.questions.filter(is_active=True).count()
-        completed_person_ids = set()
-        if active_questions_count > 0:
-            rows = (
-                Rating.objects
-                .filter(
-                    survey=survey,
-                    voter=request.user,
-                    person__is_active=True,
-                    question__is_active=True,
-                    question__survey=survey,
-                )
-                .values('person_id')
-                .annotate(answered_count=Count('question_id', distinct=True))
-            )
-            completed_person_ids = {
-                row['person_id']
-                for row in rows
-                if row['answered_count'] == active_questions_count
-            }
+        completed_person_ids = participant_completed_person_ids(survey, voter_id=request.user.id)
 
         for person in data['people']:
             person['has_rated'] = person['id'] in completed_person_ids
@@ -1066,7 +1210,7 @@ class EmployeeRatePersonView(APIView):
         except SurveyPerson.DoesNotExist:
             return Response({'detail': 'فرد مورد نظر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
-        questions = list(survey.questions.filter(is_active=True).order_by('display_order', 'created_at'))
+        questions = list(effective_questions_for_person(person))
         if not questions:
             return Response({'detail': 'این نظرسنجی هنوز سوال فعالی ندارد.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1133,26 +1277,7 @@ class EmployeeMyRatingsView(APIView):
 
         total_active_people = survey.people.filter(is_active=True).count()
         active_questions_count = survey.questions.filter(is_active=True).count()
-        completed_person_ids = []
-
-        if active_questions_count > 0:
-            rows = (
-                Rating.objects
-                .filter(
-                    survey=survey,
-                    voter=request.user,
-                    person__is_active=True,
-                    question__is_active=True,
-                    question__survey=survey,
-                )
-                .values('person_id')
-                .annotate(answered_count=Count('question_id', distinct=True))
-            )
-            completed_person_ids = [
-                row['person_id']
-                for row in rows
-                if row['answered_count'] == active_questions_count
-            ]
+        completed_person_ids = list(participant_completed_person_ids(survey, voter_id=request.user.id))
 
         return Response({
             'survey_id': survey.id,
@@ -1160,8 +1285,8 @@ class EmployeeMyRatingsView(APIView):
             'rated_count': len(completed_person_ids),
             'total_people': total_active_people,
             'total_questions': active_questions_count,
-            'required_answers_count': total_active_people * active_questions_count,
-            'is_complete': len(completed_person_ids) == total_active_people and total_active_people > 0 and active_questions_count > 0,
+            'required_answers_count': len(required_question_pairs(survey)),
+            'is_complete': len(completed_person_ids) == total_active_people and total_active_people > 0,
         })
 
 
@@ -1332,30 +1457,26 @@ class AdminSurveyCommentsView(APIView):
         except (ValueError, TypeError):
             page, page_size = 1, 20
 
-        active_people_count    = survey.people.filter(is_active=True).count()
-        active_questions_count = survey.questions.filter(is_active=True).count()
-        required = active_people_count * active_questions_count
-
-        if required > 0:
-            completed_voter_ids = list(
-                Rating.objects
-                .filter(survey=survey, person__is_active=True, question__is_active=True, voter__isnull=False)
-                .values('voter_id')
-                .annotate(answered_count=Count('id', distinct=True))
-                .filter(answered_count=required)
-                .values_list('voter_id', flat=True)
+        # Completion must be judged within the same isolated section the
+        # comments belong to (general group, or one particular person) -
+        # never the whole-survey definition, or a particular person's
+        # unfinished questions would hide otherwise-complete general comments.
+        if person_id:
+            person = get_object_or_404(SurveyPerson, pk=person_id, survey=survey)
+            group_people = (
+                [person] if not person.uses_default_questions
+                else list(survey.people.filter(is_active=True, uses_default_questions=True))
             )
-            completed_anon_tokens = list(
-                Rating.objects
-                .filter(survey=survey, person__is_active=True, question__is_active=True, anonymous_token__isnull=False)
-                .values('anonymous_token')
-                .annotate(answered_count=Count('id', distinct=True))
-                .filter(answered_count=required)
-                .values_list('anonymous_token', flat=True)
+        elif question_id:
+            question = get_object_or_404(SurveyQuestion, pk=question_id, survey=survey)
+            group_people = (
+                [question.person] if question.person_id
+                else list(survey.people.filter(is_active=True, uses_default_questions=True))
             )
         else:
-            completed_voter_ids = []
-            completed_anon_tokens = []
+            group_people = list(survey.people.filter(is_active=True))
+
+        completed_voter_ids, completed_anon_tokens = completed_participants_for(survey, group_people)
 
         qs = Rating.objects.filter(
             survey=survey,
@@ -1631,7 +1752,7 @@ class AnonymousRatePersonView(APIView):
         except SurveyPerson.DoesNotExist:
             return Response({'detail': 'فرد مورد نظر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
-        questions = list(survey.questions.filter(is_active=True).order_by('display_order', 'created_at'))
+        questions = list(effective_questions_for_person(person))
         if not questions:
             return Response({'detail': 'این نظرسنجی هنوز سوال فعالی ندارد.'}, status=status.HTTP_400_BAD_REQUEST)
         existing_answer_count = Rating.objects.filter(
@@ -1662,8 +1783,19 @@ class AnonymousRatePersonView(APIView):
         except ValueError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
+        participation_completed = False
         try:
             with transaction.atomic():
+                # Serialize submissions for this link so capacity checks cannot
+                # race, and roll answers back if final participation fails.
+                locked_link = SurveyHashLink.objects.select_for_update().get(pk=link.pk)
+                if locked_link.is_full:
+                    return Response({'detail': 'ظرفیت شرکت‌کنندگان این لینک تکمیل شده است.'}, status=status.HTTP_403_FORBIDDEN)
+                if client_ip and AnonymousParticipation.objects.filter(
+                    survey=survey, hash_link=locked_link, ip_address=client_ip,
+                ).exists():
+                    return Response({'detail': 'از این دستگاه/آدرس IP قبلا در این نظرسنجی شرکت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+
                 Rating.objects.bulk_create([
                     Rating(
                         survey=survey,
@@ -1679,35 +1811,30 @@ class AnonymousRatePersonView(APIView):
                     )
                     for item in validated_answers
                 ])
-        except IntegrityError:
-            return Response({'detail': 'شما قبلاً برای این فرد پاسخ ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
-        active_people_count = survey.people.filter(is_active=True).count()
-        active_questions_count = len(questions)
-        required = active_people_count * active_questions_count
 
-        answered_count = Rating.objects.filter(
-            survey=survey,
-            anonymous_token=anon_session,
-            person__is_active=True,
-            question__is_active=True,
-        ).count()
+                required = len(required_question_pairs(survey))
+                answered_count = Rating.objects.filter(
+                    survey=survey,
+                    anonymous_token=anon_session,
+                    person__is_active=True,
+                    question__is_active=True,
+                ).count()
 
-        if answered_count >= required:
-            try:
-                with transaction.atomic():
+                if answered_count >= required:
                     AnonymousParticipation.objects.create(
                         survey=survey,
-                        hash_link=link,
+                        hash_link=locked_link,
                         ip_address=client_ip,
                         anonymous_token=anon_session,
                         user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
                     )
-                    SurveyHashLink.objects.filter(pk=link.pk).update(
+                    SurveyHashLink.objects.filter(pk=locked_link.pk).update(
                         anonymous_participant_count=F('anonymous_participant_count') + 1
                     )
-            except IntegrityError:
-                return Response({'detail': 'از این دستگاه/آدرس IP قبلا در این نظرسنجی شرکت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
-
+                    participation_completed = True
+        except IntegrityError:
+            return Response({'detail': 'شما قبلاً برای این فرد پاسخ ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
+        if participation_completed:
             log_activity(
                 ActivityActions.ANONYMOUS_VOTE,
                 request=request,
@@ -1755,8 +1882,8 @@ class AnonymousMyRatingsView(APIView):
                 'rated_count': total_active_people,
                 'total_people': total_active_people,
                 'total_questions': active_questions_count,
-                'required_answers_count': total_active_people * active_questions_count,
-                'is_complete': total_active_people > 0 and active_questions_count > 0,
+                'required_answers_count': len(required_question_pairs(survey)),
+                'is_complete': total_active_people > 0,
                 'ip_locked': True,
             })
 
@@ -1764,26 +1891,7 @@ class AnonymousMyRatingsView(APIView):
         if not anon_session:
             return Response({'rated_person_ids': [], 'rated_count': 0, 'total_people': 0, 'is_complete': False})
 
-        completed_person_ids = []
-
-        if active_questions_count > 0:
-            rows = (
-                Rating.objects
-                .filter(
-                    survey=survey,
-                    anonymous_token=anon_session,
-                    person__is_active=True,
-                    question__is_active=True,
-                    question__survey=survey,
-                )
-                .values('person_id')
-                .annotate(answered_count=Count('question_id', distinct=True))
-            )
-            completed_person_ids = [
-                row['person_id']
-                for row in rows
-                if row['answered_count'] == active_questions_count
-            ]
+        completed_person_ids = list(participant_completed_person_ids(survey, anonymous_token=anon_session))
 
         return Response({
             'survey_id': survey.id,
@@ -1791,6 +1899,6 @@ class AnonymousMyRatingsView(APIView):
             'rated_count': len(completed_person_ids),
             'total_people': total_active_people,
             'total_questions': active_questions_count,
-            'required_answers_count': total_active_people * active_questions_count,
-            'is_complete': len(completed_person_ids) == total_active_people and total_active_people > 0 and active_questions_count > 0,
+            'required_answers_count': len(required_question_pairs(survey)),
+            'is_complete': len(completed_person_ids) == total_active_people and total_active_people > 0,
         })

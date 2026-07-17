@@ -36,11 +36,11 @@ export function scoreGrade(v: number | null) {
 }
 
 export const EMOJI_ORDER = ['bad', 'average', 'good', 'excellent'] as const;
-export const EMOJI_KEY_TO_LABEL: Record<string, string> = { bad: 'بد', average: 'متوسط', good: 'خوب', excellent: 'عالی' };
-export const EMOJI_NUM_TO_LABEL: Record<number, string> = { 1: 'بد', 2: 'متوسط', 3: 'خوب', 4: 'عالی' };
+export const EMOJI_KEY_TO_LABEL: Record<string, string> = { bad: 'ضعیف', average: 'متوسط', good: 'خوب', excellent: 'عالی' };
+export const EMOJI_NUM_TO_LABEL: Record<number, string> = { 1: 'ضعیف', 2: 'متوسط', 3: 'خوب', 4: 'عالی' };
 
 const EMOJI_VISUALS: Record<string, { color: string; bg: string; darkBg: string }> = {
-  'بد': { color: '#ef4444', bg: '#fef2f2', darkBg: 'rgba(239,68,68,0.16)' },
+  'ضعیف': { color: '#ef4444', bg: '#fef2f2', darkBg: 'rgba(239,68,68,0.16)' },
   'متوسط': { color: '#f59e0b', bg: '#fffbeb', darkBg: 'rgba(245,158,11,0.16)' },
   'خوب': { color: '#84cc16', bg: '#f7fee7', darkBg: 'rgba(132,204,22,0.16)' },
   'عالی': { color: '#10b981', bg: '#f0fdf4', darkBg: 'rgba(16,185,129,0.16)' },

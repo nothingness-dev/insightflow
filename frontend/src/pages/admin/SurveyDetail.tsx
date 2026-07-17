@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { adminSurveyApi, adminPersonApi } from '../../api/endpoints';
-import { Survey, SurveyPerson } from '../../types';
-import { StatusBadge, SurveyDetailSkeleton, ConfirmModal } from '../../components/common/index';
+import { Survey, SurveyPerson, SurveyQuestionInput } from '../../types';
+import { StatusBadge, SurveyDetailSkeleton, ConfirmModal, Modal } from '../../components/common/index';
 import { formatDateTime, formatNumber, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
 import PersonModal from '../../components/admin/PersonModal';
 import HashLinksPanel from '../../components/admin/HashLinksPanel';
+import QuestionsEditor, { createEmptyQuestion, validateQuestions } from '../../components/admin/QuestionsEditor';
 
 export default function SurveyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +25,11 @@ export default function SurveyDetail() {
   const [closing, setClosing] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [questionPerson, setQuestionPerson] = useState<SurveyPerson | null>(null);
+  const [questionsDraft, setQuestionsDraft] = useState<SurveyQuestionInput[]>([]);
+  const [questionErrors, setQuestionErrors] = useState<Record<string, string>>({});
+  const [savingQuestions, setSavingQuestions] = useState(false);
+  const [revertingQuestions, setRevertingQuestions] = useState(false);
 
   const surveyId = Number(id);
 
@@ -108,6 +114,74 @@ export default function SurveyDetail() {
       });
   };
 
+  const openQuestionEditor = (person: SurveyPerson) => {
+    setQuestionPerson(person);
+    setQuestionErrors({});
+    // Use the person's own live `questions` (always fresh from the last
+    // list/save response) rather than the survey-level question array,
+    // which only carries shared questions and can go stale after a save.
+    const existing = person.uses_default_questions === false
+      ? (person.questions ?? [])
+          .slice()
+          .sort((a, b) => a.display_order - b.display_order)
+          .map((q, index) => ({
+            id: q.id,
+            text: q.text,
+            help_text: q.help_text || '',
+            has_score: q.has_score,
+            score_required: q.has_score ? q.score_required : false,
+            has_comment: q.has_comment,
+            comment_required: q.has_comment ? q.comment_required : false,
+            has_emoji: q.has_emoji,
+            emoji_required: q.has_emoji ? q.emoji_required : false,
+            display_order: q.display_order ?? index,
+            is_active: true,
+          }))
+      : [];
+    setQuestionsDraft(existing.length ? existing : [createEmptyQuestion(0)]);
+  };
+
+  const savePersonQuestions = async () => {
+    if (!questionPerson) return;
+    const errors = validateQuestions(questionsDraft);
+    if (Object.keys(errors).length > 0) {
+      setQuestionErrors(errors);
+      return;
+    }
+    setSavingQuestions(true);
+    try {
+      const response = await adminPersonApi.setQuestions(
+        questionPerson.id,
+        questionsDraft.map((question, index) => ({
+          ...question,
+          text: question.text.trim(),
+          help_text: question.help_text.trim(),
+          score_required: question.has_score ? question.score_required : false,
+          comment_required: question.has_comment ? question.comment_required : false,
+          emoji_required: question.has_emoji ? question.emoji_required : false,
+          display_order: index,
+          is_active: true,
+        })),
+      );
+      setPeople(items => items.map(item => item.id === questionPerson.id ? response.data : item));
+      toast.success('سوال‌های اختصاصی ذخیره شد');
+      setQuestionPerson(null);
+    } catch (error) { toast.error(getErrorMessage(error)); }
+    finally { setSavingQuestions(false); }
+  };
+
+  const revertPersonToDefault = async () => {
+    if (!questionPerson) return;
+    setRevertingQuestions(true);
+    try {
+      const response = await adminPersonApi.useDefaultQuestions(questionPerson.id);
+      setPeople(items => items.map(item => item.id === questionPerson.id ? response.data : item));
+      toast.success('فرد به سوال‌های پیش‌فرض بازگشت');
+      setQuestionPerson(null);
+    } catch (error) { toast.error(getErrorMessage(error)); }
+    finally { setRevertingQuestions(false); }
+  };
+
   if (loading || !survey) return <SurveyDetailSkeleton />;
 
   return (
@@ -125,7 +199,7 @@ export default function SurveyDetail() {
       )}
 <div className="card p-4 sm:p-6 mb-5">
         <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2">
               <StatusBadge status={survey.status} />
               <span className="text-xs text-gray-400">{formatDateTime(survey.created_at)}</span>
@@ -262,7 +336,12 @@ export default function SurveyDetail() {
                   )}
                 </div>
 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-slate-800 text-sm">{person.full_name}</p>
+                  <p className="font-medium text-slate-800 text-sm flex items-center gap-2 flex-wrap">
+                    {person.full_name}
+                    {person.uses_default_questions === false && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">سوال‌های اختصاصی</span>
+                    )}
+                  </p>
                   <p className="text-xs text-gray-400">{[person.role_title, person.department].filter(Boolean).join(' — ')}</p>
                   {!person.is_active && (
                     <span className="text-xs text-red-500 font-medium">غیرفعال</span>
@@ -270,6 +349,10 @@ export default function SurveyDetail() {
                 </div>
 {survey.status === 'draft' && (
                   <div className="flex flex-wrap items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => openQuestionEditor(person)}
+                      className="px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-colors"
+                    >{person.uses_default_questions === false ? 'ویرایش سوال‌های اختصاصی' : 'افزودن سوال‌های اختصاصی'}</button>
                     <button
                       onClick={() => setPersonModal({ open: true, person })}
                       className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -297,6 +380,49 @@ export default function SurveyDetail() {
         surveyId={surveyId}
         person={personModal.person}
       />
+      <Modal open={!!questionPerson} onClose={() => !savingQuestions && !revertingQuestions && setQuestionPerson(null)} title="سوال‌های اختصاصی فرد" size="lg">
+        <div className="flex flex-col max-h-[80vh]" dir="rtl">
+          <div className="p-4 sm:p-5 pb-3 space-y-2 flex-shrink-0">
+            <div className="rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 px-3 py-2">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-100 break-words">{questionPerson?.full_name}</p>
+              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                این فرد یک بخش جداگانه در نتایج دارد و با بقیه مقایسه نمی‌شود.
+              </p>
+            </div>
+            {questionPerson?.uses_default_questions !== false && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2">
+                <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 leading-relaxed">
+                  با ذخیره، سوال‌های پیش‌فرض این فرد حذف و جایگزین سوال‌های زیر می‌شود.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5">
+            <QuestionsEditor
+              questions={questionsDraft}
+              onChange={setQuestionsDraft}
+              errors={questionErrors}
+              onClearError={(key) => setQuestionErrors(er => {
+                if (!(key in er)) return er;
+                const next = { ...er };
+                delete next[key];
+                return next;
+              })}
+            />
+          </div>
+
+          <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end p-4 sm:p-5 pt-3 border-t border-gray-100 flex-shrink-0">
+            {questionPerson?.uses_default_questions === false && (
+              <button className="btn-secondary w-full sm:w-auto text-red-600" disabled={savingQuestions || revertingQuestions} onClick={revertPersonToDefault}>
+                {revertingQuestions ? 'در حال بازگشت…' : 'بازگشت به سوال‌های پیش‌فرض'}
+              </button>
+            )}
+            <button className="btn-secondary w-full sm:w-auto" disabled={savingQuestions || revertingQuestions} onClick={() => setQuestionPerson(null)}>انصراف</button>
+            <button className="btn-primary w-full sm:w-auto" disabled={savingQuestions || revertingQuestions} onClick={savePersonQuestions}>{savingQuestions ? 'در حال ذخیره…' : 'ذخیره'}</button>
+          </div>
+        </div>
+      </Modal>
 
       <ConfirmModal
         open={!!deletePersonId}

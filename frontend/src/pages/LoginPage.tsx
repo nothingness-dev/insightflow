@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
+import CopyrightNotice from "../components/common/CopyrightNotice";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -212,8 +213,9 @@ export default function LoginPage() {
           </div>
         </div>
         <p className="text-center text-xs text-gray-400 mt-5 sm:mt-6 px-2">
-          سامانه نظرسنجی سازمانی
+          سامانه نظرسنجی انستیتو قلب شهید رجایی
         </p>
+        <CopyrightNotice className="mt-2 px-2" />
       </motion.div>
     </div>
   );

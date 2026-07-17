@@ -563,3 +563,20 @@
 
 /* Table header rows commonly sit on bg-gray-50 with gray-500 text */
 .dark thead { background-color: var(--surface-alt); }
+
+/* Discourage browser-level copying/saving of visual media throughout the app. */
+img,
+picture,
+video {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+@media print {
+  img,
+  picture,
+  video {
+    visibility: hidden !important;
+  }
+}

@@ -19,6 +19,7 @@ urlpatterns = [
     path('admin/hash-links/<int:pk>/', views.AdminHashLinkDetailView.as_view(), name='admin-hash-link-detail'),
     path('admin/surveys/<int:survey_id>/people/', views.AdminPersonListCreateView.as_view(), name='admin-person-list'),
     path('admin/people/<int:pk>/', views.AdminPersonDetailView.as_view(), name='admin-person-detail'),
+    path('admin/people/<int:pk>/questions/', views.AdminPersonQuestionsView.as_view(), name='admin-person-questions'),
     path('surveys/', views.EmployeeSurveyListView.as_view(), name='employee-survey-list'),
     path('surveys/<int:pk>/', views.EmployeeSurveyDetailView.as_view(), name='employee-survey-detail'),
     path('surveys/<int:survey_id>/people/<int:person_id>/rate/', views.EmployeeRatePersonView.as_view(), name='employee-rate-person'),

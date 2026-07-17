@@ -63,7 +63,7 @@ export function TabOverview({ results, survey }: { results: PersonResult[]; surv
         {[
           { label: 'میانگین کل', value: avg != null ? fa(avg, 1) : '—', sub: scoreGrade(avg), color: scoreColor(avg), bg: scoreBg(avg, dark) },
           { label: 'رأی‌دهندگان', value: fa(maxVoters), sub: 'نفر شرکت‌کننده', color: '#6366f1', bg: dark ? 'rgba(99,102,241,0.16)' : '#eef2ff' },
-          { label: 'افراد ارزیابی‌شده', value: fa(results.length), sub: `از ${fa(survey.people_count)} نفر`, color: '#0891b2', bg: dark ? 'rgba(8,145,178,0.16)' : '#ecfeff' },
+          { label: 'افراد ارزیابی‌شده', value: fa(results.length), sub: 'نفر', color: '#0891b2', bg: dark ? 'rgba(8,145,178,0.16)' : '#ecfeff' },
           { label: 'بهترین امتیاز', value: results[0]?.average_score != null ? fa(results[0].average_score, 1) : '—', sub: results[0]?.full_name ?? '—', color: '#d97706', bg: dark ? 'rgba(217,119,6,0.16)' : '#fffbeb' },
         ].map((c, i) => (
           <div key={i} className="card p-4">
@@ -160,65 +160,66 @@ interface QStat {
   emoji_breakdown: Record<string, number>;
 }
 
-export function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId: number }) {
+function computeQuestionStats(results: PersonResult[]): QStat[] {
+  const map = new Map<number, QStat>();
+  const acc = new Map<number, { sum: number; n: number }>();
+  const emojiAcc = new Map<number, { sum: number; n: number }>();
+
+  for (const p of results) {
+    for (const q of p.question_results || []) {
+      if (!map.has(q.question_id)) {
+        map.set(q.question_id, {
+          question_id: q.question_id, question_text: q.question_text,
+          has_score: q.has_score, has_comment: q.has_comment, has_emoji: !!q.has_emoji,
+          avg: null, responses: 0, comments_count: 0,
+          emoji_avg_numeric: null, emoji_avg_label: null, emoji_responses: 0,
+          emoji_breakdown: { bad: 0, average: 0, good: 0, excellent: 0 },
+        });
+      }
+      const s = map.get(q.question_id)!;
+      s.responses      += q.responses_count;
+      s.comments_count += q.comments_count ?? (q.comments?.length ?? 0);
+      if (q.average_score != null && q.responses_count > 0) {
+        const prev = acc.get(q.question_id) ?? { sum: 0, n: 0 };
+        acc.set(q.question_id, { sum: prev.sum + q.average_score * q.responses_count, n: prev.n + q.responses_count });
+      }
+      const emojiCount = q.emoji_responses_count ?? 0;
+      s.emoji_responses += emojiCount;
+      if (q.average_emoji_numeric != null && emojiCount > 0) {
+        const prev = emojiAcc.get(q.question_id) ?? { sum: 0, n: 0 };
+        emojiAcc.set(q.question_id, { sum: prev.sum + q.average_emoji_numeric * emojiCount, n: prev.n + emojiCount });
+      }
+      if (q.emoji_breakdown) {
+        for (const key of EMOJI_ORDER) {
+          s.emoji_breakdown[key] += q.emoji_breakdown[key] ?? 0;
+        }
+      }
+    }
+  }
+  for (const [id, { sum, n }] of acc) {
+    const s = map.get(id);
+    if (s && n > 0) s.avg = Math.round((sum / n) * 100) / 100;
+  }
+  for (const [id, { sum, n }] of emojiAcc) {
+    const s = map.get(id);
+    if (s && n > 0) {
+      s.emoji_avg_numeric = Math.round((sum / n) * 100) / 100;
+      s.emoji_avg_label = emojiLabelFromNumeric(s.emoji_avg_numeric);
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.avg == null && b.avg == null) return 0;
+    if (a.avg == null) return 1;
+    if (b.avg == null) return -1;
+    return b.avg - a.avg;
+  });
+}
+
+const SCORE_SCALE_MAX = 10;
+
+function QuestionStatsList({ stats, surveyId }: { stats: QStat[]; surveyId: number }) {
   const { mode } = useTheme();
   const dark = mode === 'dark';
-  const stats = useMemo<QStat[]>(() => {
-    const map = new Map<number, QStat>();
-    const acc = new Map<number, { sum: number; n: number }>();
-    const emojiAcc = new Map<number, { sum: number; n: number }>();
-
-    for (const p of results) {
-      for (const q of p.question_results || []) {
-        if (!map.has(q.question_id)) {
-          map.set(q.question_id, {
-            question_id: q.question_id, question_text: q.question_text,
-            has_score: q.has_score, has_comment: q.has_comment, has_emoji: !!q.has_emoji,
-            avg: null, responses: 0, comments_count: 0,
-            emoji_avg_numeric: null, emoji_avg_label: null, emoji_responses: 0,
-            emoji_breakdown: { bad: 0, average: 0, good: 0, excellent: 0 },
-          });
-        }
-        const s = map.get(q.question_id)!;
-        s.responses      += q.responses_count;
-        s.comments_count += q.comments_count ?? (q.comments?.length ?? 0);
-        if (q.average_score != null && q.responses_count > 0) {
-          const prev = acc.get(q.question_id) ?? { sum: 0, n: 0 };
-          acc.set(q.question_id, { sum: prev.sum + q.average_score * q.responses_count, n: prev.n + q.responses_count });
-        }
-        const emojiCount = q.emoji_responses_count ?? 0;
-        s.emoji_responses += emojiCount;
-        if (q.average_emoji_numeric != null && emojiCount > 0) {
-          const prev = emojiAcc.get(q.question_id) ?? { sum: 0, n: 0 };
-          emojiAcc.set(q.question_id, { sum: prev.sum + q.average_emoji_numeric * emojiCount, n: prev.n + emojiCount });
-        }
-        if (q.emoji_breakdown) {
-          for (const key of EMOJI_ORDER) {
-            s.emoji_breakdown[key] += q.emoji_breakdown[key] ?? 0;
-          }
-        }
-      }
-    }
-    for (const [id, { sum, n }] of acc) {
-      const s = map.get(id);
-      if (s && n > 0) s.avg = Math.round((sum / n) * 100) / 100;
-    }
-    for (const [id, { sum, n }] of emojiAcc) {
-      const s = map.get(id);
-      if (s && n > 0) {
-        s.emoji_avg_numeric = Math.round((sum / n) * 100) / 100;
-        s.emoji_avg_label = emojiLabelFromNumeric(s.emoji_avg_numeric);
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => {
-      if (a.avg == null && b.avg == null) return 0;
-      if (a.avg == null) return 1;
-      if (b.avg == null) return -1;
-      return b.avg - a.avg;
-    });
-  }, [results]);
-
-  const maxAvg = Math.max(...stats.filter(q => q.avg != null).map(q => q.avg!), 1);
 
   if (!stats.length) return <p className="text-sm text-slate-400 text-center py-12">سوالی یافت نشد.</p>;
 
@@ -239,7 +240,7 @@ export function TabQuestions({ results, surveyId }: { results: PersonResult[]; s
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-2.5 rounded-full overflow-hidden bg-slate-100">
                       <div className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${q.avg != null ? (q.avg / maxAvg) * 100 : 0}%`, background: scoreColor(q.avg) }} />
+                        style={{ width: `${q.avg != null ? Math.min(100, (q.avg / SCORE_SCALE_MAX) * 100) : 0}%`, background: scoreColor(q.avg) }} />
                     </div>
                     <span className="text-sm font-bold flex-shrink-0 w-8 text-right" style={{ color: scoreColor(q.avg) }}>
                       {q.avg != null ? fa(q.avg, 1) : '—'}
@@ -298,6 +299,24 @@ export function TabQuestions({ results, surveyId }: { results: PersonResult[]; s
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+export function TabQuestions({ results, surveyId }: { results: PersonResult[]; surveyId: number }) {
+  const shared = useMemo(() => results.filter(r => r.result_section === 'all' || !r.result_section), [results]);
+  const customGroups = useMemo(() => results.filter(r => r.result_section?.startsWith('custom:')), [results]);
+  const sharedStats = useMemo(() => computeQuestionStats(shared), [shared]);
+
+  return (
+    <div className="space-y-8">
+      <QuestionStatsList stats={sharedStats} surveyId={surveyId} />
+      {customGroups.map(r => (
+        <section key={r.person_id}>
+          <h2 className="mb-3 text-sm font-bold text-amber-700 dark:text-amber-300">بخش اختصاصی: {r.full_name}</h2>
+          <QuestionStatsList stats={computeQuestionStats([r])} surveyId={surveyId} />
+        </section>
+      ))}
     </div>
   );
 }
@@ -384,7 +403,8 @@ function PersonRow({ r, surveyId, expanded, onToggle }: {
                 ))}
               </>
             )}
-            {(r.comments_count ?? r.comments?.length ?? 0) > 0 && (
+            {(r.question_results?.length ?? 0) === 0 &&
+              (r.comments_count ?? r.comments?.length ?? 0) > 0 && (
               <div className="mt-3">
                 <LazyComments surveyId={surveyId} personId={r.person_id}
                   total={r.comments_count ?? r.comments?.length ?? 0} />
@@ -397,7 +417,7 @@ function PersonRow({ r, surveyId, expanded, onToggle }: {
   );
 }
 
-export function TabPeople({ results, surveyId }: { results: PersonResult[]; surveyId: number }) {
+export function TabPeople({ results, surveyId, showControls = true }: { results: PersonResult[]; surveyId: number; showControls?: boolean }) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'rank' | 'name'>('rank');
@@ -426,7 +446,8 @@ export function TabPeople({ results, surveyId }: { results: PersonResult[]; surv
 
   return (
     <div>
-<div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-2 mb-3">
+{showControls && (
+      <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-2 mb-3">
         <div className="flex-1 relative">
           <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -446,6 +467,7 @@ export function TabPeople({ results, surveyId }: { results: PersonResult[]; surv
           ]}
         />
       </div>
+      )}
 
       <div className="card overflow-hidden">
         {filtered.length === 0 ? (
@@ -470,7 +492,7 @@ export function TabPeople({ results, surveyId }: { results: PersonResult[]; surv
         </div>
       )}
 
-      {filtered.length > 0 && (
+      {showControls && filtered.length > 0 && (
         <p className="text-xs text-slate-400 text-center mt-4">
           نمایش {fa(Math.min(visible, filtered.length))} از {fa(filtered.length)} نفر
           {search && ` (فیلتر شده از ${fa(results.length)} نفر)`}

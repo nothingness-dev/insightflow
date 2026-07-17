@@ -63,6 +63,10 @@ export const adminPersonApi = {
     ),
   delete: (id: number) =>
     api.delete(`/admin/people/${id}/`),
+  setQuestions: (id: number, questions: SurveyQuestionInput[]) =>
+    api.put<SurveyPerson>(`/admin/people/${id}/questions/`, { questions }),
+  useDefaultQuestions: (id: number) =>
+    api.put<SurveyPerson>(`/admin/people/${id}/questions/`, { use_default_questions: true }),
 };
 
 

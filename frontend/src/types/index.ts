@@ -11,6 +11,7 @@ export interface User {
 export interface SurveyQuestion {
   id: number;
   survey?: number;
+  person?: number | null;
   text: string;
   help_text: string;
   has_score: boolean;
@@ -75,6 +76,9 @@ export interface SurveyPerson {
   is_active: boolean;
   created_at?: string;
   has_rated?: boolean;
+  uses_default_questions?: boolean;
+  question_ids?: number[];
+  questions?: SurveyQuestion[];
 }
 
 export type EmojiRatingValue = 'bad' | 'average' | 'good' | 'excellent';
@@ -121,6 +125,9 @@ export interface PersonResult {
   comments: ResultComment[];
   comments_count?: number;
   question_results: QuestionResult[];
+  uses_default_questions?: boolean;
+  question_ids?: number[];
+  result_section?: string;
 }
 
 export interface SurveyResults {
