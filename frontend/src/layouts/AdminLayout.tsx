@@ -297,7 +297,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <MenuIcon />
             </button>
             <p className="text-sm text-gray-400 hidden sm:block">
-              سامانه نظرسنجی انستیتو قلب شهید رجایی
+              سامانه نظرسنجی سازمانی
             </p>
           </div>
           <ThemeSwitcher />

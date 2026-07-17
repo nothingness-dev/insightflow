@@ -171,7 +171,7 @@ export default function AdminDashboard() {
         <div>
           <h1 className="page-title">داشبورد مدیریت</h1>
           <p className="text-sm text-gray-500 mt-1">
-            خلاصه وضعیت سامانه نظرسنجی انستیتو قلب شهید رجایی
+            خلاصه وضعیت سامانه نظرسنجی سازمانی
           </p>
         </div>
         <Link

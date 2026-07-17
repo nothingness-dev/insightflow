@@ -213,7 +213,7 @@ export default function LoginPage() {
           </div>
         </div>
         <p className="text-center text-xs text-gray-400 mt-5 sm:mt-6 px-2">
-          سامانه نظرسنجی انستیتو قلب شهید رجایی
+          سامانه نظرسنجی سازمانی
         </p>
         <CopyrightNotice className="mt-2 px-2" />
       </motion.div>
