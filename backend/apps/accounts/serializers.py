@@ -1,6 +1,17 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from .models import User
+
+
+def _validate_password(value, user=None):
+    """Run Django's configured policy and expose its messages through DRF."""
+    try:
+        validate_password(value, user=user)
+    except DjangoValidationError as exc:
+        raise serializers.ValidationError(list(exc.messages)) from exc
+    return value
 
 
 class LoginSerializer(serializers.Serializer):
@@ -35,6 +46,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         if data['password'] != data.pop('password_confirm'):
             raise serializers.ValidationError({'password_confirm': 'رمزهای عبور مطابقت ندارند.'})
+        candidate = User(
+            username=data.get('username', ''),
+            full_name=data.get('full_name', ''),
+            role=data.get('role', 'employee'),
+        )
+        _validate_password(data['password'], user=candidate)
         return data
 
     def create(self, validated_data):
@@ -58,6 +75,7 @@ class PasswordResetSerializer(serializers.Serializer):
     def validate(self, data):
         if data['new_password'] != data['new_password_confirm']:
             raise serializers.ValidationError({'new_password_confirm': 'رمزهای عبور مطابقت ندارند.'})
+        _validate_password(data['new_password'], user=self.context.get('user'))
         return data
 
 
@@ -77,4 +95,5 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate(self, data):
         if data['new_password'] != data['new_password_confirm']:
             raise serializers.ValidationError({'new_password_confirm': 'رمزهای عبور مطابقت ندارند.'})
+        _validate_password(data['new_password'], user=self.context['request'].user)
         return data

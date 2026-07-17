@@ -5,6 +5,8 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Q
 from rest_framework import generics, status
@@ -235,7 +237,7 @@ class UserResetPasswordView(APIView):
         except User.DoesNotExist:
             return Response({'detail': 'کاربر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = PasswordResetSerializer(data=request.data)
+        serializer = PasswordResetSerializer(data=request.data, context={'user': user})
         serializer.is_valid(raise_exception=True)
         user.set_password(serializer.validated_data['new_password'])
         user.must_change_password = True
@@ -395,6 +397,18 @@ class UserBulkImportView(APIView):
                 continue
             if len(full_name) > full_name_max_length:
                 errors.append({'line': line_number, 'error': 'نام کامل بیش از حد طولانی است.'})
+                continue
+            try:
+                validate_password(
+                    password,
+                    user=User(username=username, full_name=full_name, role=role),
+                )
+            except DjangoValidationError as exc:
+                errors.append({
+                    'line': line_number,
+                    'username': username,
+                    'error': ' '.join(exc.messages),
+                })
                 continue
             if username in seen_usernames:
                 skipped.append({
