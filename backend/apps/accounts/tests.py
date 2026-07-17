@@ -50,6 +50,8 @@ class UserManagementApiTests(APITestCase):
         })
 
         self.assertEqual(create_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('حداقل', str(create_response.data))
+        self.assertEqual(len(create_response.data['non_field_errors']), 1)
         self.assertFalse(User.objects.filter(username='weak_password_user').exists())
 
         created = User.objects.create_user(
@@ -62,6 +64,8 @@ class UserManagementApiTests(APITestCase):
             {'new_password': '2', 'new_password_confirm': '2'},
         )
         self.assertEqual(reset_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('حداقل', str(reset_response.data))
+        self.assertEqual(len(reset_response.data['non_field_errors']), 1)
         created.refresh_from_db()
         self.assertTrue(created.check_password('ExistingPass@123'))
 

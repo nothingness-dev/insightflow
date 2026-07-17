@@ -407,7 +407,7 @@ class UserBulkImportView(APIView):
                 errors.append({
                     'line': line_number,
                     'username': username,
-                    'error': ' '.join(exc.messages),
+                    'error': exc.messages[0],
                 })
                 continue
             if username in seen_usernames:

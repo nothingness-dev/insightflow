@@ -56,7 +56,12 @@ function isHtmlString(s: string): boolean {
 }
 
 export function getErrorMessage(err: unknown): string {
-  if (err instanceof Error && !(err as AxiosError).response) return err.message;
+  if (err instanceof Error && !(err as AxiosError).response) {
+    const code = (err as AxiosError).code;
+    if (code === 'ERR_NETWORK') return 'ارتباط با سرور برقرار نشد.';
+    if (code === 'ECONNABORTED') return 'سرور پاسخ نداد. دوباره تلاش کنید.';
+    return 'خطایی رخ داد. دوباره تلاش کنید.';
+  }
   const e = err as AxiosError;
   if (!e.response?.data) return 'خطای غیرمنتظره رخ داد';
   const d = e.response.data as any;

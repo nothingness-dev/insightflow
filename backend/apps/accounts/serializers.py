@@ -10,7 +10,8 @@ def _validate_password(value, user=None):
     try:
         validate_password(value, user=user)
     except DjangoValidationError as exc:
-        raise serializers.ValidationError(list(exc.messages)) from exc
+        # A popup should give one clear next step, not a wall of validator text.
+        raise serializers.ValidationError(exc.messages[0]) from exc
     return value
 
 

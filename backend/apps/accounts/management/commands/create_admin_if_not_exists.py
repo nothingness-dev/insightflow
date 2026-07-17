@@ -16,7 +16,7 @@ class Command(BaseCommand):
 
         if not User.objects.filter(username=admin_username).exists():
             if not admin_password:
-                raise CommandError('ADMIN_PASSWORD must be set before creating the initial admin.')
+                raise CommandError('برای ایجاد مدیر اولیه، مقدار رمز عبور مدیر باید در تنظیمات محیطی تعیین شود.')
             candidate = User(
                 username=admin_username,
                 full_name=admin_full_name,
@@ -28,7 +28,7 @@ class Command(BaseCommand):
                 validate_password(admin_password, user=candidate)
             except ValidationError as exc:
                 raise CommandError(
-                    'ADMIN_PASSWORD does not satisfy the configured password policy: '
+                    'رمز عبور مدیر اولیه با سیاست امنیتی سامانه سازگار نیست: '
                     + ' '.join(exc.messages)
                 ) from exc
             User.objects.create_user(
