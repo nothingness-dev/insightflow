@@ -102,7 +102,11 @@ export default function SurveyResultsPage() {
   // questions) must never surface in aggregate counts shown outside their
   // own isolated sections.
   const sharedResults = results.filter(r => r.result_section === 'all' || !r.result_section);
-  const sharedQuestionsCount = (survey.questions ?? []).filter(q => q.person == null).length;
+  // "People with a result" must be derived from an actual score, not from the
+  // size of the results array (which merely counts evaluated people).
+  const scoredCount = results.filter(r => r.average_score != null).length;
+  const sharedScoredCount = sharedResults.filter(r => r.average_score != null).length;
+  const votersCount = sharedResults.reduce((m, r) => Math.max(m, r.votes_count), 0);
 
   return (
     <div className="responsive-page max-w-4xl">
@@ -118,11 +122,11 @@ export default function SurveyResultsPage() {
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-slate-800 truncate">{survey.title}</h1>
             <p className="text-sm text-slate-400 mt-1">
-              {fa(sharedQuestionsCount)} سوال
+              {fa(sharedResults.length)} فرد موجود در نظرسنجی
               &nbsp;·&nbsp;
-              {fa(sharedResults.length)} فرد ارزیابی‌شونده
+              {fa(sharedScoredCount)} فرد دارای امتیاز
               &nbsp;·&nbsp;
-              {fa(sharedResults.length)} نتیجه ثبت‌شده
+              {fa(votersCount)} پاسخ‌دهنده
             </p>
           </div>
           <div className="flex flex-wrap gap-2 flex-shrink-0">
@@ -150,12 +154,15 @@ export default function SurveyResultsPage() {
         </div>
       </div>
 
-      {results.length === 0 ? (
+      {scoredCount === 0 ? (
         <div className="card py-20 text-center">
           <svg className="w-12 h-12 mx-auto mb-3 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
           </svg>
-          <p className="text-sm text-slate-400">هنوز هیچ پاسخ کاملی ثبت نشده است</p>
+          <p className="text-sm text-slate-400 mb-4">هنوز پاسخی برای این نظرسنجی ثبت نشده است.</p>
+          <Link to={`/admin/surveys/${id}`} className="btn-secondary text-sm inline-flex items-center gap-1.5 px-4 py-2">
+            مشاهده لینک‌های شرکت
+          </Link>
         </div>
       ) : (
         <>

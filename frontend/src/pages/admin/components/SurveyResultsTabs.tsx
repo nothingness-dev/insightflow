@@ -24,7 +24,7 @@ export function TabOverview({ results, survey }: { results: PersonResult[]; surv
   const scored = useMemo(() => results.filter(r => r.average_score != null), [results]);
   const avg = scored.length ? scored.reduce((s, r) => s + r.average_score!, 0) / scored.length : null;
   const maxVoters = useMemo(() => Math.max(...results.map(r => r.votes_count), 0), [results]);
-  const top3 = results.slice(0, 3);
+  const top3 = scored.slice(0, 3);
 
 
   const buckets = useMemo(() => [
@@ -64,7 +64,7 @@ export function TabOverview({ results, survey }: { results: PersonResult[]; surv
           { label: 'میانگین کل', value: avg != null ? fa(avg, 1) : '—', sub: scoreGrade(avg), color: scoreColor(avg), bg: scoreBg(avg, dark) },
           { label: 'رأی‌دهندگان', value: fa(maxVoters), sub: 'نفر شرکت‌کننده', color: '#6366f1', bg: dark ? 'rgba(99,102,241,0.16)' : '#eef2ff' },
           { label: 'افراد ارزیابی‌شده', value: fa(results.length), sub: 'نفر', color: '#0891b2', bg: dark ? 'rgba(8,145,178,0.16)' : '#ecfeff' },
-          { label: 'بهترین امتیاز', value: results[0]?.average_score != null ? fa(results[0].average_score, 1) : '—', sub: results[0]?.full_name ?? '—', color: '#d97706', bg: dark ? 'rgba(217,119,6,0.16)' : '#fffbeb' },
+          { label: 'بهترین امتیاز', value: scored[0]?.average_score != null ? fa(scored[0].average_score, 1) : '—', sub: scored[0]?.full_name ?? '—', color: '#d97706', bg: dark ? 'rgba(217,119,6,0.16)' : '#fffbeb' },
         ].map((c, i) => (
           <div key={i} className="card p-4">
             <p className="text-xs text-slate-400 mb-2">{c.label}</p>
@@ -133,8 +133,8 @@ export function TabOverview({ results, survey }: { results: PersonResult[]; surv
                   <ScorePill value={r.average_score} size="sm" />
                 </div>
               ))}
-              {results.length > 3 && (
-                <p className="text-xs text-slate-400 text-center pt-1">و {fa(results.length - 3)} نفر دیگر در تب «نتایج فردی»</p>
+              {scored.length > 3 && (
+                <p className="text-xs text-slate-400 text-center pt-1">و {fa(scored.length - 3)} نفر دیگر در تب «نتایج فردی»</p>
               )}
             </div>
           )}
