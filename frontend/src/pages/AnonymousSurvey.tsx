@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { anonymousApi } from '../api/endpoints';
 import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../types';
@@ -94,49 +94,83 @@ function EmojiPicker({ value, onChange }: { value: EmojiRatingValue | null; onCh
   );
 }
 
-function PersonCard({ person, onRate, disabled }: { person: SurveyPerson & { has_rated?: boolean }; onRate: () => void; disabled?: boolean }) {
+type PersonStatus = 'completed' | 'not_answered' | 'needs_completion';
+
+function personStatus(person: SurveyPerson & { has_rated?: boolean }, disabled?: boolean): PersonStatus {
+  if (person.has_rated) return 'completed';
+  if (disabled) return 'needs_completion';
+  return 'not_answered';
+}
+
+const STATUS_META: Record<PersonStatus, { label: string; className: string }> = {
+  completed:        { label: 'تکمیل شده',      className: 'text-emerald-600' },
+  not_answered:     { label: 'پاسخ داده نشده', className: 'text-gray-400' },
+  needs_completion: { label: 'نیازمند تکمیل',  className: 'text-amber-600' },
+};
+
+const PersonRow = ({ person, onRate, disabled, rowRef, highlight }: {
+  person: SurveyPerson & { has_rated?: boolean };
+  onRate: () => void;
+  disabled?: boolean;
+  rowRef?: (el: HTMLDivElement | null) => void;
+  highlight?: boolean;
+}) => {
+  const status = personStatus(person, disabled);
+  const meta = STATUS_META[status];
+  const done = status === 'completed';
+
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="person-card group">
-      <div className="relative">
-        <div className="w-full aspect-square bg-[color:var(--c-50)] overflow-hidden">
+    <motion.div
+      ref={rowRef}
+      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+        done
+          ? 'bg-emerald-50/60 border-emerald-200'
+          : highlight
+            ? 'bg-white border-[color:var(--c-300)] ring-2 ring-[color:var(--c-200)]'
+            : 'bg-white border-gray-100'
+      }`}
+      style={{ minHeight: 88 }}
+    >
+      <div className="relative flex-shrink-0">
+        <div className="w-12 h-12 rounded-full bg-[color:var(--c-50)] overflow-hidden">
           {person.photo_url
             ? <img src={person.photo_url} alt={person.full_name} className="w-full h-full object-cover"/>
-            : <div className="w-full h-full flex items-center justify-center text-[color:var(--c-300)] text-5xl font-bold">{person.full_name[0]}</div>
+            : <div className="w-full h-full flex items-center justify-center text-[color:var(--c-400)] text-lg font-bold">{person.full_name[0]}</div>
           }
         </div>
-        {person.has_rated && (
-          <div className="absolute top-2 left-2 w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center shadow-md">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        {done && (
+          <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow ring-2 ring-white">
+            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
             </svg>
           </div>
         )}
       </div>
-      <div className="p-4">
-        <h3 className="font-semibold text-slate-800 text-sm leading-snug">{person.full_name}</h3>
+
+      <div className="flex-1 min-w-0">
+        <h3 className="font-semibold text-slate-800 text-sm leading-snug truncate">{person.full_name}</h3>
         {(person.role_title || person.department) && (
           <p className="text-xs text-gray-400 mt-0.5 truncate">{[person.role_title, person.department].filter(Boolean).join(' — ')}</p>
         )}
-        {person.description && <p className="text-xs text-gray-500 mt-2 leading-relaxed line-clamp-2">{person.description}</p>}
-        <div className="mt-3">
-          {person.has_rated ? (
-            <div className="w-full py-2 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold text-center border border-emerald-200 flex items-center justify-center gap-1">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-              ثبت شد
-            </div>
-          ) : disabled ? (
-            <div className="w-full py-2 rounded-lg bg-gray-50 text-gray-400 text-xs font-medium text-center border border-gray-200">پایان یافته</div>
-          ) : (
-            <button onClick={onRate}
-              className="w-full py-2 rounded-lg bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-xs font-semibold transition-all duration-150 shadow-sm hover:shadow-md">
-              پاسخ به سوال‌ها
-            </button>
+        <p className={`text-xs font-medium mt-1 flex items-center gap-1 ${meta.className}`}>
+          {done && (
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
           )}
-        </div>
+          {meta.label}
+        </p>
       </div>
+
+      {!done && !disabled && (
+        <button onClick={onRate}
+          className="flex-shrink-0 px-5 rounded-lg bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-sm font-semibold transition-colors shadow-sm hover:shadow-md"
+          style={{ minHeight: 44 }}>
+          پاسخ
+        </button>
+      )}
     </motion.div>
   );
-}
+};
 
 function RatingModal({ open, onClose, person, questions, onSubmit, submitting }: {
   open: boolean; onClose: () => void;
@@ -147,6 +181,9 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
 }) {
   const [answers, setAnswers] = useState<Record<number, DraftAnswer>>({});
   const [localErrors, setLocalErrors] = useState<Record<number, string>>({});
+  const [step, setStep] = useState(0);
+  // For long surveys, present one question at a time to reduce scrolling.
+  const paged = questions.length > 3;
 
   useEffect(() => {
     if (!open) return;
@@ -154,6 +191,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
     questions.forEach(q => { init[q.id] = { score: null, emoji_rating: null, comment: '' }; });
     setAnswers(init);
     setLocalErrors({});
+    setStep(0);
   }, [open, questions]);
 
   const updateAnswer = (qId: number, patch: Partial<DraftAnswer>) => {
@@ -185,6 +223,26 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
     }
     setLocalErrors(errs);
     return Object.keys(errs).length === 0;
+  };
+
+  const validateOne = (q: SurveyQuestion) => {
+    const a = answers[q.id] || { score: null, emoji_rating: null, comment: '' };
+    const comment = a.comment.trim();
+    let err = '';
+    if (q.has_score && q.score_required && a.score === null) err = 'انتخاب امتیاز برای این سوال الزامی است.';
+    else if (q.has_emoji && q.emoji_required && !a.emoji_rating) err = 'انتخاب امتیاز ایموجی برای این سوال الزامی است.';
+    else if (q.has_comment && q.comment_required && !comment) err = 'نوشتن توضیح برای این سوال الزامی است.';
+    else {
+      const hasVal = (q.has_score && a.score !== null) || (q.has_emoji && !!a.emoji_rating) || (q.has_comment && !!comment);
+      if (!hasVal) err = 'این سوال نباید خالی بماند.';
+    }
+    if (err) setLocalErrors(cur => ({ ...cur, [q.id]: err }));
+    return !err;
+  };
+
+  const goNext = () => {
+    if (!validateOne(questions[step])) return;
+    setStep(s => Math.min(s + 1, questions.length - 1));
   };
 
   const submit = () => {
@@ -226,12 +284,23 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-slate-800 text-base">{person.full_name}</p>
                 <p className="text-sm text-gray-400">{[person.role_title, person.department].filter(Boolean).join(' — ')}</p>
-                <p className="text-xs text-gray-500 mt-1.5">برای این فرد باید به همه {formatNumber(questions.length)} سوال پاسخ دهید.</p>
+                <p className="text-xs text-gray-500 mt-1.5">
+                  {paged
+                    ? `سوال ${formatNumber(step + 1)} از ${formatNumber(questions.length)}`
+                    : `برای این فرد باید به همه ${formatNumber(questions.length)} سوال پاسخ دهید.`}
+                </p>
+                {paged && (
+                  <div className="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                    <div className="h-full rounded-full bg-[color:var(--c-500)] transition-all duration-300"
+                      style={{ width: `${((step + 1) / questions.length) * 100}%` }}/>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="space-y-4 mb-5">
               {questions.map((q, idx) => {
+                if (paged && idx !== step) return null;
                 const a = answers[q.id] || { score: null, emoji_rating: null, comment: '' };
                 return (
                   <div key={q.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
@@ -281,12 +350,30 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
             </div>
 
             <div className="flex gap-2 sm:gap-3 pt-3 border-t border-gray-100">
-              <button onClick={submit} disabled={submitting}
-                className="btn-primary flex-1 min-w-0 flex items-center justify-center gap-2">
-                {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
-                <span className="truncate">ثبت همه پاسخ‌ها</span>
-              </button>
-              <button onClick={handleCloseAttempt} className="btn-secondary flex-1 min-w-0" disabled={submitting}>انصراف</button>
+              {paged ? (
+                <>
+                  {step < questions.length - 1 ? (
+                    <button onClick={goNext} className="btn-primary flex-1 min-w-0">بعدی</button>
+                  ) : (
+                    <button onClick={submit} disabled={submitting}
+                      className="btn-primary flex-1 min-w-0 flex items-center justify-center gap-2">
+                      {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
+                      <span className="truncate">ثبت همه پاسخ‌ها</span>
+                    </button>
+                  )}
+                  <button onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0 || submitting}
+                    className="btn-secondary flex-1 min-w-0 disabled:opacity-40">قبلی</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={submit} disabled={submitting}
+                    className="btn-primary flex-1 min-w-0 flex items-center justify-center gap-2">
+                    {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
+                    <span className="truncate">ثبت همه پاسخ‌ها</span>
+                  </button>
+                  <button onClick={handleCloseAttempt} className="btn-secondary flex-1 min-w-0" disabled={submitting}>انصراف</button>
+                </>
+              )}
             </div>
           </>
         )}
@@ -305,6 +392,8 @@ export default function AnonymousSurvey() {
   const [submitting, setSubmitting] = useState(false);
   const [ratedPersonIds, setRatedPersonIds] = useState<Set<number>>(new Set());
   const [ipLocked, setIpLocked] = useState(false);
+  const [focusPersonId, setFocusPersonId] = useState<number | null>(null);
+  const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const anonToken = token ? getOrCreateAnonToken(token) : '';
 
@@ -344,6 +433,11 @@ export default function AnonymousSurvey() {
       toast.success('پاسخ‌ها با موفقیت ثبت شد');
       const newRatedIds = new Set([...ratedPersonIds, ratingPerson.id]);
       setRatedPersonIds(newRatedIds);
+      // Find the next unanswered active person so we can focus/scroll to them.
+      const nextPerson = (survey?.people || []).find(
+        p => p.is_active !== false && p.id !== ratingPerson.id && !newRatedIds.has(p.id)
+      );
+      setFocusPersonId(nextPerson ? nextPerson.id : null);
       setRatingPerson(null);
       if (survey) {
         const totalPeople = survey.people.filter((p: any) => p.is_active !== false).length;
@@ -364,6 +458,17 @@ export default function AnonymousSurvey() {
       setSubmitting(false);
     }
   };
+
+  // When a next unanswered person is queued, scroll them into view and mark them.
+  useEffect(() => {
+    if (focusPersonId == null) return;
+    const el = rowRefs.current.get(focusPersonId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    const t = setTimeout(() => setFocusPersonId(null), 2000);
+    return () => clearTimeout(t);
+  }, [focusPersonId]);
 
   if (loading) return <AnonymousSurveySkeleton/>;
 
@@ -390,6 +495,7 @@ export default function AnonymousSurvey() {
   const questionCount = survey.questions.length;
   const closed = survey.status === 'closed';
   const allDone = ratedCount === totalCount && totalCount > 0;
+  const nextUnanswered = !closed && !ipLocked ? people.find(p => !p.has_rated) : undefined;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--c-bg)' }} dir="rtl">
@@ -407,7 +513,7 @@ export default function AnonymousSurvey() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className={`max-w-4xl mx-auto px-4 py-6 ${nextUnanswered && !allDone ? 'pb-28' : ''}`}>
         {closed && (
           <div className="mb-5 flex items-center gap-3 rounded-xl px-5 py-3 border" style={{ backgroundColor: 'var(--c-50)', borderColor: 'var(--c-200)' }}>
             <p className="text-sm font-medium" style={{ color: 'var(--c-700)' }}>این نظرسنجی بسته شده است</p>
@@ -455,13 +561,21 @@ export default function AnonymousSurvey() {
           <div className="card p-12 text-center"><p className="text-gray-400 text-sm">این نظرسنجی سوال فعالی ندارد</p></div>
         ) : (
           <>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-semibold text-slate-700">{formatNumber(totalCount)} نفر در این نظرسنجی</p>
-              {!closed && ratedCount > 0 && !allDone && <p className="text-xs text-gray-400">{formatNumber(ratedCount)} از {formatNumber(totalCount)} نفر تکمیل شده</p>}
+            <div className="card p-4 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-slate-700">{formatNumber(ratedCount)} از {formatNumber(totalCount)} نفر تکمیل شد</p>
+                <p className="text-xs text-gray-400">{formatNumber(Math.round((ratedCount / totalCount) * 100))}٪</p>
+              </div>
+              <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                <div className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${(ratedCount / totalCount) * 100}%` }}/>
+              </div>
             </div>
-            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="space-y-2.5">
               {people.map(p => (
-                <PersonCard key={p.id} person={p}
+                <PersonRow key={p.id} person={p}
+                  rowRef={el => { if (el) rowRefs.current.set(p.id, el); else rowRefs.current.delete(p.id); }}
+                  highlight={focusPersonId === p.id}
                   onRate={() => !closed && !ipLocked && setRatingPerson(p)}
                   disabled={closed || ipLocked}/>
               ))}
@@ -474,6 +588,19 @@ export default function AnonymousSurvey() {
           <CopyrightNotice className="mt-2" />
         </div>
       </main>
+
+      {nextUnanswered && !allDone && (
+        <div className="fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
+          <div className="max-w-4xl mx-auto px-4 py-3">
+            <button onClick={() => setRatingPerson(nextUnanswered)}
+              className="w-full rounded-xl bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-sm font-semibold transition-colors shadow-sm flex items-center justify-center gap-2"
+              style={{ minHeight: 44 }}>
+              ادامه با نفر بعدی
+              <span className="text-xs opacity-80 truncate max-w-[40%]">({nextUnanswered.full_name})</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       <RatingModal
         open={!!ratingPerson}
