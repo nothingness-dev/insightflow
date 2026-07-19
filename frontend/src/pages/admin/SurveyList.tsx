@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { adminSurveyApi } from '../../api/endpoints';
 import { Survey } from '../../types';
-import { StatusBadge, PageHeader, EmptyState, SearchInput, Select, ConfirmModal, TableSkeleton } from '../../components/common/index';
+import { StatusBadge, PageHeader, EmptyState, SearchInput, Select, ConfirmModal, TableSkeleton, ActionMenu } from '../../components/common/index';
+import type { ActionMenuItem } from '../../components/common/index';
 import { formatDate, formatNumber, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
@@ -174,49 +175,13 @@ export default function AdminSurveyList() {
                     <td className="px-4 py-4 hidden lg:table-cell text-gray-600">{formatNumber(survey.total_responses)}</td>
                     <td className="px-4 py-4 hidden md:table-cell text-gray-500 text-xs">{formatDate(survey.created_at)}</td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-1 justify-end flex-wrap whitespace-nowrap">
+                      <div className="flex items-center gap-1 justify-end whitespace-nowrap">
                         <Link
                           to={`/admin/surveys/${survey.id}`}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[color:var(--c-600)] hover:bg-[color:var(--c-50)] rounded-lg transition-colors"
                         >
                           جزئیات
                         </Link>
-                        <button
-                          onClick={() => setDuplicateId(survey.id)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-50 rounded-lg transition-colors"
-                        >
-                          کپی
-                        </button>
-                        {survey.status === 'draft' && (
-                          <>
-                            <Link
-                              to={`/admin/surveys/${survey.id}/edit`}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                            >
-                              ویرایش
-                            </Link>
-                            <button
-                              onClick={() => setPublishId(survey.id)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                            >
-                              انتشار
-                            </button>
-                            <button
-                              onClick={() => setDeleteId(survey.id)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              حذف
-                            </button>
-                          </>
-                        )}
-                        {survey.status === 'published' && (
-                          <button
-                            onClick={() => setCloseId(survey.id)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          >
-                            بستن
-                          </button>
-                        )}
                         {survey.status === 'closed' && (
                           <Link
                             to={`/admin/surveys/${survey.id}/results`}
@@ -225,6 +190,21 @@ export default function AdminSurveyList() {
                             نتایج
                           </Link>
                         )}
+                        <ActionMenu
+                          items={[
+                            ...(survey.status === 'draft' ? [
+                              { label: 'ویرایش', onClick: () => navigate(`/admin/surveys/${survey.id}/edit`) },
+                              { label: 'انتشار', onClick: () => setPublishId(survey.id) },
+                            ] as ActionMenuItem[] : []),
+                            { label: 'کپی', onClick: () => setDuplicateId(survey.id) },
+                            ...(survey.status === 'published' ? [
+                              { label: 'بستن', onClick: () => setCloseId(survey.id) },
+                            ] as ActionMenuItem[] : []),
+                            ...(survey.status === 'draft' ? [
+                              { label: 'حذف', danger: true, onClick: () => setDeleteId(survey.id) },
+                            ] as ActionMenuItem[] : []),
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>

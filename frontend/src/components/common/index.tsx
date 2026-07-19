@@ -647,3 +647,85 @@ export function SearchInput({ value, onChange, placeholder = 'جستجو...' }: 
     </div>
   );
 }
+
+
+export interface ActionMenuItem {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
+}
+
+export function ActionMenu({ items, label = 'عملیات بیشتر' }: { items: ActionMenuItem[]; label?: string }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="relative" ref={rootRef}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+        className={`w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors ${open ? 'bg-gray-100' : ''}`}
+      >
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="5" r="1.6" />
+          <circle cx="12" cy="12" r="1.6" />
+          <circle cx="12" cy="19" r="1.6" />
+        </svg>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            role="menu"
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.14, ease: 'easeOut' }}
+            className="select-panel absolute z-50 mt-1.5 left-0 min-w-[11rem] p-1.5 space-y-0.5"
+          >
+            {items.map((item, i) => (
+              <button
+                key={`${item.label}-${i}`}
+                type="button"
+                role="menuitem"
+                disabled={item.disabled}
+                title={item.disabled ? item.disabledReason : undefined}
+                onClick={() => { if (!item.disabled) { setOpen(false); item.onClick(); } }}
+                className={`w-full text-right px-3 py-2 text-xs rounded-lg transition-colors flex items-center ${
+                  item.disabled
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : item.danger
+                      ? 'text-red-600 hover:bg-red-50'
+                      : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

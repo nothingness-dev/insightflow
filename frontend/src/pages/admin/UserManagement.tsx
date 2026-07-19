@@ -1,13 +1,15 @@
 import { useState, FormEvent, useRef } from 'react';
-import { adminUserApi, dashboardApi } from '../../api/endpoints';
+import { adminUserApi } from '../../api/endpoints';
 import { BulkImportResult, User } from '../../types';
-import { PageHeader, SearchInput, Select, EmptyState, TableSkeleton, ConfirmModal, Modal, PasswordInput } from '../../components/common/index';
+import { PageHeader, SearchInput, Select, EmptyState, TableSkeleton, ConfirmModal, Modal, PasswordInput, ActionMenu } from '../../components/common/index';
 import { formatDate, formatNumber, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
 import { RoleBadge } from './components/RoleBadge';
 import { USERS_PER_PAGE, useUserDirectory } from './hooks/useUserDirectory';
 import { emptyUserForm, type UserFormData } from './types/userManagement';
 export default function UserManagement() {
+  const { user: currentUser } = useAuth();
   const {
     users,
     setUsers,
@@ -45,9 +47,6 @@ export default function UserManagement() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
-  const [deleteAllModal, setDeleteAllModal] = useState(false);
-  const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('');
-  const [deletingAll, setDeletingAll] = useState(false);
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
   const [deletingUser, setDeletingUser] = useState(false);
 
@@ -155,20 +154,6 @@ export default function UserManagement() {
     finally { setImporting(false); }
   };
 
-  const handleDeleteAll = async () => {
-    if (deleteAllConfirmText !== 'حذف همه') return;
-    setDeletingAll(true);
-    try {
-      const r = await dashboardApi.deleteAllData();
-      const d = (r.data as any).deleted;
-      toast.success(`${formatNumber(d.employees)} کارمند، ${formatNumber(d.surveys)} نظرسنجی، ${formatNumber(d.people)} فرد و ${formatNumber(d.ratings)} امتیاز حذف شدند`);
-      setDeleteAllModal(false);
-      setDeleteAllConfirmText('');
-      refreshFirstPage();
-    } catch (err) { toast.error(getErrorMessage(err)); }
-    finally { setDeletingAll(false); }
-  };
-
   const set = (field: keyof UserFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm(f => ({ ...f, [field]: e.target.value }));
     if (errors[field]) setErrors(er => ({ ...er, [field]: '' }));
@@ -258,21 +243,26 @@ export default function UserManagement() {
                     </td>
                     <td className="px-4 py-4 hidden lg:table-cell text-xs text-gray-400">{formatDate(user.created_at)}</td>
                     <td className="px-4 py-4">
-                      <div className="flex flex-wrap items-center gap-1 justify-end whitespace-nowrap">
+                      <div className="flex items-center gap-1 justify-end whitespace-nowrap">
                         <button onClick={() => openEdit(user)} className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">ویرایش</button>
-                        <button onClick={() => { setResetId(user.id); setNewPass(''); }} className="px-3 py-1.5 text-xs text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">رمز عبور</button>
-                        <button
-                          onClick={() => handleToggleActive(user)}
-                          className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${user.is_active ? 'text-orange-600 hover:bg-orange-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
-                        >
-                          {user.is_active ? 'غیرفعال' : 'فعال'}
-                        </button>
-                        <button
-                          onClick={() => setDeleteUserId(user.id)}
-                          className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          حذف
-                        </button>
+                        <ActionMenu
+                          items={[
+                            { label: 'تغییر رمز عبور', onClick: () => { setResetId(user.id); setNewPass(''); } },
+                            {
+                              label: user.is_active ? 'غیرفعال‌سازی' : 'فعال‌سازی',
+                              onClick: () => handleToggleActive(user),
+                              disabled: user.is_active && user.id === currentUser?.id,
+                              disabledReason: 'نمی‌توانید حساب خود را غیرفعال کنید',
+                            },
+                            {
+                              label: 'حذف',
+                              danger: true,
+                              onClick: () => setDeleteUserId(user.id),
+                              disabled: user.id === currentUser?.id,
+                              disabledReason: 'نمی‌توانید حساب خود را حذف کنید',
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -310,20 +300,6 @@ export default function UserManagement() {
           )}
         </div>
       )}
-<div className="mt-10 border border-red-200 rounded-xl p-5 bg-red-50">
-        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3">
-          <div>
-            <p className="font-semibold text-red-700 text-sm">ناحیه خطر</p>
-            <p className="text-xs text-red-500 mt-0.5">حذف تمام نظرسنجی‌ها، افراد و امتیازها — غیرقابل بازگشت</p>
-          </div>
-          <button
-            onClick={() => { setDeleteAllModal(true); setDeleteAllConfirmText(''); }}
-            className="px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-100 transition-colors"
-          >
-            حذف تمام داده‌ها
-          </button>
-        </div>
-      </div>
 <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? 'ویرایش کاربر' : 'کاربر جدید'} size="md">
         <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -550,39 +526,6 @@ export default function UserManagement() {
               {importing ? 'در حال ساخت حساب‌ها...' : 'آپلود و ایجاد کاربران'}
             </button>
             <button onClick={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }} className="btn-secondary">بستن</button>
-          </div>
-        </div>
-      </Modal>
-<Modal open={deleteAllModal} onClose={() => setDeleteAllModal(false)} title="حذف تمام داده‌ها" size="sm">
-        <div className="p-6 space-y-4">
-          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-            <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5C2.962 18.333 3.924 20 5.464 20z" />
-            </svg>
-            <div>
-              <p className="text-sm font-semibold text-red-700">این عملیات غیرقابل بازگشت است</p>
-              <p className="text-xs text-red-600 mt-1">تمام نظرسنجی‌ها، افراد و امتیازها برای همیشه حذف می‌شوند. حساب‌های کاربری دست نخورده باقی می‌مانند.</p>
-            </div>
-          </div>
-          <div>
-            <label className="label">برای تأیید، عبارت «حذف همه» را تایپ کنید</label>
-            <input
-              value={deleteAllConfirmText}
-              onChange={e => setDeleteAllConfirmText(e.target.value)}
-              className="input-field"
-              placeholder="حذف همه"
-            />
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={handleDeleteAll}
-              disabled={deleteAllConfirmText !== 'حذف همه' || deletingAll}
-              className="flex-1 py-2.5 text-sm font-medium rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors flex items-center justify-center gap-2"
-            >
-              {deletingAll && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              حذف تمام داده‌ها
-            </button>
-            <button onClick={() => setDeleteAllModal(false)} className="btn-secondary">انصراف</button>
           </div>
         </div>
       </Modal>

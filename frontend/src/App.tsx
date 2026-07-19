@@ -19,6 +19,7 @@ const SurveyResults = lazy(() => import('./pages/admin/SurveyResults'));
 const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
 const SurveyProgressPage = lazy(() => import('./pages/admin/SurveyProgress'));
 const ActivityCenter = lazy(() => import('./pages/admin/ActivityCenter'));
+const SystemSettingsData = lazy(() => import('./pages/admin/SystemSettingsData'));
 const EmployeeSurveyList = lazy(() => import('./pages/employee/SurveyList'));
 const EmployeeSurveyDetail = lazy(() => import('./pages/employee/SurveyDetail'));
 const AnonymousSurvey = lazy(() => import('./pages/AnonymousSurvey'));
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/admin/surveys/:id/results" element={<AdminWrapper><SurveyResults /></AdminWrapper>} />
           <Route path="/admin/users" element={<AdminWrapper><UserManagement /></AdminWrapper>} />
           <Route path="/admin/activity" element={<AdminWrapper><ActivityCenter /></AdminWrapper>} />
+          <Route path="/admin/settings/data" element={<AdminWrapper><SystemSettingsData /></AdminWrapper>} />
 <Route path="/surveys" element={<EmployeeWrapper><EmployeeSurveyList /></EmployeeWrapper>} />
           <Route path="/surveys/:id" element={<EmployeeWrapper><EmployeeSurveyDetail /></EmployeeWrapper>} />
 <Route path="/s/:token" element={<AnonymousSurvey />} />

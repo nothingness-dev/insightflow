@@ -1385,6 +1385,16 @@ class AdminDeleteAllDataView(APIView):
     """حذف تمام داده‌ها — فقط مدیر، غیرقابل بازگشت"""
     permission_classes = [IsAdminUser]
 
+    def get(self, request):
+        from apps.accounts.models import User
+
+        return Response({
+            'surveys': Survey.objects.count(),
+            'people': SurveyPerson.objects.count(),
+            'ratings': Rating.objects.count(),
+            'employees': User.objects.filter(role='employee').count(),
+        })
+
     def delete(self, request):
         from apps.accounts.models import User
 
@@ -1392,6 +1402,13 @@ class AdminDeleteAllDataView(APIView):
         if confirm != 'DELETE_ALL':
             return Response(
                 {'detail': 'برای تأیید، مقدار "DELETE_ALL" را ارسال کنید.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        password = request.data.get('password')
+        if not password or not request.user.check_password(password):
+            return Response(
+                {'detail': 'رمز عبور نادرست است.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

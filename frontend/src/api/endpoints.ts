@@ -103,8 +103,10 @@ export const adminUserApi = {
 export const dashboardApi = {
   stats: (signal?: AbortSignal) => api.get<DashboardStats>('/admin/dashboard/', { signal }),
   surveyProgress: (signal?: AbortSignal) => api.get<SurveyProgressDashboard>('/admin/surveys/progress/', { signal }),
-  deleteAllData: () =>
-    api.delete('/admin/delete-all-data/', { data: { confirm: 'DELETE_ALL' } }),
+  dataCounts: (signal?: AbortSignal) =>
+    api.get<{ surveys: number; people: number; ratings: number; employees: number }>('/admin/delete-all-data/', { signal }),
+  deleteAllData: (password: string) =>
+    api.delete('/admin/delete-all-data/', { data: { confirm: 'DELETE_ALL', password } }),
 };
 
 
