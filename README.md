@@ -5,8 +5,10 @@ InsightFlow is a modern employee survey platform for Persian and RTL-first teams
 ## Highlights
 
 - Multi-question surveys with numeric scores, emoji ratings, free-text answers, and per-question required fields.
+- A manageable survey builder: questions collapse into accordion rows with compact summaries, a sticky action bar keeps saving in reach, and drafts autosave locally with a visible "saved at" state.
 - Identified employee participation with progress tracking for admins.
 - Anonymous hash links for account-free participation, with QR codes, optional participant limits, expiry windows, and IP-based duplicate protection.
+- A mobile-friendly anonymous voting flow: compact participant rows with completion status, an overall progress bar, and a sticky "continue with next person" action.
 - Admin dashboards with cached metrics, recent activity, survey status cards, and quick management actions.
 - Result exports to Excel, CSV, and PDF with Persian/RTL-friendly formatting.
 - Activity logs for sensitive admin operations, including expandable metadata for link changes, IPs, limits, and tokens.
