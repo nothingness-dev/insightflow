@@ -387,24 +387,36 @@ export default function SurveyForm() {
             </div>
           )}
           <div>
-            <label className="label">
+            <label htmlFor="survey-title" className="label">
               عنوان نظرسنجی <span className="text-red-500">*</span>
             </label>
             <input
+              id="survey-title"
               ref={titleRef}
               type="text"
               value={form.title}
               onChange={set("title")}
               className={`input-field ${errors.title ? "border-red-400" : ""}`}
               placeholder="مثال: نظرسنجی ارزیابی عملکرد کارکنان"
+              aria-invalid={Boolean(errors.title)}
+              aria-describedby={errors.title ? "survey-title-error" : undefined}
             />
             {errors.title && (
-              <p className="text-xs text-red-500 mt-1">{errors.title}</p>
+              <p
+                id="survey-title-error"
+                role="alert"
+                className="text-xs text-red-500 mt-1"
+              >
+                {errors.title}
+              </p>
             )}
           </div>
           <div>
-            <label className="label">توضیحات / راهنمای شرکت‌کنندگان</label>
+            <label htmlFor="survey-description" className="label">
+              توضیحات / راهنمای شرکت‌کنندگان
+            </label>
             <textarea
+              id="survey-description"
               value={form.description}
               onChange={set("description")}
               rows={3}

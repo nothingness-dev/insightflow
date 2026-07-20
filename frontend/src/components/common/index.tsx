@@ -627,17 +627,21 @@ interface SearchProps {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  id?: string;
+  ariaLabel?: string;
 }
 
-export function SearchInput({ value, onChange, placeholder = 'جستجو...' }: SearchProps) {
+export function SearchInput({ value, onChange, placeholder = 'جستجو...', id, ariaLabel }: SearchProps) {
   return (
     <div className="relative">
       <input
+        id={id}
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         className="input-field pr-9 w-full"
         placeholder={placeholder}
+        aria-label={ariaLabel ?? placeholder}
       />
       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

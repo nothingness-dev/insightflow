@@ -1,4 +1,4 @@
-import { useState, FormEvent } from "react";
+import { useRef, useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
@@ -14,11 +14,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [errors, setErrors] = useState<{
+    username?: string;
+    password?: string;
+  }>({});
+  const usernameRef = useRef<HTMLInputElement | null>(null);
+  const passwordRef = useRef<HTMLInputElement | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) {
-      toast.error("نام کاربری و رمز عبور الزامی است");
+    const nextErrors: { username?: string; password?: string } = {};
+    if (!username.trim()) nextErrors.username = "نام کاربری را وارد کنید";
+    if (!password.trim()) nextErrors.password = "رمز عبور را وارد کنید";
+    setErrors(nextErrors);
+    if (nextErrors.username) {
+      usernameRef.current?.focus();
+      return;
+    }
+    if (nextErrors.password) {
+      passwordRef.current?.focus();
       return;
     }
     setLoading(true);
@@ -28,6 +42,8 @@ export default function LoginPage() {
         replace: true,
       });
     } catch (err: any) {
+      // Field validation is inline; the toast is reserved for server-level
+      // failures (wrong credentials, unavailable service, ...).
       toast.error(
         err?.response?.data?.non_field_errors?.[0] ||
           err?.response?.data?.detail ||
@@ -81,16 +97,28 @@ export default function LoginPage() {
           <div className="px-5 sm:px-8 py-6 sm:py-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="label">نام کاربری</label>
+                <label htmlFor="username" className="label">
+                  نام کاربری
+                </label>
                 <div className="relative">
                   <input
+                    id="username"
+                    ref={usernameRef}
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="input-field pr-10"
+                    onChange={(e) => {
+                      setUsername(e.target.value);
+                      if (errors.username)
+                        setErrors((er) => ({ ...er, username: undefined }));
+                    }}
+                    className={`input-field pr-10 ${errors.username ? "border-red-400" : ""}`}
                     placeholder="نام کاربری خود را وارد کنید"
                     autoComplete="username"
                     disabled={loading}
+                    aria-invalid={Boolean(errors.username)}
+                    aria-describedby={
+                      errors.username ? "username-error" : undefined
+                    }
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                     <svg
@@ -108,19 +136,40 @@ export default function LoginPage() {
                     </svg>
                   </span>
                 </div>
+                {errors.username && (
+                  <p
+                    id="username-error"
+                    role="alert"
+                    className="text-xs text-red-500 mt-1"
+                  >
+                    {errors.username}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="label">رمز عبور</label>
+                <label htmlFor="password" className="label">
+                  رمز عبور
+                </label>
                 <div className="relative">
                   <input
+                    id="password"
+                    ref={passwordRef}
                     type={showPass ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="input-field pr-10 pl-10"
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (errors.password)
+                        setErrors((er) => ({ ...er, password: undefined }));
+                    }}
+                    className={`input-field pr-10 pl-10 ${errors.password ? "border-red-400" : ""}`}
                     placeholder="رمز عبور خود را وارد کنید"
                     autoComplete="current-password"
                     disabled={loading}
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby={
+                      errors.password ? "password-error" : undefined
+                    }
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                     <svg
@@ -140,6 +189,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPass(!showPass)}
+                    aria-label={showPass ? "پنهان کردن رمز عبور" : "نمایش رمز عبور"}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showPass ? (
@@ -178,6 +228,15 @@ export default function LoginPage() {
                     )}
                   </button>
                 </div>
+                {errors.password && (
+                  <p
+                    id="password-error"
+                    role="alert"
+                    className="text-xs text-red-500 mt-1"
+                  >
+                    {errors.password}
+                  </p>
+                )}
               </div>
 
               <button

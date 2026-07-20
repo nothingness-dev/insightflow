@@ -242,7 +242,15 @@ export default function QuestionsEditor({
 
               {!isCollapsed && (
                 <div className="px-4 pb-4">
+                  <label
+                    htmlFor={`question-text-${index}`}
+                    className="block text-xs font-medium text-gray-500 mb-1.5"
+                  >
+                    متن سوال {formatNumber(index + 1)}{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
                   <textarea
+                    id={`question-text-${index}`}
                     ref={(el) => {
                       textRefs.current[index] = el;
                     }}
@@ -251,17 +259,34 @@ export default function QuestionsEditor({
                     rows={2}
                     className={`input-field resize-none bg-white ${errors[`question_${index}`] ? "border-red-400" : ""}`}
                     placeholder="مثال: کیفیت همکاری این فرد را چگونه ارزیابی می‌کنید؟"
+                    aria-invalid={Boolean(errors[`question_${index}`])}
+                    aria-describedby={
+                      errors[`question_${index}`]
+                        ? `question-text-${index}-error`
+                        : undefined
+                    }
                   />
                   {errors[`question_${index}`] && (
-                    <p className="text-xs text-red-500 mt-1">
+                    <p
+                      id={`question-text-${index}-error`}
+                      role="alert"
+                      className="text-xs text-red-500 mt-1"
+                    >
                       {errors[`question_${index}`]}
                     </p>
                   )}
 
+                  <label
+                    htmlFor={`question-help-${index}`}
+                    className="block text-xs font-medium text-gray-500 mt-3 mb-1.5"
+                  >
+                    راهنمای اختیاری
+                  </label>
                   <input
+                    id={`question-help-${index}`}
                     value={question.help_text}
                     onChange={(e) => updateQuestion(index, { help_text: e.target.value })}
-                    className="input-field bg-white mt-3"
+                    className="input-field bg-white"
                     placeholder="راهنمای اختیاری برای این سوال"
                   />
 
@@ -270,11 +295,18 @@ export default function QuestionsEditor({
                       <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                         <input
                           type="checkbox"
+                          id={`question-score-${index}`}
                           ref={(el) => {
                             typeRefs.current[index] = el;
                           }}
                           checked={question.has_score}
                           onChange={(e) => updateQuestion(index, { has_score: e.target.checked })}
+                          aria-invalid={Boolean(errors[`question_type_${index}`])}
+                          aria-describedby={
+                            errors[`question_type_${index}`]
+                              ? `question-type-${index}-error`
+                              : undefined
+                          }
                         />
                         امتیاز عددی ۱ تا ۱۰
                       </label>
@@ -334,7 +366,11 @@ export default function QuestionsEditor({
                   </div>
 
                   {errors[`question_type_${index}`] && (
-                    <p className="text-xs text-red-500 mt-2">
+                    <p
+                      id={`question-type-${index}-error`}
+                      role="alert"
+                      className="text-xs text-red-500 mt-2"
+                    >
                       {errors[`question_type_${index}`]}
                     </p>
                   )}
