@@ -12,6 +12,8 @@ InsightFlow is a modern employee survey platform for Persian and RTL-first teams
 - Admin dashboards with cached metrics, recent activity, survey status cards, and quick management actions.
 - Result exports to Excel, CSV, and PDF with Persian/RTL-friendly formatting.
 - Activity logs for sensitive admin operations, including expandable metadata for link changes, IPs, limits, and tokens.
+- Guarded destructive admin actions with confirmation flows, plus password strength validation on account credentials.
+- Accessible forms: labeled inputs with stable ids, `aria-invalid`/`aria-describedby` wiring, persistent inline field errors, and focus moved to the first invalid field on submit.
 - Docker Compose deployment with PostgreSQL, Redis, backend, frontend, and Nginx.
 
 ## Screenshots
