@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { adminSurveyApi } from "../../api/endpoints";
 import { Survey, SurveyQuestionInput } from "../../types";
@@ -9,7 +9,12 @@ import toast from "react-hot-toast";
 import QuestionsEditor, {
   createEmptyQuestion,
   validateQuestions,
+  QuestionFocusRequest,
 } from "../../components/admin/QuestionsEditor";
+
+const AUTOSAVE_NOTICE_KEY = "InsightFlow:autosave-notice-seen";
+
+const QUESTION_ERROR_RE = /^question(_type)?_(\d+)$/;
 
 export default function SurveyForm() {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +39,16 @@ export default function SurveyForm() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [autosaveReady, setAutosaveReady] = useState(false);
   const [autosavedAt, setAutosavedAt] = useState<string | null>(null);
+  // The big green explainer is shown until the admin has seen it once; after
+  // that the form only keeps a subtle status row + the sticky-bar timestamp.
+  const [showAutosaveIntro] = useState(
+    () => localStorage.getItem(AUTOSAVE_NOTICE_KEY) !== "1",
+  );
+  const [focusRequest, setFocusRequest] = useState<QuestionFocusRequest | null>(
+    null,
+  );
+  const focusNonce = useRef(0);
+  const titleRef = useRef<HTMLInputElement | null>(null);
   const autosaveKey = useMemo(
     () => `InsightFlow:survey-draft:${id || "new"}`,
     [id],
@@ -92,6 +107,11 @@ export default function SurveyForm() {
   const isDraft = surveyStatus === "draft";
 
   useEffect(() => {
+    if (loading || !isDraft || !showAutosaveIntro) return;
+    localStorage.setItem(AUTOSAVE_NOTICE_KEY, "1");
+  }, [loading, isDraft, showAutosaveIntro]);
+
+  useEffect(() => {
     if (isEdit || autosaveReady) return;
     const raw = localStorage.getItem(autosaveKey);
     if (raw) {
@@ -124,11 +144,58 @@ export default function SurveyForm() {
     return () => window.clearTimeout(handle);
   }, [autosaveKey, autosaveReady, form, isDraft]);
 
+  const formatSavedTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString("fa-IR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  const focusErrorKey = (key: string) => {
+    if (key === "title") {
+      titleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      titleRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    const match = key.match(QUESTION_ERROR_RE);
+    if (match) {
+      setFocusRequest({
+        index: Number(match[2]),
+        field: match[1] ? "type" : "text",
+        nonce: ++focusNonce.current,
+      });
+    }
+  };
+
+  const focusFirstError = (e: Record<string, string>) => {
+    if (e.title) {
+      focusErrorKey("title");
+      return;
+    }
+    let first: { index: number; field: "text" | "type" } | null = null;
+    for (const key of Object.keys(e)) {
+      const match = key.match(QUESTION_ERROR_RE);
+      if (!match) continue;
+      const index = Number(match[2]);
+      const field: "text" | "type" = match[1] ? "type" : "text";
+      if (
+        !first ||
+        index < first.index ||
+        (index === first.index && field === "text" && first.field === "type")
+      ) {
+        first = { index, field };
+      }
+    }
+    if (first) {
+      setFocusRequest({ ...first, nonce: ++focusNonce.current });
+    }
+  };
+
   const validate = () => {
     const e: Record<string, string> = { ...validateQuestions(form.questions) };
     if (!form.title.trim()) e.title = "عنوان الزامی است";
 
     setErrors(e);
+    if (Object.keys(e).length > 0) focusFirstError(e);
     return Object.keys(e).length === 0;
   };
 
@@ -210,6 +277,22 @@ export default function SurveyForm() {
     setPreviewOpen(true);
   };
 
+  const errorSummary = Object.entries(errors)
+    .filter(([, message]) => message)
+    .map(([key, message]) => {
+      const match = key.match(QUESTION_ERROR_RE);
+      const label =
+        key === "title"
+          ? "عنوان نظرسنجی"
+          : match
+            ? `سوال ${formatNumber(Number(match[2]) + 1)}`
+            : "سوال‌ها";
+      const order =
+        key === "title" ? -1 : match ? Number(match[2]) : Number.MAX_SAFE_INTEGER;
+      return { key, label, message, order };
+    })
+    .sort((a, b) => a.order - b.order);
+
   if (loading) return <FormSkeleton />;
 
   return (
@@ -225,84 +308,131 @@ export default function SurveyForm() {
         }
       />
 
-      <form onSubmit={handleSubmit} className="card p-4 sm:p-6 space-y-6">
-        {isDraft && (
-          <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold text-emerald-800">
-                ذخیره خودکار پیش‌نویس فعال است
-              </p>
-              <p className="text-xs text-emerald-700 mt-1">
+      <form onSubmit={handleSubmit}>
+        {errorSummary.length > 0 && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm font-semibold text-red-700 mb-1.5">
+              برای ادامه، {formatNumber(errorSummary.length)} مورد را اصلاح
+              کنید:
+            </p>
+            <ul className="space-y-1">
+              {errorSummary.map((item) => (
+                <li key={item.key}>
+                  <button
+                    type="button"
+                    onClick={() => focusErrorKey(item.key)}
+                    className="text-right text-xs text-red-600 hover:text-red-800 hover:underline"
+                  >
+                    <span className="font-semibold">{item.label}:</span>{" "}
+                    {item.message}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="card p-4 sm:p-6 space-y-6">
+          {isDraft && showAutosaveIntro && (
+            <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-emerald-800">
+                  ذخیره خودکار پیش‌نویس فعال است
+                </p>
+                <p className="text-xs text-emerald-700 mt-1">
+                  {autosavedAt
+                    ? `آخرین ذخیره: ${formatSavedTime(autosavedAt)}`
+                    : "تغییرات فرم روی همین دستگاه نگه داشته می‌شود."}
+                </p>
+              </div>
+              {autosavedAt && (
+                <button
+                  type="button"
+                  onClick={clearAutosave}
+                  className="btn-secondary w-full min-[420px]:w-auto text-xs"
+                >
+                  پاک کردن ذخیره محلی
+                </button>
+              )}
+            </div>
+          )}
+          {isDraft && !showAutosaveIntro && (
+            <div className="flex items-center justify-between gap-3 text-xs text-gray-400">
+              <p>
+                ذخیره خودکار
                 {autosavedAt
-                  ? `آخرین ذخیره: ${new Date(autosavedAt).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })}`
-                  : "تغییرات فرم روی همین دستگاه نگه داشته می‌شود."}
+                  ? ` · آخرین ذخیره ${formatSavedTime(autosavedAt)}`
+                  : " فعال است"}
+              </p>
+              {autosavedAt && (
+                <button
+                  type="button"
+                  onClick={clearAutosave}
+                  className="flex-shrink-0 underline hover:text-gray-600"
+                >
+                  پاک کردن ذخیره محلی
+                </button>
+              )}
+            </div>
+          )}
+          {!isDraft && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-semibold text-amber-800">
+                ساختار این نظرسنجی قفل است
+              </p>
+              <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                بعد از انتشار یا بستن، سوال‌ها و افراد برای حفظ اعتبار پاسخ‌ها
+                تغییر نمی‌کنند. در این صفحه فقط عنوان و توضیحات ذخیره می‌شود.
               </p>
             </div>
-            {autosavedAt && (
-              <button
-                type="button"
-                onClick={clearAutosave}
-                className="btn-secondary w-full min-[420px]:w-auto text-xs"
-              >
-                پاک کردن ذخیره محلی
-              </button>
+          )}
+          <div>
+            <label className="label">
+              عنوان نظرسنجی <span className="text-red-500">*</span>
+            </label>
+            <input
+              ref={titleRef}
+              type="text"
+              value={form.title}
+              onChange={set("title")}
+              className={`input-field ${errors.title ? "border-red-400" : ""}`}
+              placeholder="مثال: نظرسنجی ارزیابی عملکرد کارکنان"
+            />
+            {errors.title && (
+              <p className="text-xs text-red-500 mt-1">{errors.title}</p>
             )}
           </div>
-        )}
-        {!isDraft && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <p className="text-sm font-semibold text-amber-800">
-              ساختار این نظرسنجی قفل است
-            </p>
-            <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-              بعد از انتشار یا بستن، سوال‌ها و افراد برای حفظ اعتبار پاسخ‌ها
-              تغییر نمی‌کنند. در این صفحه فقط عنوان و توضیحات ذخیره می‌شود.
-            </p>
-          </div>
-        )}
-        <div>
-          <label className="label">
-            عنوان نظرسنجی <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={form.title}
-            onChange={set("title")}
-            className={`input-field ${errors.title ? "border-red-400" : ""}`}
-            placeholder="مثال: نظرسنجی ارزیابی عملکرد کارکنان"
-          />
-          {errors.title && (
-            <p className="text-xs text-red-500 mt-1">{errors.title}</p>
-          )}
-        </div>
-        <div>
-          <label className="label">توضیحات / راهنمای شرکت‌کنندگان</label>
-          <textarea
-            value={form.description}
-            onChange={set("description")}
-            rows={3}
-            className="input-field resize-none"
-            placeholder="توضیحات یا راهنمایی برای شرکت‌کنندگان..."
-          />
-        </div>
-        {isDraft && (
-          <div className="border-t border-gray-100 pt-5">
-            <p className="text-xs text-gray-400 mb-4">
-              کاربر برای هر فرد باید به همه سوال‌های فعال پاسخ بدهد.
-            </p>
-            <QuestionsEditor
-              questions={form.questions}
-              onChange={setQuestions}
-              errors={errors}
-              onClearError={clearErrorKey}
+          <div>
+            <label className="label">توضیحات / راهنمای شرکت‌کنندگان</label>
+            <textarea
+              value={form.description}
+              onChange={set("description")}
+              rows={3}
+              className="input-field resize-none"
+              placeholder="توضیحات یا راهنمایی برای شرکت‌کنندگان..."
             />
           </div>
-        )}
-        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+          {isDraft && (
+            <div className="border-t border-gray-100 pt-5">
+              <p className="text-xs text-gray-400 mb-4">
+                کاربر برای هر فرد باید به همه سوال‌های فعال پاسخ بدهد.
+              </p>
+              <QuestionsEditor
+                questions={form.questions}
+                onChange={setQuestions}
+                errors={errors}
+                onClearError={clearErrorKey}
+                focusRequest={focusRequest}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="card sticky bottom-0 z-20 mt-4 px-3 py-2.5 sm:px-4 flex items-center gap-2 sm:gap-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
           <button
             type="submit"
             disabled={saving}
-            className="btn-primary w-full sm:w-auto flex items-center gap-2"
+            className="btn-primary flex-shrink-0 flex items-center gap-2"
           >
             {saving && (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -313,19 +443,25 @@ export default function SurveyForm() {
             <button
               type="button"
               onClick={openPreview}
-              className="btn-secondary w-full sm:w-auto"
+              className="btn-secondary flex-shrink-0"
             >
               پیش‌نمایش
             </button>
           )}
+          <p className="flex-1 min-w-0 truncate text-[11px] sm:text-xs text-gray-400 text-center">
+            {isDraft &&
+              (autosavedAt
+                ? `ذخیره شد · ${formatSavedTime(autosavedAt)}`
+                : "ذخیره خودکار فعال")}
+          </p>
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="btn-secondary w-full sm:w-auto"
+            className="btn-secondary flex-shrink-0"
           >
             انصراف
           </button>
-        </div>{" "}
+        </div>
       </form>
       <Modal
         open={previewOpen}
