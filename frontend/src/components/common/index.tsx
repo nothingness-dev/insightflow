@@ -661,7 +661,15 @@ export interface ActionMenuItem {
   disabledReason?: string;
 }
 
-export function ActionMenu({ items, label = 'عملیات بیشتر' }: { items: ActionMenuItem[]; label?: string }) {
+export function ActionMenu({
+  items,
+  label = 'عملیات بیشتر',
+  placement = 'bottom',
+}: {
+  items: ActionMenuItem[];
+  label?: string;
+  placement?: 'top' | 'bottom';
+}) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -706,7 +714,9 @@ export function ActionMenu({ items, label = 'عملیات بیشتر' }: { items
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.14, ease: 'easeOut' }}
-            className="select-panel absolute z-50 mt-1.5 left-0 min-w-[11rem] p-1.5 space-y-0.5"
+            className={`select-panel absolute z-50 left-0 min-w-[11rem] p-1.5 space-y-0.5 ${
+              placement === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+            }`}
           >
             {items.map((item, i) => (
               <button
