@@ -244,7 +244,7 @@ export default function UserManagement() {
                     <td className="px-4 py-4 hidden lg:table-cell text-xs text-gray-400">{formatDate(user.created_at)}</td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-1 justify-end whitespace-nowrap">
-                        <button onClick={() => openEdit(user)} className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">ویرایش</button>
+                        <button onClick={() => openEdit(user)} className="min-h-11 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">ویرایش</button>
                         <ActionMenu
                           items={[
                             { label: 'تغییر رمز عبور', onClick: () => { setResetId(user.id); setNewPass(''); } },

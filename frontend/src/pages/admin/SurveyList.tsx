@@ -178,14 +178,14 @@ export default function AdminSurveyList() {
                       <div className="flex items-center gap-1 justify-end whitespace-nowrap">
                         <Link
                           to={`/admin/surveys/${survey.id}`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[color:var(--c-600)] hover:bg-[color:var(--c-50)] rounded-lg transition-colors"
+                          className="inline-flex min-h-11 items-center gap-1 px-3 py-1.5 text-sm font-medium text-[color:var(--c-600)] hover:bg-[color:var(--c-50)] rounded-lg transition-colors"
                         >
                           جزئیات
                         </Link>
                         {survey.status === 'closed' && (
                           <Link
                             to={`/admin/surveys/${survey.id}/results`}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                            className="inline-flex min-h-11 items-center gap-1 px-3 py-1.5 text-sm font-medium text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
                           >
                             نتایج
                           </Link>

@@ -46,7 +46,7 @@ export default function ThemeSwitcher() {
         onClick={toggleMode}
         title={isDark ? 'حالت روشن' : 'حالت تاریک'}
         aria-label={isDark ? 'تغییر به حالت روشن' : 'تغییر به حالت تاریک'}
-        className="w-8 h-8 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+        className="icon-button rounded-full border transition-all hover:scale-105 active:scale-95"
         style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border-soft)', color: isDark ? '#fbbf24' : '#64748b' }}
       >
         <AnimatePresence mode="wait" initial={false}>
@@ -66,7 +66,10 @@ export default function ThemeSwitcher() {
       <button
         onClick={() => setOpen(o => !o)}
         title="تغییر رنگ‌بندی"
-        className="w-8 h-8 rounded-full border-2 border-white shadow-md flex items-center justify-center transition-transform hover:scale-110"
+        aria-label="باز کردن تنظیمات رنگ‌بندی"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="icon-button rounded-full border-2 border-white shadow-md transition-transform hover:scale-105"
         style={{ backgroundColor: SWATCH[theme] }}
       >
         <svg className="w-4 h-4 text-white opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -83,20 +86,20 @@ export default function ThemeSwitcher() {
             exit={{ opacity: 0, scale: 0.95, y: -6 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
             style={{ transformOrigin: 'top left', backgroundColor: 'var(--surface)', borderColor: 'var(--border-soft)' }}
-            className="absolute left-0 top-10 rounded-xl shadow-xl border p-3 z-50 min-w-[160px]"
+            className="absolute left-0 top-12 rounded-xl shadow-xl border p-3 z-50 min-w-[176px]"
           >
             <p className="text-xs text-gray-400 mb-2 px-1">حالت نمایش</p>
             <div className="flex gap-1.5 mb-3 p-1 rounded-lg" style={{ backgroundColor: 'var(--surface-alt)' }}>
               <button
                 onClick={() => { if (isDark) toggleMode(); }}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all ${!isDark ? 'shadow-sm' : ''}`}
+                className={`min-h-11 flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all ${!isDark ? 'shadow-sm' : ''}`}
                 style={!isDark ? { backgroundColor: 'var(--surface)', color: 'var(--c-600)' } : { color: '#94a3b8' }}
               >
                 <SunIcon className="w-3.5 h-3.5" /> روشن
               </button>
               <button
                 onClick={() => { if (!isDark) toggleMode(); }}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all ${isDark ? 'shadow-sm' : ''}`}
+                className={`min-h-11 flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all ${isDark ? 'shadow-sm' : ''}`}
                 style={isDark ? { backgroundColor: 'var(--surface)', color: 'var(--c-400)' } : { color: '#94a3b8' }}
               >
                 <MoonIcon className="w-3.5 h-3.5" /> تاریک
@@ -109,7 +112,7 @@ export default function ThemeSwitcher() {
                 <button
                   key={t.key}
                   onClick={() => { setTheme(t.key); setOpen(false); }}
-                  className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-right"
+                  className="w-full min-h-11 flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-right"
                 >
                   <span
                     className="w-5 h-5 rounded-full flex-shrink-0 shadow-sm"

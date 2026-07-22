@@ -53,7 +53,10 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
             <div className="relative">
               <button
                 onClick={() => setMenuOpen((o) => !o)}
-                className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-gray-50 transition-colors"
+                aria-label="باز کردن منوی حساب کاربری"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                className="min-h-11 flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-gray-50 transition-colors"
               >
                 <div className="w-7 h-7 theme-bg-100 rounded-full flex items-center justify-center theme-text-700 text-sm font-bold">
                   {user?.full_name?.[0] || "ک"}
@@ -104,7 +107,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
                           setMenuOpen(false);
                           setPwOpen(true);
                         }}
-                        className="w-full text-right flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="w-full min-h-11 text-right flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                       >
                         <svg
                           className="w-4 h-4 text-gray-400"
@@ -126,7 +129,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
                           setMenuOpen(false);
                           handleLogout();
                         }}
-                        className="w-full text-right flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        className="w-full min-h-11 text-right flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                       >
                         <svg
                           className="w-4 h-4"

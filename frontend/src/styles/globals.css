@@ -76,6 +76,7 @@
   
   .btn-primary {
     display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    min-height: 2.75rem;
     background-color: var(--c-600); color: white;
     padding: 0.625rem 1.25rem; border-radius: 0.5rem;
     font-size: 0.875rem; font-weight: 500;
@@ -90,7 +91,7 @@
     @apply inline-flex items-center justify-center gap-2
            hover:bg-gray-50 active:bg-gray-100
            text-gray-700 border border-gray-200
-           px-5 py-2.5 rounded-lg text-sm font-medium
+           min-h-11 px-5 py-2.5 rounded-lg text-sm font-medium
            transition-all duration-150 shadow-sm cursor-pointer active:scale-[0.97];
     background-color: var(--surface);
   }
@@ -100,14 +101,14 @@
   .btn-danger {
     @apply inline-flex items-center justify-center gap-2
            bg-red-600 hover:bg-red-700 active:bg-red-800 text-white
-           px-5 py-2.5 rounded-lg text-sm font-medium
+           min-h-11 px-5 py-2.5 rounded-lg text-sm font-medium
            transition-all duration-150 shadow-sm cursor-pointer active:scale-[0.97];
   }
 
   .btn-success {
     @apply inline-flex items-center justify-center gap-2
            bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white
-           px-5 py-2.5 rounded-lg text-sm font-medium
+           min-h-11 px-5 py-2.5 rounded-lg text-sm font-medium
            transition-all duration-150 shadow-sm cursor-pointer active:scale-[0.97];
   }
 
@@ -132,7 +133,7 @@
 
   
   .select-trigger {
-    @apply px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 text-right
+    @apply min-h-11 px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 text-right
            flex items-center justify-between gap-2 cursor-pointer select-none
            transition-all duration-200 ease-out;
     background-color: var(--surface);
@@ -162,7 +163,7 @@
   .dark .select-search::placeholder { color: #79869b; }
 
   .select-option {
-    @apply w-full px-3 py-2 rounded-lg text-sm text-gray-700 text-right
+    @apply w-full min-h-11 px-3 py-2 rounded-lg text-sm text-gray-700 text-right
            flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer;
   }
   .select-option:hover { background-color: var(--c-50); }
@@ -270,7 +271,7 @@
 
   
   .sidebar-item {
-    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
+    @apply flex min-h-11 items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
            transition-all duration-200 ease-out text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full;
   }
   .sidebar-item.active { background-color: var(--c-50); color: var(--c-700); transition: background-color 0.2s ease, color 0.2s ease; }
@@ -338,6 +339,14 @@
     min-width: 2.75rem;
   }
 
+  .icon-button {
+    display: inline-flex;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    align-items: center;
+    justify-content: center;
+  }
+
   .mobile-action-row {
     display: flex;
     flex-wrap: wrap;
@@ -346,6 +355,11 @@
 }
 
 @media (max-width: 639px) {
+  button {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
   .page-title { font-size: 1.25rem; line-height: 1.75rem; }
   .section-title { font-size: 1rem; }
 

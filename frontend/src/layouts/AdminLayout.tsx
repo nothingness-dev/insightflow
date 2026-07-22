@@ -202,7 +202,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         {mobile && (
           <button
             onClick={() => setSidebarOpen(false)}
-            className="text-gray-400 hover:text-gray-600"
+            aria-label="بستن منوی مدیریت"
+            className="icon-button text-gray-400 hover:text-gray-600"
           >
             <CloseIcon />
           </button>

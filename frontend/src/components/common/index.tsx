@@ -21,14 +21,13 @@ export function PasswordInput({ value, onChange, placeholder, autoFocus, error }
         placeholder={placeholder}
         autoFocus={autoFocus}
         autoComplete="new-password"
-        className={`input-field w-full pl-10 ${error ? 'border-red-400' : ''}`}
+        className={`input-field w-full pl-12 ${error ? 'border-red-400' : ''}`}
       />
       <button
         type="button"
-        tabIndex={-1}
         onClick={() => setShow(s => !s)}
         aria-label={show ? 'پنهان کردن رمز' : 'نمایش رمز'}
-        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+        className="icon-button absolute left-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
       >
         {show ? (
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -87,7 +86,8 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
                 <h2 className="text-base font-semibold text-slate-800">{title}</h2>
                 <button
                   onClick={onClose}
-                  className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label="بستن پنجره"
+                  className="icon-button rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -140,7 +140,7 @@ export function ConfirmModal({ open, onClose, onConfirm, title, message, confirm
           <button
             onClick={onConfirm}
             disabled={loading}
-            className={`flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`min-h-11 flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
               confirmVariant === 'danger'
                 ? 'bg-red-600 hover:bg-red-700 text-white'
                 : 'bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] text-white'
@@ -690,7 +690,7 @@ export function ActionMenu({ items, label = 'عملیات بیشتر' }: { items
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
-        className={`w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors ${open ? 'bg-gray-100' : ''}`}
+        className={`icon-button rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors ${open ? 'bg-gray-100' : ''}`}
       >
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
           <circle cx="12" cy="5" r="1.6" />
@@ -716,7 +716,7 @@ export function ActionMenu({ items, label = 'عملیات بیشتر' }: { items
                 disabled={item.disabled}
                 title={item.disabled ? item.disabledReason : undefined}
                 onClick={() => { if (!item.disabled) { setOpen(false); item.onClick(); } }}
-                className={`w-full text-right px-3 py-2 text-xs rounded-lg transition-colors flex items-center ${
+                className={`w-full min-h-11 text-right px-3 py-2 text-sm rounded-lg transition-colors flex items-center ${
                   item.disabled
                     ? 'text-gray-300 cursor-not-allowed'
                     : item.danger
