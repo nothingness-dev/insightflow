@@ -369,6 +369,9 @@ class SurveyProgressSerializer(serializers.Serializer):
     anonymous_participants = serializers.IntegerField(default=0)
     pending_employees = serializers.IntegerField()
     completion_percentage = serializers.FloatField()
+    last_employee_response_at = serializers.DateTimeField(allow_null=True)
+    last_anonymous_response_at = serializers.DateTimeField(allow_null=True)
+    last_response_at = serializers.DateTimeField(allow_null=True)
     pending_users = PendingEmployeeProgressSerializer(many=True)
 
 

@@ -3,7 +3,7 @@ from collections import defaultdict
 from django.db import transaction
 from django.db.models import Sum, Count, Avg, F, Q, Case, When, Value, IntegerField, OuterRef, Subquery
 from django.db.models.functions import Coalesce
-from .models import Survey, SurveyQuestion, SurveyPerson, Rating
+from .models import AnonymousParticipation, Survey, SurveyQuestion, SurveyPerson, Rating
 
 
 def effective_questions_for_person(person):
@@ -458,6 +458,22 @@ def calculate_survey_progress():
         .values('id', 'username', 'full_name')
     )
 
+    latest_employee_response = (
+        Rating.objects
+        .filter(
+            survey_id=OuterRef('pk'),
+            voter__role='employee',
+            voter__is_active=True,
+        )
+        .order_by('-created_at')
+        .values('created_at')[:1]
+    )
+    latest_anonymous_response = (
+        AnonymousParticipation.objects
+        .filter(survey_id=OuterRef('pk'), hash_link__is_active=True)
+        .order_by('-completed_at')
+        .values('completed_at')[:1]
+    )
     custom_questions_count = (
         SurveyQuestion.objects
         .filter(
@@ -479,6 +495,8 @@ def calculate_survey_progress():
             default_people_count=Count('people', filter=Q(people__is_active=True, people__uses_default_questions=True), distinct=True),
             default_questions_count=Count('questions', filter=Q(questions__is_active=True, questions__person__isnull=True), distinct=True),
             custom_answers_count=Coalesce(Subquery(custom_questions_count, output_field=IntegerField()), Value(0)),
+            last_employee_response_at=Subquery(latest_employee_response),
+            last_anonymous_response_at=Subquery(latest_anonymous_response),
             anon_participant_count=Count(
                 'hash_links__anonymous_participant_count',
                 filter=Q(hash_links__is_active=True),
@@ -487,7 +505,10 @@ def calculate_survey_progress():
         )
         .order_by('-created_at')
         .annotate(required_answers_count=F('default_people_count') * F('default_questions_count') + F('custom_answers_count'))
-        .values('id', 'title', 'status', 'active_people_count', 'active_questions_count', 'required_answers_count')
+        .values(
+            'id', 'title', 'status', 'active_people_count', 'active_questions_count',
+            'required_answers_count', 'last_employee_response_at', 'last_anonymous_response_at',
+        )
     )
     from .models import SurveyHashLink
     anon_totals = {
@@ -560,6 +581,13 @@ def calculate_survey_progress():
             if assigned_employees
             else 0.0
         )
+        response_times = [
+            value for value in (
+                survey['last_employee_response_at'],
+                survey['last_anonymous_response_at'],
+            )
+            if value is not None
+        ]
 
         progress_items.append({
             'survey_id': survey['id'],
@@ -573,6 +601,9 @@ def calculate_survey_progress():
             'anonymous_participants': anonymous_participants,
             'pending_employees': pending_employees,
             'completion_percentage': completion_percentage,
+            'last_employee_response_at': survey['last_employee_response_at'],
+            'last_anonymous_response_at': survey['last_anonymous_response_at'],
+            'last_response_at': max(response_times) if response_times else None,
             'pending_users': pending_users,
         })
 

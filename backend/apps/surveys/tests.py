@@ -1,5 +1,6 @@
 from django.test import TestCase
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from datetime import timedelta
@@ -588,6 +589,12 @@ class SurveyProgressTests(APITestCase):
         self.assertEqual(published_progress['completed_employees'], 1)
         self.assertEqual(published_progress['pending_employees'], 2)
         self.assertEqual(published_progress['completion_percentage'], 33.3)
+        self.assertIsNotNone(published_progress['last_employee_response_at'])
+        self.assertIsNone(published_progress['last_anonymous_response_at'])
+        self.assertEqual(
+            published_progress['last_response_at'],
+            published_progress['last_employee_response_at'],
+        )
         self.assertTrue(published_progress['tracking_enabled'])
         self.assertEqual(
             {user['username'] for user in published_progress['pending_users']},
@@ -612,6 +619,37 @@ class SurveyProgressTests(APITestCase):
         response = self.client.get('/api/admin/surveys/progress/')
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_progress_reports_anonymous_response_time_separately(self):
+        link = SurveyHashLink.objects.create(
+            survey=self.published_survey,
+            label='progress public link',
+            anonymous_participant_count=1,
+        )
+        participation = AnonymousParticipation.objects.create(
+            survey=self.published_survey,
+            hash_link=link,
+            ip_address='203.0.113.44',
+            anonymous_token='progress-anonymous-token',
+        )
+        self.authenticate(self.admin, 'AdminPass@1')
+
+        response = self.client.get('/api/admin/surveys/progress/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        progress = next(
+            item for item in response.data['surveys']
+            if item['survey_id'] == self.published_survey.id
+        )
+        self.assertEqual(progress['anonymous_participants'], 1)
+        self.assertEqual(
+            parse_datetime(progress['last_anonymous_response_at']),
+            participation.completed_at,
+        )
+        self.assertEqual(
+            progress['last_response_at'],
+            progress['last_anonymous_response_at'],
+        )
 
     def test_progress_calculation_uses_a_bounded_query_count(self):
         with self.assertNumQueries(4):

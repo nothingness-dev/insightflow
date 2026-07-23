@@ -181,6 +181,9 @@ export interface SurveyProgress {
   anonymous_participants: number;
   pending_employees: number;
   completion_percentage: number;
+  last_employee_response_at: string | null;
+  last_anonymous_response_at: string | null;
+  last_response_at: string | null;
   pending_users: PendingSurveyEmployee[];
 }
 
