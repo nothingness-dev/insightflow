@@ -4,6 +4,7 @@ import { employeeApi } from '../../api/endpoints';
 import { Survey } from '../../types';
 import { CardGridSkeleton, EmptyState, Skeleton } from '../../components/common/index';
 import { motion } from 'framer-motion';
+import { D, E, fadeUp, useMotionDisabled } from '../../motion';
 import toast from 'react-hot-toast';
 import { formatNumber, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
@@ -17,9 +18,15 @@ function SurveyCard({ survey }: { survey: Survey }) {
   const pct       = survey.total_people ? Math.round(((survey.my_votes_count || 0) / survey.total_people) * 100) : 0;
   const firstQuestion = survey.questions?.[0]?.text || survey.question || '';
   const questionCount = survey.questions_count || survey.questions?.length || survey.total_questions || 0;
+  const reduced = useMotionDisabled();
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
+    <motion.div
+      variants={fadeUp}
+      initial={reduced ? undefined : 'hidden'}
+      animate={reduced ? undefined : 'visible'}
+      transition={reduced ? undefined : { duration: D.normal / 1000, ease: E.standard }}
+    >
       <Link to={`/surveys/${survey.id}`} className="block group">
         <div className="card p-5 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 border group-hover:border-[color:var(--c-200)]">
 

@@ -9,6 +9,7 @@ import CopyrightNotice from '../components/common/CopyrightNotice';
 import { formatNumber, getErrorMessage } from '../utils/helpers';
 import { useTheme } from '../contexts/ThemeContext';
 import { motion } from 'framer-motion';
+import { D, E, fadeUp, useMotionDisabled } from '../motion';
 import toast from 'react-hot-toast';
 function getOrCreateAnonToken(surveyToken: string): string {
   const key = `anon_session_${surveyToken}`;
@@ -118,11 +119,15 @@ const PersonRow = ({ person, onRate, disabled, rowRef, highlight }: {
   const status = personStatus(person, disabled);
   const meta = STATUS_META[status];
   const done = status === 'completed';
+  const reduced = useMotionDisabled();
 
   return (
     <motion.div
       ref={rowRef}
-      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      variants={fadeUp}
+      initial={reduced ? undefined : 'hidden'}
+      animate={reduced ? undefined : 'visible'}
+      transition={reduced ? undefined : { duration: D.normal / 1000, ease: E.standard }}
       className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
         done
           ? 'bg-emerald-50/60 border-emerald-200'

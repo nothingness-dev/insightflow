@@ -33,11 +33,6 @@
   100% { transform: translateX(100%); }
 }
 
-/* Smooth color-scheme switch: only transition color-related properties, and
-   only for as long as it takes to feel deliberate rather than instant —
-   layout, size, and transform transitions defined by individual components
-   (buttons, cards, etc.) are untouched since this rule is lower specificity
-   and those components declare their own `transition` shorthand. */
 *, *::before, *::after {
   transition-property: background-color, border-color, color, fill, stroke, box-shadow;
   transition-timing-function: ease;
@@ -69,6 +64,8 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  .skeleton::after { animation: none !important; }
+  .person-card:hover { transform: none !important; }
 }
 
 @layer components {

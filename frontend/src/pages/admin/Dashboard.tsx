@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { dashboardApi } from "../../api/endpoints";
 import { DashboardStats, Survey } from "../../types";
 import { StatusBadge, DashboardSkeleton } from "../../components/common/index";
 import { formatDate, getErrorMessage } from "../../utils/helpers";
 import { isCanceledRequest } from "../../utils/http";
 import { useTheme } from "../../contexts/ThemeContext";
+import { D, E, fadeUp, stagger, listItem, useMotionDisabled } from "../../motion";
 import toast from "react-hot-toast";
 
 function StatCard({
@@ -16,6 +18,7 @@ function StatCard({
   icon,
   darkBgColor,
   darkIconColor,
+  index = 0,
 }: {
   label: string;
   value: number;
@@ -24,12 +27,18 @@ function StatCard({
   icon: React.ReactNode;
   darkBgColor?: string;
   darkIconColor?: string;
+  index?: number;
 }) {
   const { mode } = useTheme();
   const isDark = mode === "dark";
+  const reduced = useMotionDisabled();
 
   return (
-    <div className="card p-3 sm:p-5 flex items-center gap-3 sm:gap-4">
+    <motion.div
+      variants={reduced ? undefined : listItem}
+      transition={reduced ? undefined : { delay: index * 0.06 }}
+      className="card p-3 sm:p-5 flex items-center gap-3 sm:gap-4"
+    >
       <div
         className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
         style={{ backgroundColor: isDark ? darkBgColor || bgColor : bgColor }}
@@ -46,13 +55,14 @@ function StatCard({
         </p>
         <p className="text-sm text-gray-500">{label}</p>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const reduced = useMotionDisabled();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -167,7 +177,13 @@ export default function AdminDashboard() {
 
   return (
     <div className="responsive-page">
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <motion.div
+        variants={reduced ? undefined : fadeUp}
+        initial="hidden"
+        animate="visible"
+        transition={reduced ? undefined : { duration: D.normal / 1000, ease: E.standard }}
+        className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"
+      >
         <div>
           <h1 className="page-title">داشبورد مدیریت</h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -180,9 +196,14 @@ export default function AdminDashboard() {
         >
           پیگیری پیشرفت نظرسنجی‌ها
         </Link>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+      <motion.div
+        variants={stagger(0.06)}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8"
+      >
         <StatCard
           label="کل نظرسنجی‌ها"
           value={stats.total_surveys}
@@ -191,6 +212,7 @@ export default function AdminDashboard() {
           darkBgColor="var(--c-50)"
           darkIconColor="var(--c-700)"
           icon={<SIcon />}
+          index={0}
         />
         <StatCard
           label="پیش‌نویس"
@@ -200,6 +222,7 @@ export default function AdminDashboard() {
           darkBgColor="rgba(148,163,184,0.14)"
           darkIconColor="#cbd5e1"
           icon={<DIcon />}
+          index={1}
         />
         <StatCard
           label="منتشر شده"
@@ -209,6 +232,7 @@ export default function AdminDashboard() {
           darkBgColor="rgba(16,185,129,0.16)"
           darkIconColor="#6ee7b7"
           icon={<PIcon />}
+          index={2}
         />
         <StatCard
           label="بسته شده"
@@ -218,6 +242,7 @@ export default function AdminDashboard() {
           darkBgColor="var(--c-50)"
           darkIconColor="var(--c-700)"
           icon={<CIcon />}
+          index={3}
         />
         <StatCard
           label="کل پاسخ‌ها"
@@ -227,6 +252,7 @@ export default function AdminDashboard() {
           darkBgColor="var(--c-100)"
           darkIconColor="var(--c-700)"
           icon={<RIcon />}
+          index={4}
         />
         <StatCard
           label="تعداد کارکنان"
@@ -236,10 +262,17 @@ export default function AdminDashboard() {
           darkBgColor="rgba(245,158,11,0.16)"
           darkIconColor="#fcd34d"
           icon={<UIcon />}
+          index={5}
         />
-      </div>
+      </motion.div>
 
-      <div className="card">
+      <motion.div
+        variants={reduced ? undefined : fadeUp}
+        initial="hidden"
+        animate="visible"
+        transition={reduced ? undefined : { duration: D.normal / 1000, ease: E.standard, delay: 0.3 }}
+        className="card"
+      >
         <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
           <h2 className="section-title">آخرین نظرسنجی‌ها</h2>
           <Link
@@ -285,7 +318,7 @@ export default function AdminDashboard() {
             ))}
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

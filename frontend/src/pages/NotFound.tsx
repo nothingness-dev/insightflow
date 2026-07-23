@@ -2,10 +2,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import CopyrightNotice from '../components/common/CopyrightNotice';
+import { D, E, T, fadeUp, useMotionDisabled } from '../motion';
 
 export default function NotFound() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const reduced = useMotionDisabled();
 
   const homePath = user ? (user.role === 'admin' ? '/admin' : '/surveys') : '/login';
   const homeLabel = user ? (user.role === 'admin' ? 'بازگشت به داشبورد' : 'بازگشت به نظرسنجی‌ها') : 'بازگشت به ورود';
@@ -17,9 +19,9 @@ export default function NotFound() {
       dir="rtl"
     >
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
+        initial={reduced ? { opacity: 0 } : { opacity: 0, y: 16 }}
+        animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0 }}
+        transition={reduced ? T.instant : { duration: D.slow / 1000, ease: E.standard }}
         className="w-full max-w-md text-center"
       >
         <div className="relative inline-flex items-center justify-center mb-6">

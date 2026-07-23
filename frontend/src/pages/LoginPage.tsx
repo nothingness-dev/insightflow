@@ -5,6 +5,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import CopyrightNotice from "../components/common/CopyrightNotice";
+import { D, E, T, fadeUp, useMotionDisabled } from "../motion";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -20,6 +21,7 @@ export default function LoginPage() {
   }>({});
   const usernameRef = useRef<HTMLInputElement | null>(null);
   const passwordRef = useRef<HTMLInputElement | null>(null);
+  const reduced = useMotionDisabled();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -42,8 +44,6 @@ export default function LoginPage() {
         replace: true,
       });
     } catch (err: any) {
-      // Field validation is inline; the toast is reserved for server-level
-      // failures (wrong credentials, unavailable service, ...).
       toast.error(
         err?.response?.data?.non_field_errors?.[0] ||
           err?.response?.data?.detail ||
@@ -66,9 +66,9 @@ export default function LoginPage() {
       dir="rtl"
     >
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+        initial={reduced ? { opacity: 0 } : { opacity: 0, y: 20 }}
+        animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0 }}
+        transition={reduced ? T.instant : { duration: D.slow / 1000, ease: E.standard }}
         className="w-full max-w-md"
       >
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">

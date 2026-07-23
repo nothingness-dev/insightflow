@@ -1,6 +1,10 @@
 import { ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  D, E, T, fadeUp, fadeScale, backdrop, popover,
+  useMotionDisabled, useFocusTrap, useKeyboardNav,
+} from '../../motion';
 
 
 interface PasswordInputProps {
@@ -59,6 +63,9 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
   const titleId = useId();
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
+  const reduced = useMotionDisabled();
+
+  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -71,7 +78,6 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
       ? document.activeElement
       : null;
     document.body.style.overflow = 'hidden';
-    dialogRef.current?.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onCloseRef.current();
@@ -92,11 +98,12 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            variants={backdrop}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={reduced ? T.instant : { duration: D.fast / 1000 }}
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm dark:bg-black/60"
             onClick={onClose}
           />
           <motion.div
@@ -106,19 +113,26 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
             aria-labelledby={title ? titleId : undefined}
             aria-label={title ? undefined : 'پنجره گفتگو'}
             tabIndex={-1}
-            initial={{ opacity: 0, scale: 0.96, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 8 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-            className={`relative bg-white rounded-xl shadow-2xl w-full ${sizeClass} max-h-[calc(100dvh-1.5rem)] overflow-y-auto border border-gray-100`}
+            variants={fadeScale}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={reduced ? T.instant : { duration: D.normal / 1000, ease: E.standard }}
+            className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto border border-gray-100 dark:border-gray-700"
+            style={
+              size === 'sm' ? { maxWidth: '24rem' } :
+              size === 'md' ? { maxWidth: '32rem' } :
+              size === 'lg' ? { maxWidth: '42rem' } :
+              { maxWidth: '56rem' }
+            }
           >
             {title && (
-              <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
-                <h2 id={titleId} className="text-base font-semibold text-slate-800">{title}</h2>
+              <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-700">
+                <h2 id={titleId} className="text-base font-semibold text-slate-800 dark:text-slate-200">{title}</h2>
                 <button
                   onClick={onClose}
                   aria-label="بستن پنجره"
-                  className="icon-button rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="icon-button rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -351,19 +365,28 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ title, description, action, icon }: EmptyStateProps) {
+  const reduced = useMotionDisabled();
+
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4 text-gray-300">
+    <motion.div
+      variants={fadeUp}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={reduced ? T.instant : { duration: D.normal / 1000, ease: E.standard }}
+      className="flex flex-col items-center justify-center py-16 text-center"
+    >
+      <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4 text-gray-300 dark:text-gray-500">
         {icon || (
           <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
         )}
       </div>
-      <h3 className="text-base font-medium text-slate-700 mb-1">{title}</h3>
-      {description && <p className="text-sm text-gray-400 mb-5 max-w-xs">{description}</p>}
+      <h3 className="text-base font-medium text-slate-700 dark:text-slate-300 mb-1">{title}</h3>
+      {description && <p className="text-sm text-gray-400 dark:text-gray-500 mb-5 max-w-xs">{description}</p>}
       {action}
-    </div>
+    </motion.div>
   );
 }
 
@@ -375,14 +398,23 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
+  const reduced = useMotionDisabled();
+
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+    <motion.div
+      variants={fadeUp}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={reduced ? T.instant : { duration: D.normal / 1000, ease: E.standard }}
+      className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6"
+    >
       <div>
         <h1 className="page-title">{title}</h1>
         {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
       </div>
       {action && <div className="w-full sm:w-auto flex-shrink-0">{action}</div>}
-    </div>
+    </motion.div>
   );
 }
 
@@ -569,6 +601,7 @@ export function Select({ value, onChange, options, placeholder = 'انتخاب �
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
+  const reduced = useMotionDisabled();
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
@@ -610,10 +643,11 @@ export function Select({ value, onChange, options, placeholder = 'انتخاب �
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
-            transition={{ duration: 0.14, ease: 'easeOut' }}
+            variants={popover}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={reduced ? T.instant : { duration: D.fast / 1000, ease: E.standard }}
             className="select-panel absolute z-50 mt-1.5 w-full min-w-[10rem]"
           >
             {shouldSearch && (
@@ -706,6 +740,15 @@ export function ActionMenu({
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const itemsRef = useRef<(HTMLElement | null)[]>([]);
+  const reduced = useMotionDisabled();
+
+  const closeMenu = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  const { activeIndex, setActiveIndex } = useKeyboardNav(open, closeMenu, menuRef, itemsRef);
 
   const updateMenuPosition = useCallback(() => {
     const button = triggerRef.current;
@@ -751,18 +794,8 @@ export function ActionMenu({
         setOpen(false);
       }
     }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    }
     document.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
+    return () => document.removeEventListener('mousedown', onMouseDown);
   }, []);
 
   useEffect(() => {
@@ -804,20 +837,23 @@ export function ActionMenu({
           <motion.div
             ref={menuRef}
             role="menu"
-            initial={{ opacity: 0, y: menuPosition.opensUp ? 6 : -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: menuPosition.opensUp ? 6 : -6, scale: 0.98 }}
-            transition={{ duration: 0.14, ease: 'easeOut' }}
+            variants={popover}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={reduced ? T.instant : { duration: D.fast / 1000, ease: E.standard }}
             className="select-panel fixed z-[100] min-w-[11rem] p-1.5 space-y-0.5"
             style={{ top: menuPosition.top, left: menuPosition.left }}
           >
             {items.map((item, i) => (
               <button
                 key={`${item.label}-${i}`}
+                ref={(el) => { itemsRef.current[i] = el; }}
                 type="button"
                 role="menuitem"
                 disabled={item.disabled}
                 title={item.disabled ? item.disabledReason : undefined}
+                onMouseEnter={() => setActiveIndex(i)}
                 onClick={() => { if (!item.disabled) { setOpen(false); item.onClick(); } }}
                 className={`w-full min-h-11 text-right px-3 py-2 text-sm rounded-lg transition-colors flex items-center ${
                   item.disabled
@@ -825,7 +861,7 @@ export function ActionMenu({
                     : item.danger
                       ? 'text-red-600 hover:bg-red-50'
                       : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                } ${activeIndex === i ? 'bg-gray-100' : ''}`}
               >
                 {item.label}
               </button>

@@ -7,6 +7,7 @@ import { formatNumber, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 import { useTheme } from '../../contexts/ThemeContext';
 import { motion } from 'framer-motion';
+import { D, E, fadeUp, useMotionDisabled } from '../../motion';
 import toast from 'react-hot-toast';
 
 interface SurveyDetailData {
@@ -99,8 +100,15 @@ function PersonCard({ person, onRate, disabled }: {
   onRate: () => void;
   disabled?: boolean;
 }) {
+  const reduced = useMotionDisabled();
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="person-card group">
+    <motion.div
+      variants={fadeUp}
+      initial={reduced ? undefined : 'hidden'}
+      animate={reduced ? undefined : 'visible'}
+      transition={reduced ? undefined : { duration: D.normal / 1000, ease: E.standard }}
+      className="person-card group"
+    >
       <div className="relative">
         <div className="w-full aspect-square bg-[color:var(--c-50)] overflow-hidden">
           {person.photo_url ? (

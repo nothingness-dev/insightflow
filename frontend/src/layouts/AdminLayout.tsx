@@ -6,6 +6,7 @@ import ThemeSwitcher from "../components/common/ThemeSwitcher";
 import ChangePasswordModal from "../components/common/ChangePasswordModal";
 import PageTransition from "../components/common/PageTransition";
 import CopyrightNotice from "../components/common/CopyrightNotice";
+import { D, E, T, backdrop, drawerRight, listItem, useMotionDisabled } from "../motion";
 import toast from "react-hot-toast";
 
 interface NavItem {
@@ -166,6 +167,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
+  const reduced = useMotionDisabled();
 
   const handleLogout = async () => {
     await logout();
@@ -175,9 +177,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const Sidebar = ({ mobile = false }) => (
     <aside
-      className={`flex flex-col h-full bg-white border-l border-gray-100 shadow-sm ${mobile ? "w-full" : "w-64"}`}
+      className={`flex flex-col h-full bg-white dark:bg-gray-800 border-l border-gray-100 dark:border-gray-700 shadow-sm ${mobile ? "w-full" : "w-64"}`}
     >
-      <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+      <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center theme-bg">
             <svg
@@ -195,46 +197,53 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </svg>
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-800">InsightFlow</p>
-            <p className="text-xs text-gray-400">پنل مدیریت</p>
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">InsightFlow</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">پنل مدیریت</p>
           </div>
         </div>
         {mobile && (
           <button
             onClick={() => setSidebarOpen(false)}
             aria-label="بستن منوی مدیریت"
-            className="icon-button text-gray-400 hover:text-gray-600"
+            className="icon-button text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
             <CloseIcon />
           </button>
         )}
       </div>
       <nav className="flex-1 px-4 py-4 space-y-1">
-        {navItems.map((item) => (
-          <NavLink
+        {navItems.map((item, i) => (
+          <motion.div
             key={item.path}
-            to={item.path}
-            end={item.path === "/admin"}
-            onClick={() => setSidebarOpen(false)}
-            className={({ isActive }) =>
-              `sidebar-item ${isActive ? "active" : ""}`
-            }
+            variants={reduced ? undefined : listItem}
+            initial={reduced ? undefined : "hidden"}
+            animate={reduced ? undefined : "visible"}
+            transition={reduced ? undefined : { delay: i * 0.04 }}
           >
-            {item.icon}
-            <span>{item.label}</span>
-          </NavLink>
+            <NavLink
+              to={item.path}
+              end={item.path === "/admin"}
+              onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) =>
+                `sidebar-item ${isActive ? "active" : ""}`
+              }
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </NavLink>
+          </motion.div>
         ))}
       </nav>
-      <div className="px-4 py-4 border-t border-gray-100">
+      <div className="px-4 py-4 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-3 px-2 py-2 mb-2">
           <div className="w-8 h-8 theme-bg-100 rounded-full flex items-center justify-center theme-text-700 text-sm font-bold">
             {user?.full_name?.[0] || "م"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-800 truncate">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
               {user?.full_name}
             </p>
-            <p className="text-xs text-gray-400">مدیر سیستم</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">مدیر سیستم</p>
           </div>
         </div>
         <button
@@ -285,18 +294,20 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         {sidebarOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="absolute inset-0 bg-black/40"
+              variants={backdrop}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              transition={reduced ? T.instant : { duration: D.fast / 1000 }}
+              className="absolute inset-0 bg-black/40 dark:bg-black/60"
               onClick={() => setSidebarOpen(false)}
             />
             <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              variants={drawerRight}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              transition={reduced ? T.instant : E.spring}
               className="absolute right-0 top-0 h-full w-[min(20rem,calc(100vw-2rem))] max-w-full"
             >
               <Sidebar mobile />
@@ -306,16 +317,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </AnimatePresence>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
+        <header className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <button
               aria-label="باز کردن منوی مدیریت"
-              className="lg:hidden touch-target text-gray-500 hover:text-gray-700"
+              className="lg:hidden touch-target text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               onClick={() => setSidebarOpen(true)}
             >
               <MenuIcon />
             </button>
-            <p className="text-sm text-gray-400 hidden sm:block">
+            <p className="text-sm text-gray-400 dark:text-gray-500 hidden sm:block">
               سامانه نظرسنجی سازمانی
             </p>
           </div>

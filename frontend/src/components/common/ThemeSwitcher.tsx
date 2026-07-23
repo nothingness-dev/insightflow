@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme, THEMES, Theme } from '../../contexts/ThemeContext';
+import { D, E, T, popover, useMotionDisabled } from '../../motion';
 
 const SWATCH: Record<Theme, string> = {
   purple: '#9333ea',
@@ -31,6 +32,7 @@ export default function ThemeSwitcher() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const isDark = mode === 'dark';
+  const reduced = useMotionDisabled();
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -52,10 +54,10 @@ export default function ThemeSwitcher() {
         <AnimatePresence mode="wait" initial={false}>
           <motion.span
             key={mode}
-            initial={{ opacity: 0, rotate: -60, scale: 0.5 }}
-            animate={{ opacity: 1, rotate: 0, scale: 1 }}
-            exit={{ opacity: 0, rotate: 60, scale: 0.5 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            initial={reduced ? { opacity: 0 } : { opacity: 0, rotate: -60, scale: 0.5 }}
+            animate={reduced ? { opacity: 1 } : { opacity: 1, rotate: 0, scale: 1 }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, rotate: 60, scale: 0.5 }}
+            transition={reduced ? T.instant : { duration: D.normal / 1000, ease: E.standard }}
             className="flex items-center justify-center"
           >
             {isDark ? <MoonIcon className="w-4 h-4" /> : <SunIcon className="w-4 h-4" />}
@@ -81,10 +83,11 @@ export default function ThemeSwitcher() {
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -6 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
+            variants={popover}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={reduced ? T.instant : { duration: D.fast / 1000, ease: E.standard }}
             style={{ transformOrigin: 'top left', backgroundColor: 'var(--surface)', borderColor: 'var(--border-soft)' }}
             className="absolute left-0 top-12 rounded-xl shadow-xl border p-3 z-50 min-w-[176px]"
           >
@@ -112,13 +115,13 @@ export default function ThemeSwitcher() {
                 <button
                   key={t.key}
                   onClick={() => { setTheme(t.key); setOpen(false); }}
-                  className="w-full min-h-11 flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-right"
+                  className="w-full min-h-11 flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-right"
                 >
                   <span
                     className="w-5 h-5 rounded-full flex-shrink-0 shadow-sm"
                     style={{ backgroundColor: SWATCH[t.key] }}
                   />
-                  <span className="text-sm text-gray-700">{t.label}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{t.label}</span>
                   {theme === t.key && (
                     <svg className="w-3.5 h-3.5 text-gray-400 mr-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>

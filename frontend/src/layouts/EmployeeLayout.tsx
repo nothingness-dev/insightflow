@@ -6,6 +6,7 @@ import ThemeSwitcher from "../components/common/ThemeSwitcher";
 import ChangePasswordModal from "../components/common/ChangePasswordModal";
 import PageTransition from "../components/common/PageTransition";
 import CopyrightNotice from "../components/common/CopyrightNotice";
+import { D, E, T, backdrop, popover, useMotionDisabled } from "../motion";
 import toast from "react-hot-toast";
 
 export default function EmployeeLayout({ children }: { children: ReactNode }) {
@@ -13,6 +14,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
+  const reduced = useMotionDisabled();
 
   const handleLogout = async () => {
     await logout();
@@ -26,7 +28,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
       style={{ backgroundColor: "var(--c-bg)" }}
       dir="rtl"
     >
-      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-30">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 shadow-sm sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="w-8 h-8 theme-bg rounded-lg flex items-center justify-center">
@@ -44,7 +46,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
                 />
               </svg>
             </div>
-            <NavLink to="/surveys" className="text-sm font-bold text-slate-800">
+            <NavLink to="/surveys" className="text-sm font-bold text-slate-800 dark:text-slate-200">
               InsightFlow
             </NavLink>
           </div>
@@ -56,16 +58,16 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
                 aria-label="باز کردن منوی حساب کاربری"
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
-                className="min-h-11 flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-gray-50 transition-colors"
+                className="min-h-11 flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 <div className="w-7 h-7 theme-bg-100 rounded-full flex items-center justify-center theme-text-700 text-sm font-bold">
                   {user?.full_name?.[0] || "ک"}
                 </div>
-                <span className="text-sm text-gray-700 hidden sm:block">
+                <span className="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">
                   {user?.full_name}
                 </span>
                 <svg
-                  className={`w-3.5 h-3.5 text-gray-400 transition-transform ${menuOpen ? "rotate-180" : ""}`}
+                  className={`w-3.5 h-3.5 text-gray-400 dark:text-gray-500 transition-transform ${menuOpen ? "rotate-180" : ""}`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -82,23 +84,29 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
               <AnimatePresence>
                 {menuOpen && (
                   <>
-                    <div
+                    <motion.div
+                      variants={backdrop}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      transition={reduced ? T.instant : { duration: D.fast / 1000 }}
                       className="fixed inset-0 z-30"
                       onClick={() => setMenuOpen(false)}
                     />
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.96, y: -6 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.96, y: -6 }}
-                      transition={{ duration: 0.15, ease: "easeOut" }}
+                      variants={popover}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      transition={reduced ? T.instant : { duration: D.fast / 1000, ease: E.standard }}
                       style={{ transformOrigin: "top left" }}
-                      className="absolute left-0 mt-2 w-52 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-40"
+                      className="absolute left-0 mt-2 w-52 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 py-1.5 z-40"
                     >
-                      <div className="px-3 py-2 border-b border-gray-50">
-                        <p className="text-sm font-medium text-gray-800 truncate">
+                      <div className="px-3 py-2 border-b border-gray-50 dark:border-gray-700">
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
                           {user?.full_name}
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
                           {user?.username}
                         </p>
                       </div>
@@ -107,10 +115,10 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
                           setMenuOpen(false);
                           setPwOpen(true);
                         }}
-                        className="w-full min-h-11 text-right flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="w-full min-h-11 text-right flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       >
                         <svg
-                          className="w-4 h-4 text-gray-400"
+                          className="w-4 h-4 text-gray-400 dark:text-gray-500"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -129,7 +137,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
                           setMenuOpen(false);
                           handleLogout();
                         }}
-                        className="w-full min-h-11 text-right flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        className="w-full min-h-11 text-right flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                       >
                         <svg
                           className="w-4 h-4"
