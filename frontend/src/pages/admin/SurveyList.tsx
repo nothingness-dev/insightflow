@@ -277,7 +277,7 @@ export default function AdminSurveyList() {
         </div>      ) : (
         <div className="card overflow-visible">
           <div className="divide-y divide-gray-100 sm:hidden">
-            {visibleSurveys.map((survey, index) => (
+            {visibleSurveys.map((survey) => (
               <article key={survey.id} className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="min-w-0 flex-1">
@@ -296,7 +296,6 @@ export default function AdminSurveyList() {
                   </div>
                   <ActionMenu
                     label={`عملیات نظرسنجی ${survey.title}`}
-                    placement={index >= visibleSurveys.length - 2 ? 'top' : 'bottom'}
                     items={getSurveyActions(survey)}
                   />
                 </div>
@@ -322,7 +321,7 @@ export default function AdminSurveyList() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {visibleSurveys.map((survey, index) => (
+                {visibleSurveys.map((survey) => (
                   <tr key={survey.id} className="table-row">
                     <td className="px-4 sm:px-6 py-4">
                       <div className="max-w-md">
@@ -348,7 +347,6 @@ export default function AdminSurveyList() {
                       <div className="flex items-center justify-end">
                         <ActionMenu
                           label={`عملیات نظرسنجی ${survey.title}`}
-                          placement={index >= visibleSurveys.length - 2 ? 'top' : 'bottom'}
                           items={getSurveyActions(survey)}
                         />
                       </div>

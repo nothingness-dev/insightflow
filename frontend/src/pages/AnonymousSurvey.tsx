@@ -173,7 +173,7 @@ const PersonRow = ({ person, onRate, disabled, rowRef, highlight }: {
 };
 
 function RatingModal({ open, onClose, person, questions, onSubmit, submitting }: {
-  open: boolean; onClose: () => void;
+  open: boolean; onClose: (hasIncompleteAnswers: boolean) => void;
   person: (SurveyPerson & { has_rated?: boolean }) | null;
   questions: SurveyQuestion[];
   onSubmit: (answers: { question_id: number; score?: number | null; emoji_rating?: EmojiRatingValue | null; comment?: string | null }[]) => void;
@@ -257,16 +257,13 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
 
   const handleCloseAttempt = () => {
     if (submitting) return;
-    if (!person?.has_rated) {
-      const incomplete = questions.some(q => {
-        const a = answers[q.id] || { score: null, emoji_rating: null, comment: '' };
-        const comment = a.comment.trim();
-        const hasVal = (q.has_score && a.score !== null) || (q.has_emoji && !!a.emoji_rating) || (q.has_comment && !!comment);
-        return !hasVal;
-      });
-      if (incomplete) toast.error('شما باید به همه سوالات پاسخ دهید.');
-    }
-    onClose();
+    const incomplete = !person?.has_rated && questions.some(q => {
+      const a = answers[q.id] || { score: null, emoji_rating: null, comment: '' };
+      const comment = a.comment.trim();
+      const hasVal = (q.has_score && a.score !== null) || (q.has_emoji && !!a.emoji_rating) || (q.has_comment && !!comment);
+      return !hasVal;
+    });
+    onClose(incomplete);
   };
 
   return (
@@ -390,6 +387,7 @@ export default function AnonymousSurvey() {
   const [error, setError] = useState<string | null>(null);
   const [ratingPerson, setRatingPerson] = useState<(SurveyPerson & { has_rated?: boolean }) | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [closeNotice, setCloseNotice] = useState<{ incomplete: boolean; remaining: number } | null>(null);
   const [ratedPersonIds, setRatedPersonIds] = useState<Set<number>>(new Set());
   const [ipLocked, setIpLocked] = useState(false);
   const [focusPersonId, setFocusPersonId] = useState<number | null>(null);
@@ -424,6 +422,30 @@ export default function AnonymousSurvey() {
 
   useEffect(() => { loadSurvey(); }, [loadSurvey]);
   useEffect(() => { if (survey) loadMyRatings(); }, [survey?.id]);
+
+  useEffect(() => {
+    if (!closeNotice) return;
+    const messages: string[] = [];
+    if (closeNotice.incomplete) messages.push('شما باید به تمام سوالات پاسخ دهید.');
+    if (closeNotice.remaining > 0) {
+      messages.push(`شما باید به ${formatNumber(closeNotice.remaining)} نفر باقی‌مانده پاسخ دهید.`);
+    }
+    if (messages.length > 0) {
+      toast.error(messages.join(' '), {
+        id: 'anonymous-survey-close-warning',
+        duration: 5000,
+      });
+    }
+    setCloseNotice(null);
+  }, [closeNotice]);
+
+  const handleCloseRatingModal = (incomplete: boolean) => {
+    const remaining = survey?.people.filter(
+      person => person.is_active !== false && !ratedPersonIds.has(person.id),
+    ).length ?? 0;
+    setRatingPerson(null);
+    setCloseNotice({ incomplete, remaining });
+  };
 
   const handleSubmitRating = async (answers: { question_id: number; score?: number | null; emoji_rating?: EmojiRatingValue | null; comment?: string | null }[]) => {
     if (!ratingPerson || !token) return;
@@ -604,7 +626,7 @@ export default function AnonymousSurvey() {
 
       <RatingModal
         open={!!ratingPerson}
-        onClose={() => setRatingPerson(null)}
+        onClose={handleCloseRatingModal}
         person={ratingPerson}
         questions={ratingPerson?.questions ?? survey.questions.filter(q => !ratingPerson?.question_ids || ratingPerson.question_ids.includes(q.id))}
         onSubmit={handleSubmitRating}

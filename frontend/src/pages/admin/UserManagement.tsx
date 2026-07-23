@@ -8,6 +8,19 @@ import { useAuth } from '../../contexts/AuthContext';
 import { RoleBadge } from './components/RoleBadge';
 import { USERS_PER_PAGE, useUserDirectory } from './hooks/useUserDirectory';
 import { emptyUserForm, type UserFormData } from './types/userManagement';
+
+function UserStatus({ isActive }: { isActive: boolean }) {
+  return isActive ? (
+    <span className="inline-flex min-h-7 items-center rounded-full border border-emerald-100 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-700">
+      فعال
+    </span>
+  ) : (
+    <span className="inline-flex min-h-7 items-center rounded-full border border-red-100 bg-red-50 px-2.5 text-xs font-semibold text-red-700">
+      غیرفعال
+    </span>
+  );
+}
+
 export default function UserManagement() {
   const { user: currentUser } = useAuth();
   const {
@@ -159,6 +172,24 @@ export default function UserManagement() {
     if (errors[field]) setErrors(er => ({ ...er, [field]: '' }));
   };
 
+  const getUserActions = (user: User) => [
+    { label: 'ویرایش', onClick: () => openEdit(user) },
+    { label: 'تغییر رمز عبور', onClick: () => { setResetId(user.id); setNewPass(''); } },
+    {
+      label: user.is_active ? 'غیرفعال‌سازی' : 'فعال‌سازی',
+      onClick: () => handleToggleActive(user),
+      disabled: user.is_active && user.id === currentUser?.id,
+      disabledReason: 'نمی‌توانید حساب خود را غیرفعال کنید',
+    },
+    {
+      label: 'حذف',
+      danger: true,
+      onClick: () => setDeleteUserId(user.id),
+      disabled: user.id === currentUser?.id,
+      disabledReason: 'نمی‌توانید حساب خود را حذف کنید',
+    },
+  ];
+
   return (
     <div className="responsive-page">
       <PageHeader
@@ -209,59 +240,69 @@ export default function UserManagement() {
       ) : users.length === 0 ? (
         <div className="card"><EmptyState title="کاربری یافت نشد" description="اولین کاربر را ایجاد کنید" action={<button onClick={openCreate} className="btn-primary">ایجاد کاربر</button>} /></div>
       ) : (
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="responsive-table w-full min-w-[700px] text-sm">
+        <div className="card overflow-visible">
+          <div className="divide-y divide-gray-100 sm:hidden">
+            {users.map((user) => (
+              <article key={user.id} className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[color:var(--c-100)] text-sm font-bold text-[color:var(--c-700)]">
+                      {user.full_name[0]}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold leading-6 text-slate-800" title={user.full_name}>{user.full_name}</p>
+                      <p className="truncate text-xs text-gray-400" dir="ltr">@{user.username}</p>
+                    </div>
+                  </div>
+                  <ActionMenu
+                    label={`عملیات کاربر ${user.full_name}`}
+                    items={getUserActions(user)}
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-50 pt-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <RoleBadge role={user.role} />
+                    <UserStatus isActive={user.is_active} />
+                  </div>
+                  <span className="text-xs text-gray-400">{formatDate(user.created_at)}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-t-xl sm:block">
+            <table className="responsive-table w-full min-w-[680px] text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="text-right px-4 sm:px-6 py-3 text-xs font-semibold text-gray-500">کاربر</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 hidden md:table-cell">نقش</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 hidden md:table-cell">وضعیت</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 hidden lg:table-cell">تاریخ ایجاد</th>
-                  <th className="px-4 py-3"></th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">عملیات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {users.map(user => (
+                {users.map((user) => (
                   <tr key={user.id} className="table-row">
                     <td className="px-4 sm:px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-[color:var(--c-100)] flex items-center justify-center text-[color:var(--c-700)] text-sm font-bold flex-shrink-0">
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[color:var(--c-100)] text-sm font-bold text-[color:var(--c-700)]">
                           {user.full_name[0]}
                         </div>
-                        <div>
-                          <p className="font-medium text-slate-800">{user.full_name}</p>
-                          <p className="text-xs text-gray-400">{user.username}</p>
+                        <div className="min-w-0">
+                          <p className="max-w-xs truncate text-sm font-semibold leading-6 text-slate-800" title={user.full_name}>{user.full_name}</p>
+                          <p className="max-w-xs truncate text-xs text-gray-400" dir="ltr">@{user.username}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-4 hidden md:table-cell"><RoleBadge role={user.role} /></td>
-                    <td className="px-4 py-4 hidden md:table-cell">
-                      {user.is_active
-                        ? <span className="text-xs text-emerald-600 font-medium">فعال</span>
-                        : <span className="text-xs text-red-500 font-medium">غیرفعال</span>}
-                    </td>
+                    <td className="px-4 py-4 hidden md:table-cell"><UserStatus isActive={user.is_active} /></td>
                     <td className="px-4 py-4 hidden lg:table-cell text-xs text-gray-400">{formatDate(user.created_at)}</td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-1 justify-end whitespace-nowrap">
-                        <button onClick={() => openEdit(user)} className="min-h-11 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">ویرایش</button>
+                      <div className="flex items-center justify-end">
                         <ActionMenu
-                          items={[
-                            { label: 'تغییر رمز عبور', onClick: () => { setResetId(user.id); setNewPass(''); } },
-                            {
-                              label: user.is_active ? 'غیرفعال‌سازی' : 'فعال‌سازی',
-                              onClick: () => handleToggleActive(user),
-                              disabled: user.is_active && user.id === currentUser?.id,
-                              disabledReason: 'نمی‌توانید حساب خود را غیرفعال کنید',
-                            },
-                            {
-                              label: 'حذف',
-                              danger: true,
-                              onClick: () => setDeleteUserId(user.id),
-                              disabled: user.id === currentUser?.id,
-                              disabledReason: 'نمی‌توانید حساب خود را حذف کنید',
-                            },
-                          ]}
+                          label={`عملیات کاربر ${user.full_name}`}
+                          items={getUserActions(user)}
                         />
                       </div>
                     </td>
@@ -271,7 +312,7 @@ export default function UserManagement() {
             </table>
           </div>
           {totalUsers > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-5 py-4 border-t border-gray-100 bg-gray-50/60">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-b-xl border-t border-gray-100 bg-gray-50/60 px-4 sm:px-5 py-4">
               <p className="text-xs text-gray-500">
                 نمایش {formatNumber(((page - 1) * USERS_PER_PAGE) + 1)} تا {formatNumber(Math.min(page * USERS_PER_PAGE, totalUsers))} از {formatNumber(totalUsers)} کاربر
               </p>

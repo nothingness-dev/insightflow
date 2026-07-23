@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
@@ -54,10 +55,34 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
   useEffect(() => {
-    if (open) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
-    return () => { document.body.style.overflow = ''; };
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseRef.current();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocusedRef.current?.focus();
+    };
   }, [open]);
 
   const sizeClass = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size];
@@ -75,6 +100,12 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
             onClick={onClose}
           />
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
+            aria-label={title ? undefined : 'پنجره گفتگو'}
+            tabIndex={-1}
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -83,7 +114,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
           >
             {title && (
               <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
-                <h2 className="text-base font-semibold text-slate-800">{title}</h2>
+                <h2 id={titleId} className="text-base font-semibold text-slate-800">{title}</h2>
                 <button
                   onClick={onClose}
                   aria-label="بستن پنجره"
@@ -664,21 +695,67 @@ export interface ActionMenuItem {
 export function ActionMenu({
   items,
   label = 'عملیات بیشتر',
-  placement = 'bottom',
+  placement = 'auto',
 }: {
   items: ActionMenuItem[];
   label?: string;
-  placement?: 'top' | 'bottom';
+  placement?: 'auto' | 'top' | 'bottom';
 }) {
   const [open, setOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; opensUp: boolean } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const updateMenuPosition = useCallback(() => {
+    const button = triggerRef.current;
+    if (!button) return;
+
+    const rect = button.getBoundingClientRect();
+    const menuWidth = 176;
+    const menuHeight = items.length * 44 + Math.max(0, items.length - 1) * 2 + 12;
+    const viewportPadding = 8;
+    const gap = 6;
+    const spaceAbove = rect.top - viewportPadding;
+    const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+    const opensUp = placement === 'top'
+      ? spaceAbove >= menuHeight || spaceAbove >= spaceBelow
+      : placement === 'bottom'
+        ? !(spaceBelow >= menuHeight || spaceBelow >= spaceAbove)
+        : spaceBelow < menuHeight && spaceAbove > spaceBelow;
+    const preferredTop = opensUp
+      ? rect.top - menuHeight - gap
+      : rect.bottom + gap;
+
+    setMenuPosition({
+      top: Math.min(
+        Math.max(viewportPadding, preferredTop),
+        Math.max(viewportPadding, window.innerHeight - menuHeight - viewportPadding),
+      ),
+      left: Math.min(
+        Math.max(viewportPadding, rect.left),
+        Math.max(viewportPadding, window.innerWidth - menuWidth - viewportPadding),
+      ),
+      opensUp,
+    });
+  }, [items.length, placement]);
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (
+        rootRef.current
+        && !rootRef.current.contains(target)
+        && !menuRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
     }
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     }
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('keydown', onKeyDown);
@@ -688,16 +765,31 @@ export function ActionMenu({
     };
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [open, updateMenuPosition]);
+
   if (items.length === 0) return null;
 
   return (
     <div className="relative" ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen(o => !o)}
+        onClick={() => {
+          if (!open) updateMenuPosition();
+          setOpen(current => !current);
+        }}
         className={`icon-button rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors ${open ? 'bg-gray-100' : ''}`}
       >
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -706,17 +798,18 @@ export function ActionMenu({
           <circle cx="12" cy="19" r="1.6" />
         </svg>
       </button>
-      <AnimatePresence>
-        {open && (
+      {createPortal(
+        <AnimatePresence>
+        {open && menuPosition && (
           <motion.div
+            ref={menuRef}
             role="menu"
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            initial={{ opacity: 0, y: menuPosition.opensUp ? 6 : -6, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            exit={{ opacity: 0, y: menuPosition.opensUp ? 6 : -6, scale: 0.98 }}
             transition={{ duration: 0.14, ease: 'easeOut' }}
-            className={`select-panel absolute z-50 left-0 min-w-[11rem] p-1.5 space-y-0.5 ${
-              placement === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
-            }`}
+            className="select-panel fixed z-[100] min-w-[11rem] p-1.5 space-y-0.5"
+            style={{ top: menuPosition.top, left: menuPosition.left }}
           >
             {items.map((item, i) => (
               <button
@@ -739,7 +832,9 @@ export function ActionMenu({
             ))}
           </motion.div>
         )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 }
