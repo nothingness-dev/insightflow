@@ -1,3 +1,31 @@
+## [2.9.0] — 2026-07-25
+
+### Added
+
+- Person-specific survey questions and improved anonymous participation workflows,
+  including clearer progress states and compact participant rows.
+- A centralized frontend motion system with page and interaction transitions.
+- Password-strength validation across account flows, protected destructive admin
+  actions, and a dedicated system-settings area.
+- Deployment, backup, and Docker documentation for operating the full stack.
+
+### Improved
+
+- Survey-builder usability with sticky actions, question accordions, locally saved
+  drafts, and clearer progress feedback.
+- Accessibility through labeled inputs, ARIA validation attributes, persistent inline
+  errors, improved interaction targets, and focus handling for invalid forms.
+- Admin and employee screens for scanability, responsive behavior, and consistent UI
+  motion.
+- Survey results, PDF/CSV/Excel exports, admin authorization, database indexes, and
+  deployment dependencies.
+
+### Fixed
+
+- Result summary counts and empty states.
+- Anonymous ballot-stuffing and spreadsheet formula-injection protections.
+- A spurious survey-detail error notification when navigating away during a request.
+
 ## [2.8.2] — 2026-07-05
 
 ### Removed the anonymous IP-lock admin UI entirely; enhanced the Audit Log instead
