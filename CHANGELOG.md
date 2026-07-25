@@ -1,3 +1,17 @@
+## [2.9.1] — 2026-07-25
+
+### Fixed
+
+- Person cards and anonymous person rows now render correctly in dark mode:
+  the avatar placeholder area (`bg-[color:var(--c-50)]`) and the completed
+  row tint (`bg-emerald-50/60`) had no dark-mode overrides, showing as
+  bright white against the dark page.
+- `.person-card` now carries its own `background-color` and border directly
+  instead of relying on `@apply card`, which did not propagate the raw
+  CSS property — the card body was transparent in dark mode.
+- `.dark .card` explicitly sets `background-color: var(--surface-alt)` so
+  all card-like elements use the correct dark surface.
+
 ## [2.9.0] — 2026-07-25
 
 ### Added
