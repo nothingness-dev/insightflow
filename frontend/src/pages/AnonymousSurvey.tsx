@@ -138,7 +138,7 @@ const PersonRow = ({ person, onRate, disabled, rowRef, highlight }: {
       style={{ minHeight: 88 }}
     >
       <div className="relative flex-shrink-0">
-        <div className="w-12 h-12 rounded-full bg-[color:var(--c-50)] overflow-hidden">
+        <div className="w-12 h-12 rounded-full bg-[color:var(--c-50)] dark:bg-gray-700 overflow-hidden">
           {person.photo_url
             ? <img src={person.photo_url} alt={person.full_name} className="w-full h-full object-cover"/>
             : <div className="w-full h-full flex items-center justify-center text-[color:var(--c-400)] text-lg font-bold">{person.full_name[0]}</div>

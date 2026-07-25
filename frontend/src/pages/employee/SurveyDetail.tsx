@@ -110,7 +110,7 @@ function PersonCard({ person, onRate, disabled }: {
       className="person-card group"
     >
       <div className="relative">
-        <div className="w-full aspect-square bg-[color:var(--c-50)] overflow-hidden">
+        <div className="w-full aspect-square bg-[color:var(--c-50)] dark:bg-gray-700 overflow-hidden">
           {person.photo_url ? (
             <img src={person.photo_url} alt={person.full_name} className="w-full h-full object-cover" />
           ) : (

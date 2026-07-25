@@ -115,7 +115,7 @@
     background-color: var(--surface);
     transition: box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
   }
-  .dark .card { @apply border-transparent; box-shadow: 0 1px 3px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.3); }
+  .dark .card { background-color: var(--surface-alt); @apply border-transparent; box-shadow: 0 1px 3px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.3); }
 
   
   .input-field {
@@ -282,10 +282,16 @@
 
   
   .person-card {
-    @apply card p-0 overflow-hidden cursor-pointer
+    @apply p-0 overflow-hidden cursor-pointer
            transition-all duration-200 ease-out hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99];
+    background-color: var(--surface);
+    border-radius: 0.875rem;
+    border: 1px solid var(--border-soft);
+    box-shadow: 0 1px 2px rgba(0,0,0,.05);
   }
   .person-card:hover { border-color: var(--c-200); }
+
+  .dark .person-card { background-color: var(--surface-alt); }
 
   
   .theme-bg      { background-color: var(--c-600) !important; transition: background-color 0.25s ease; }
@@ -424,6 +430,7 @@
    translucent color overlays; the matching -700/-800 text keeps enough
    contrast by going lighter (see the -300 remaps just below). */
 .dark .bg-emerald-50  { background-color: rgba(16,185,129,0.12); }
+.dark .bg-emerald-50\/60 { background-color: rgba(16,185,129,0.12); }
 .dark .bg-emerald-100 { background-color: rgba(16,185,129,0.18); }
 .dark .bg-red-50      { background-color: rgba(239,68,68,0.12); }
 .dark .bg-red-50\/40  { background-color: rgba(239,68,68,0.10); }
