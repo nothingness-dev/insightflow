@@ -67,6 +67,7 @@ frontend/.vite/
 # ─── IDE & Editors ────────────────────────────────────────
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~
@@ -100,3 +101,7 @@ coverage/
 *.tmp
 *.temp
 .cache/
+
+# Local UX audit artifacts
+scripts/ux-audit.mjs
+ux-audit/

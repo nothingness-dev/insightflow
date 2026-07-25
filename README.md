@@ -77,6 +77,10 @@ The initial admin account is created from the `ADMIN_USERNAME`, `ADMIN_PASSWORD`
 Backend:
 
 ```bash
+python -m venv .venv
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r backend/requirements.txt
 cd backend
 python manage.py runserver --settings=config.settings.dev
 ```
@@ -260,7 +264,7 @@ docker compose up --build -d
 
 ### Customer Deployment
 
-Additional customer/server notes live in [CUSTOMER_DOCKER_DEPLOYMENT.md](CUSTOMER_DOCKER_DEPLOYMENT.md).
+Additional customer/server notes live in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Contributing
 
