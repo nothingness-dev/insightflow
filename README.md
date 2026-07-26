@@ -121,6 +121,22 @@ Admins can manage anonymous participation links from a survey detail page. Each 
 
 Every important hash-link action is recorded in the activity log so admins can review what changed, when it changed, and which metadata was involved.
 
+## IP Response Audit
+
+The admin Survey Results page includes a separate **«ممیزی پاسخ‌های IP»**
+tab. Its searchable selector contains only IP addresses with answers in the
+current survey. After selecting an IP, InsightFlow shows its submissions
+grouped by evaluated person and then by question, keeping answers for different
+people strictly separate. Numeric scores, emoji ratings, and free-text answers
+are shown in their native formats.
+
+The tab also provides a dedicated Excel-only export for the selected survey and
+IP. This export is separate from the standard CSV, Excel, and PDF result
+reports. Deliberately selecting an IP and downloading its workbook create
+Activity Center records containing the selected IP and relevant answer,
+submission, and person counts. Person pagination, page-size changes, retries,
+and background refreshes do not create duplicate view events.
+
 ## Deployment
 
 InsightFlow is designed to run as five Docker services:
