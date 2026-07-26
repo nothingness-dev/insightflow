@@ -265,6 +265,7 @@
       rgba(255,255,255,0) 100%
     );
   }
+  .solid-skeletons .skeleton::after { content: none; }
 
   
   .sidebar-item {

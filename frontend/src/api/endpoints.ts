@@ -1,5 +1,5 @@
 import api from './client';
-import { ActivityCharts, ActivityCriticalPanel, ActivityFilterOptions, ActivityLog, ActivityLogFilters, ActivityStats, BulkImportResult, DashboardStats, EmojiRatingValue, MyRatings, PaginatedResponse, Survey, SurveyPerson, SurveyProgressDashboard, SurveyQuestionInput, SurveyResults, User } from '../types';
+import { ActivityCharts, ActivityCriticalPanel, ActivityFilterOptions, ActivityLog, ActivityLogFilters, ActivityStats, AuditPagination, BulkImportResult, DashboardStats, EmojiRatingValue, IPAuditData, IPAuditIPOption, MyRatings, PaginatedResponse, Survey, SurveyPerson, SurveyProgressDashboard, SurveyQuestionInput, SurveyResults, User } from '../types';
 
 type SurveyPayload = {
   title: string;
@@ -39,6 +39,18 @@ export const adminSurveyApi = {
     api.post<Survey>(`/admin/surveys/${id}/close/`),
   results: (id: number, signal?: AbortSignal) =>
     api.get<SurveyResults>(`/admin/surveys/${id}/results/`, { signal }),
+  ipAuditIPs: (id: number, params: { search?: string; page?: number; page_size?: number }, signal?: AbortSignal) =>
+    api.get<{ survey: { id: number; title: string }; ips: IPAuditIPOption[]; pagination: AuditPagination }>(
+      `/admin/surveys/${id}/ip-audit/ips/`, { params, signal }
+    ),
+  ipAudit: (id: number, ip: string, page: number, pageSize: number, recordActivity: boolean, signal?: AbortSignal) =>
+    api.get<IPAuditData>(`/admin/surveys/${id}/ip-audit/`, {
+      params: { ip, page, page_size: pageSize, record_activity: recordActivity }, signal,
+    }),
+  exportIPAuditExcel: (id: number, ip: string) =>
+    api.get(`/admin/surveys/${id}/ip-audit/export/excel/`, {
+      params: { ip }, responseType: 'blob',
+    }),
   comments: (id: number, params: { person_id?: number; question_id?: number; page?: number; page_size?: number }, signal?: AbortSignal) =>
     api.get<{ total: number; page: number; page_size: number; total_pages: number; comments: { comment: string; question_text: string }[] }>(`/admin/surveys/${id}/comments/`, { params, signal }),
   exportCsv: (id: number) =>

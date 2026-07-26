@@ -135,6 +135,68 @@ export interface SurveyResults {
   results: PersonResult[];
 }
 
+export interface IPAuditIPOption {
+  ip_address: string;
+  response_count: number;
+  submission_count: number;
+  surveyed_person_count: number;
+  latest_submission_at: string | null;
+}
+
+export interface AuditPagination {
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  has_previous: boolean;
+  has_next: boolean;
+}
+
+export interface IPAuditAnswer {
+  selected_ip_address: string;
+  survey_id: number;
+  survey_title: string;
+  submission_identifier: string;
+  submitted_at: string;
+  surveyed_person_id: number;
+  surveyed_person_name: string;
+  question_id: number;
+  question_order: number;
+  question_text: string;
+  question_type: string;
+  numeric_score: number | null;
+  emoji_rating: EmojiRatingValue | null;
+  emoji_label: string | null;
+  free_text_answer: string | null;
+}
+
+export interface IPAuditSubmission {
+  submission_identifier: string;
+  submitted_at: string;
+  answers: IPAuditAnswer[];
+}
+
+export interface IPAuditPerson {
+  surveyed_person_id: number;
+  surveyed_person_name: string;
+  role_title: string;
+  department: string;
+  submissions: IPAuditSubmission[];
+}
+
+export interface IPAuditData {
+  survey: { id: number; title: string };
+  selected_ip_address: string;
+  summary: {
+    total_answers: number;
+    total_linked_submissions: number;
+    total_surveyed_people: number;
+    latest_submission_at: string | null;
+  };
+  people: IPAuditPerson[];
+  pagination: AuditPagination;
+}
+
 export interface DashboardStats {
   stats: {
     total_surveys: number;

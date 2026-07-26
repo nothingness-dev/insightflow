@@ -69,6 +69,11 @@ const METADATA_KEY_LABELS: Record<string, string> = {
   count: 'Count',
   reason: 'Reason',
   person_name: 'Person name',
+  selected_ip: 'Selected IP address',
+  answer_count: 'Answer count',
+  submission_count: 'Submission count',
+  surveyed_person_count: 'Surveyed person count',
+  page: 'Page',
 };
 
 const EXPIRY_UNIT_EN: Record<string, string> = { hours: 'hours', days: 'days', weeks: 'weeks' };
@@ -76,7 +81,7 @@ const EXPIRY_UNIT_EN: Record<string, string> = { hours: 'hours', days: 'days', w
 // Identifiers / technical tokens are kept in Latin digits (like IP addresses) since
 // they're copied, searched, or matched against raw system values rather than read as
 // human quantities. Everything else — counts, durations, etc. — is shown in Persian digits.
-const _RAW_DIGIT_KEYS = new Set(['token', 'person_id', 'survey_id', 'question_id', 'ip_address']);
+const _RAW_DIGIT_KEYS = new Set(['token', 'person_id', 'survey_id', 'question_id', 'ip_address', 'selected_ip']);
 
 function formatMetadataValue(key: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '—';

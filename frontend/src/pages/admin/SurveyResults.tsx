@@ -7,12 +7,14 @@ import { downloadBlob, getBlobErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
 import { TabOverview, TabPeople, TabQuestions } from './components/SurveyResultsTabs';
+import { IPResponseAudit } from './components/IPResponseAudit';
 import { fa } from './components/surveyResultsPrimitives';
-type Tab = 'overview' | 'questions' | 'people';
+type Tab = 'overview' | 'questions' | 'people' | 'ip-audit';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview',  label: 'خلاصه' },
   { id: 'questions', label: 'تحلیل سوال‌ها' },
   { id: 'people',    label: 'نتایج فردی' },
+  { id: 'ip-audit',  label: 'ممیزی پاسخ‌های IP' },
 ];
 
 function normalizeResultsPayload(payload: SurveyResults): SurveyResults {
@@ -93,7 +95,13 @@ export default function SurveyResultsPage() {
     } finally { setExporting(null); }
   };
 
-  if (loading) return <ResultsSkeleton />;
+  if (loading) {
+    return (
+      <div className="solid-skeletons">
+        <ResultsSkeleton />
+      </div>
+    );
+  }
   if (!data)  return null;
 
   const survey = data.survey;
@@ -154,7 +162,27 @@ export default function SurveyResultsPage() {
         </div>
       </div>
 
-      {scoredCount === 0 ? (
+      <div className="flex flex-wrap gap-1 border-b border-slate-200 mb-5 overflow-hidden dark:border-slate-700">
+        {TABS.map(t => (
+          <button key={t.id} type="button" onClick={() => setTab(t.id)}
+            className={`px-3 sm:px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              tab === t.id
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300 dark:hover:text-slate-200'
+            }`}>
+            {t.label}
+            {t.id === 'people' && (
+              <span className="mr-1.5 text-xs bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300 rounded-full px-1.5 py-0.5">
+                {fa(results.length)}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'ip-audit' ? (
+        <IPResponseAudit surveyId={surveyId} />
+      ) : scoredCount === 0 ? (
         <div className="card py-20 text-center">
           <svg className="w-12 h-12 mx-auto mb-3 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
@@ -166,24 +194,6 @@ export default function SurveyResultsPage() {
         </div>
       ) : (
         <>
-<div className="flex flex-wrap gap-1 border-b border-slate-200 mb-5 overflow-hidden">
-            {TABS.map(t => (
-              <button key={t.id} type="button" onClick={() => setTab(t.id)}
-                className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-                  tab === t.id
-                    ? 'border-indigo-500 text-indigo-600'
-                    : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300'
-                }`}>
-                {t.label}
-                {t.id === 'people' && (
-                  <span className="mr-1.5 text-xs bg-slate-100 text-slate-500 rounded-full px-1.5 py-0.5">
-                    {fa(results.length)}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
           {tab === 'overview'  && <TabOverview  results={sharedResults} survey={survey} />}
           {tab === 'questions' && <TabQuestions results={results} surveyId={surveyId} />}
           {tab === 'people' && (
