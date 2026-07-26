@@ -1188,6 +1188,18 @@ class IPResponseAuditTests(APITestCase):
         import openpyxl
         workbook = openpyxl.load_workbook(io.BytesIO(response.content))
         sheet = workbook.active
+        self.assertEqual(workbook.properties.creator, 'InsightFlow')
+        self.assertTrue(sheet.sheet_view.rightToLeft)
+        self.assertFalse(sheet.sheet_view.showGridLines)
+        self.assertEqual(sheet.freeze_panes, 'A7')
+        self.assertEqual(sheet.sheet_properties.tabColor.rgb, '004F46E5')
+        self.assertEqual(sheet.page_setup.orientation, 'landscape')
+        self.assertEqual(sheet.page_setup.fitToWidth, 1)
+        self.assertEqual(sheet.print_title_rows, '$6:$6')
+        self.assertEqual(sheet['A1'].fill.fgColor.rgb, '004F46E5')
+        self.assertEqual(sheet['A6'].fill.fgColor.rgb, '001E293B')
+        self.assertEqual(sheet.auto_filter.ref, f'A6:J{sheet.max_row}')
+        self.assertIn('پاسخ', sheet['A5'].value)
         self.assertEqual(
             [cell.value for cell in sheet[6]],
             [
