@@ -1,3 +1,28 @@
+## [Unreleased]
+
+## [2.10.0-ip-audit.1] — 2026-07-27
+
+### Added
+
+- Added an admin-only «ممیزی پاسخ‌های IP» tab to Survey Results. Admins can
+  search IPs that submitted answers in the current survey and inspect every
+  numeric, emoji, and free-text answer grouped separately by evaluated person
+  and submission.
+- Added a dedicated, survey-and-IP-scoped Excel export with RTL formatting and
+  spreadsheet formula-injection protection.
+- Added Activity Center events for viewing an IP response audit and exporting
+  its Excel workbook, including the selected IP and answer/submission/person
+  counts in event metadata.
+
+### Improved
+
+- Improved the IP Response Audit with server-side IP search, paginated IP and
+  evaluated-person results, a cleaner responsive two-pane layout, and bounded
+  keyboard-scrollable containers for long free-text answers.
+- Reduced Activity Center noise by recording deliberate IP selections while
+  excluding person pagination, page-size changes, retries, and background
+  refreshes from view logging.
+
 ## [2.9.1] — 2026-07-25
 
 ### Fixed
