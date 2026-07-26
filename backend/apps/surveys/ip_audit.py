@@ -208,30 +208,92 @@ def available_ip_payload(survey, search='', page=1, page_size=8):
 def build_ip_audit_workbook(survey, ip_address, payload):
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
 
     workbook = Workbook()
+    workbook.properties.creator = 'InsightFlow'
+    workbook.properties.title = f'IP Response Audit - {survey.title}'
+    workbook.properties.subject = f'Responses submitted from {ip_address}'
     sheet = workbook.active
     sheet.title = 'ممیزی پاسخ IP'
     sheet.sheet_view.rightToLeft = True
     sheet.freeze_panes = 'A7'
     sheet.sheet_view.showGridLines = False
+    sheet.sheet_properties.tabColor = '4F46E5'
+    sheet.sheet_properties.pageSetUpPr.fitToPage = True
+    sheet.page_setup.orientation = 'landscape'
+    sheet.page_setup.fitToWidth = 1
+    sheet.page_setup.fitToHeight = 0
+    sheet.print_title_rows = '6:6'
+    sheet.oddFooter.center.text = 'InsightFlow • IP Response Audit'
+    sheet.oddFooter.right.text = 'Page &P of &N'
 
     title_fill = PatternFill('solid', fgColor='4F46E5')
     header_fill = PatternFill('solid', fgColor='1E293B')
+    metadata_label_fill = PatternFill('solid', fgColor='E0E7FF')
+    metadata_value_fill = PatternFill('solid', fgColor='F8FAFC')
+    summary_fill = PatternFill('solid', fgColor='EEF2FF')
+    alternate_fill = PatternFill('solid', fgColor='F8FAFC')
+    score_low_fill = PatternFill('solid', fgColor='FEF2F2')
+    score_mid_fill = PatternFill('solid', fgColor='FFFBEB')
+    score_high_fill = PatternFill('solid', fgColor='F0FDF4')
+    emoji_fills = {
+        Rating.EMOJI_BAD: score_low_fill,
+        Rating.EMOJI_AVERAGE: score_mid_fill,
+        Rating.EMOJI_GOOD: PatternFill('solid', fgColor='F7FEE7'),
+        Rating.EMOJI_EXCELLENT: score_high_fill,
+    }
     thin = Side(style='thin', color='E2E8F0')
+    group_side = Side(style='medium', color='A5B4FC')
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
     right = Alignment(horizontal='right', vertical='center', wrap_text=True)
     center = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    top_right = Alignment(horizontal='right', vertical='top', wrap_text=True)
 
     sheet.append([sanitize_cell(f'ممیزی پاسخ‌های IP — {survey.title}')])
     sheet.merge_cells('A1:J1')
-    sheet['A1'].fill = title_fill
+    for cell in sheet[1]:
+        cell.fill = title_fill
     sheet['A1'].font = Font(bold=True, color='FFFFFF', size=14)
     sheet['A1'].alignment = center
+    sheet.row_dimensions[1].height = 34
+
     sheet.append(['عنوان نظرسنجی', sanitize_cell(survey.title)])
     sheet.append(['آدرس IP انتخاب‌شده', sanitize_cell(str(ip_address))])
     sheet.append(['زمان تولید خروجی', timezone.localtime().strftime('%Y-%m-%d %H:%M:%S')])
-    sheet.append([])
+    for row_number in range(2, 5):
+        sheet.merge_cells(
+            start_row=row_number, start_column=2,
+            end_row=row_number, end_column=10,
+        )
+        label = sheet.cell(row=row_number, column=1)
+        label.fill = metadata_label_fill
+        label.font = Font(bold=True, color='3730A3')
+        label.alignment = right
+        label.border = border
+        value = sheet.cell(row=row_number, column=2)
+        value.fill = metadata_value_fill
+        value.font = Font(color='334155')
+        value.alignment = right
+        value.border = border
+        for column in range(3, 11):
+            sheet.cell(row=row_number, column=column).fill = metadata_value_fill
+            sheet.cell(row=row_number, column=column).border = border
+        sheet.row_dimensions[row_number].height = 22
+
+    summary = payload['summary']
+    summary_text = (
+        f"{summary['total_answers']} پاسخ  •  "
+        f"{summary['total_linked_submissions']} مشارکت  •  "
+        f"{summary['total_surveyed_people']} فرد ارزیابی‌شده"
+    )
+    sheet.append([summary_text])
+    sheet.merge_cells('A5:J5')
+    for cell in sheet[5]:
+        cell.fill = summary_fill
+    sheet['A5'].font = Font(bold=True, color='4338CA', size=10)
+    sheet['A5'].alignment = center
+    sheet.row_dimensions[5].height = 24
 
     headers = [
         'IP address', 'submission identifier', 'submitted at', 'surveyed person',
@@ -244,10 +306,14 @@ def build_ip_audit_workbook(survey, ip_address, payload):
         cell.font = Font(bold=True, color='FFFFFF')
         cell.alignment = center
         cell.border = border
+    sheet.row_dimensions[6].height = 30
 
+    previous_person_id = None
+    data_row_number = 0
     for person in payload['people']:
         for submission in person['submissions']:
             for answer in submission['answers']:
+                data_row_number += 1
                 emoji = ''
                 if answer['emoji_rating']:
                     emoji = (
@@ -266,14 +332,57 @@ def build_ip_audit_workbook(survey, ip_address, payload):
                     sanitize_cell(emoji),
                     sanitize_cell(answer['free_text_answer'] or ''),
                 ])
-                for column, cell in enumerate(sheet[sheet.max_row], 1):
-                    cell.border = border
-                    cell.alignment = center if column in (5, 8) else right
+                row_number = sheet.max_row
+                is_new_person = answer['surveyed_person_id'] != previous_person_id
+                row_border = Border(
+                    left=thin,
+                    right=thin,
+                    top=group_side if is_new_person else thin,
+                    bottom=thin,
+                )
+                for column, cell in enumerate(sheet[row_number], 1):
+                    cell.border = row_border
+                    cell.alignment = (
+                        center if column in (1, 3, 5, 7, 8, 9) else top_right
+                    )
+                    if data_row_number % 2 == 0:
+                        cell.fill = alternate_fill
+
+                score_cell = sheet.cell(row=row_number, column=8)
+                score = answer['numeric_score']
+                if score is not None:
+                    if score < 4:
+                        score_cell.fill = score_low_fill
+                        score_cell.font = Font(bold=True, color='DC2626')
+                    elif score < 7:
+                        score_cell.fill = score_mid_fill
+                        score_cell.font = Font(bold=True, color='D97706')
+                    else:
+                        score_cell.fill = score_high_fill
+                        score_cell.font = Font(bold=True, color='059669')
+
+                emoji_cell = sheet.cell(row=row_number, column=9)
+                emoji_key = answer['emoji_rating']
+                if emoji_key:
+                    emoji_cell.fill = emoji_fills.get(emoji_key, metadata_value_fill)
+                    emoji_cell.font = Font(bold=True, color='334155')
+
+                comment_length = len(answer['free_text_answer'] or '')
+                sheet.row_dimensions[row_number].height = min(
+                    72, max(22, 15 + (comment_length // 55) * 12),
+                )
+                previous_person_id = answer['surveyed_person_id']
 
     widths = [20, 28, 21, 26, 14, 45, 18, 14, 20, 55]
     for index, width in enumerate(widths, 1):
-        sheet.column_dimensions[chr(64 + index)].width = width
+        sheet.column_dimensions[get_column_letter(index)].width = width
     sheet.auto_filter.ref = f'A6:J{max(sheet.max_row, 6)}'
+    sheet.print_area = f'A1:J{max(sheet.max_row, 6)}'
+    sheet.sheet_properties.outlinePr.summaryBelow = False
+    sheet.page_margins.left = 0.25
+    sheet.page_margins.right = 0.25
+    sheet.page_margins.top = 0.5
+    sheet.page_margins.bottom = 0.5
 
     output = io.BytesIO()
     workbook.save(output)
