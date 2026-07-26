@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.2] — 2026-07-27
+
+### Improved
+
+- Refined the IP audit Excel report with structured metadata, a response
+  summary, clearer person groups, alternating rows, score and emoji status
+  colors, wrapped comments, and print-friendly landscape settings.
+
 ## [2.10.0-ip-audit.1] — 2026-07-27
 
 ### Added
