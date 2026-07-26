@@ -900,3 +900,313 @@ class EmojiRatingQuestionTests(APITestCase):
         question_result = result['question_results'][0]
         self.assertEqual(question_result['average_emoji_label'], 'عالی')
         self.assertEqual(question_result['emoji_breakdown']['excellent'], 1)
+
+
+class IPResponseAuditTests(APITestCase):
+    def setUp(self):
+        self.admin = create_admin(username='ip_audit_admin')
+        self.employee = create_employee(username='ip_audit_employee')
+        self.survey = create_survey(
+            self.admin, status=Survey.STATUS_PUBLISHED, with_question=False,
+            title='ممیزی IP',
+        )
+        self.person_a = create_person(self.survey, full_name='شخص الف')
+        self.person_b = create_person(self.survey, full_name='شخص ب')
+        self.score_question = SurveyQuestion.objects.create(
+            survey=self.survey, text='کیفیت ارتباط', has_score=True,
+            score_required=True, display_order=1,
+        )
+        self.emoji_question = SurveyQuestion.objects.create(
+            survey=self.survey, text='بازخورد کلی', has_score=False,
+            score_required=False, has_emoji=True, emoji_required=True,
+            display_order=2,
+        )
+        self.text_question = SurveyQuestion.objects.create(
+            survey=self.survey, text='نظر تکمیلی', has_score=False,
+            score_required=False, has_comment=True, comment_required=False,
+            display_order=3,
+        )
+        self.selected_ip = '203.0.113.25'
+
+        Rating.objects.create(
+            survey=self.survey, person=self.person_a, question=self.score_question,
+            anonymous_token='submission-a', score=5, ip_address=self.selected_ip,
+        )
+        Rating.objects.create(
+            survey=self.survey, person=self.person_a, question=self.emoji_question,
+            anonymous_token='submission-a', emoji_rating=Rating.EMOJI_GOOD,
+            ip_address=self.selected_ip,
+        )
+        Rating.objects.create(
+            survey=self.survey, person=self.person_a, question=self.text_question,
+            anonymous_token='submission-a', comment='پاسخ‌گو و مفید',
+            ip_address=self.selected_ip,
+        )
+        Rating.objects.create(
+            survey=self.survey, person=self.person_b, question=self.score_question,
+            anonymous_token='submission-a', score=4, ip_address=self.selected_ip,
+        )
+        Rating.objects.create(
+            survey=self.survey, person=self.person_b, question=self.text_question,
+            anonymous_token='submission-a', comment='خوب بود',
+            ip_address=self.selected_ip,
+        )
+        Rating.objects.create(
+            survey=self.survey, person=self.person_a, question=self.score_question,
+            voter=self.employee, score=8, ip_address='198.51.100.8',
+        )
+
+        self.other_survey = create_survey(
+            self.admin, status=Survey.STATUS_PUBLISHED, title='نظرسنجی دیگر',
+        )
+        other_person = create_person(self.other_survey, full_name='فرد بی‌ربط')
+        Rating.objects.create(
+            survey=self.other_survey, person=other_person,
+            question=self.other_survey.questions.get(),
+            anonymous_token='other-survey', score=10, ip_address=self.selected_ip,
+        )
+
+    def authenticate_admin(self):
+        self.client.force_authenticate(self.admin)
+
+    def test_permissions_match_admin_results_access(self):
+        url = f'/api/admin/surveys/{self.survey.id}/ip-audit/?ip={self.selected_ip}'
+        self.client.force_authenticate(self.employee)
+        self.assertEqual(self.client.get(url).status_code, status.HTTP_403_FORBIDDEN)
+        self.client.force_authenticate(user=None)
+        self.assertEqual(self.client.get(url).status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_audit_groups_every_answer_by_surveyed_person(self):
+        self.authenticate_admin()
+        response = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/',
+            {'ip': self.selected_ip},
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['summary']['total_answers'], 5)
+        self.assertEqual(response.data['summary']['total_linked_submissions'], 1)
+        self.assertEqual(response.data['summary']['total_surveyed_people'], 2)
+        self.assertEqual(len(response.data['people']), 2)
+
+        people = {
+            row['surveyed_person_id']: row for row in response.data['people']
+        }
+        answers_a = people[self.person_a.id]['submissions'][0]['answers']
+        answers_b = people[self.person_b.id]['submissions'][0]['answers']
+        self.assertEqual(len(answers_a), 3)
+        self.assertEqual(len(answers_b), 2)
+        self.assertEqual(
+            {answer['surveyed_person_id'] for answer in answers_a},
+            {self.person_a.id},
+        )
+        self.assertEqual(
+            {answer['surveyed_person_id'] for answer in answers_b},
+            {self.person_b.id},
+        )
+        by_type = {answer['question_type']: answer for answer in answers_a}
+        self.assertEqual(by_type['numeric']['numeric_score'], 5)
+        self.assertEqual(by_type['emoji']['emoji_rating'], 'good')
+        self.assertEqual(by_type['text']['free_text_answer'], 'پاسخ‌گو و مفید')
+        self.assertFalse(any(
+            answer['survey_title'] == self.other_survey.title
+            for person in response.data['people']
+            for submission in person['submissions']
+            for answer in submission['answers']
+        ))
+
+        activity = ActivityLog.objects.get(
+            action=ActivityActions.IP_RESPONSE_AUDIT_VIEW
+        )
+        self.assertEqual(activity.metadata['selected_ip'], self.selected_ip)
+        self.assertEqual(activity.metadata['answer_count'], 5)
+
+    def test_invalid_and_empty_ip_results_are_clear(self):
+        self.authenticate_admin()
+        invalid = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/', {'ip': 'not-an-ip'}
+        )
+        self.assertEqual(invalid.status_code, status.HTTP_400_BAD_REQUEST)
+        empty = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/',
+            {'ip': '192.0.2.99'},
+        )
+        self.assertEqual(empty.status_code, status.HTTP_200_OK)
+        self.assertEqual(empty.data['people'], [])
+        self.assertEqual(empty.data['summary']['total_answers'], 0)
+
+    def test_available_ips_are_strictly_survey_scoped(self):
+        self.authenticate_admin()
+        response = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/ips/'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('no-store', response['Cache-Control'])
+        by_ip = {row['ip_address']: row for row in response.data['ips']}
+        self.assertEqual(set(by_ip), {self.selected_ip, '198.51.100.8'})
+        self.assertEqual(by_ip[self.selected_ip]['response_count'], 5)
+        self.assertEqual(by_ip[self.selected_ip]['surveyed_person_count'], 2)
+        self.assertEqual(by_ip[self.selected_ip]['submission_count'], 1)
+        self.assertEqual(response.data['pagination']['total'], 2)
+
+    def test_ip_directory_supports_server_side_search_and_pagination(self):
+        for index, ip_address in enumerate(('192.0.2.10', '192.0.2.11'), start=1):
+            Rating.objects.create(
+                survey=self.survey, person=self.person_a,
+                question=self.score_question,
+                anonymous_token=f'ip-page-{index}', score=index,
+                ip_address=ip_address,
+            )
+        self.authenticate_admin()
+
+        first_page = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/ips/',
+            {'search': '192.0.2', 'page': 1, 'page_size': 1},
+        )
+        second_page = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/ips/',
+            {'search': '192.0.2', 'page': 2, 'page_size': 1},
+        )
+
+        self.assertEqual(first_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_page.data['pagination']['total'], 2)
+        self.assertEqual(first_page.data['pagination']['total_pages'], 2)
+        self.assertTrue(first_page.data['pagination']['has_next'])
+        self.assertEqual(len(first_page.data['ips']), 1)
+        self.assertEqual(len(second_page.data['ips']), 1)
+        self.assertNotEqual(
+            first_page.data['ips'][0]['ip_address'],
+            second_page.data['ips'][0]['ip_address'],
+        )
+
+    def test_audit_paginates_by_person_without_splitting_answers(self):
+        person_c = create_person(self.survey, full_name='شخص ج')
+        Rating.objects.create(
+            survey=self.survey, person=person_c, question=self.score_question,
+            anonymous_token='submission-a', score=7, ip_address=self.selected_ip,
+        )
+        self.authenticate_admin()
+
+        first_page = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/',
+            {'ip': self.selected_ip, 'page': 1, 'page_size': 1},
+        )
+        second_page = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/',
+            {'ip': self.selected_ip, 'page': 2, 'page_size': 1},
+        )
+
+        self.assertEqual(first_page.status_code, status.HTTP_200_OK)
+        self.assertEqual(first_page.data['summary']['total_answers'], 6)
+        self.assertEqual(first_page.data['summary']['total_surveyed_people'], 3)
+        self.assertEqual(first_page.data['pagination']['total'], 3)
+        self.assertEqual(first_page.data['pagination']['total_pages'], 3)
+        self.assertEqual(len(first_page.data['people']), 1)
+        self.assertEqual(len(second_page.data['people']), 1)
+        self.assertNotEqual(
+            first_page.data['people'][0]['surveyed_person_id'],
+            second_page.data['people'][0]['surveyed_person_id'],
+        )
+        # Person A's three answers stay together on one page.
+        self.assertEqual(
+            len(first_page.data['people'][0]['submissions'][0]['answers']), 3,
+        )
+
+    def test_pagination_and_silent_refresh_do_not_create_activity_logs(self):
+        self.authenticate_admin()
+
+        page_two = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/',
+            {'ip': self.selected_ip, 'page': 2, 'page_size': 1},
+        )
+        silent_page_one = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/',
+            {
+                'ip': self.selected_ip,
+                'page': 1,
+                'page_size': 1,
+                'record_activity': 'false',
+            },
+        )
+
+        self.assertEqual(page_two.status_code, status.HTTP_200_OK)
+        self.assertEqual(silent_page_one.status_code, status.HTTP_200_OK)
+        self.assertFalse(
+            ActivityLog.objects.filter(
+                action=ActivityActions.IP_RESPONSE_AUDIT_VIEW,
+            ).exists()
+        )
+
+    def test_person_pagination_ignores_cross_survey_rating_links(self):
+        ghost_person = create_person(self.survey, full_name='شخص بدون پاسخ')
+        Rating.objects.create(
+            survey=self.other_survey,
+            person=ghost_person,
+            question=self.other_survey.questions.get(),
+            anonymous_token='cross-survey-link',
+            score=6,
+            ip_address=self.selected_ip,
+        )
+        self.authenticate_admin()
+
+        response = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/',
+            {'ip': self.selected_ip, 'page': 1, 'page_size': 20},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('no-store', response['Cache-Control'])
+        self.assertEqual(response.data['pagination']['total'], 2)
+        self.assertNotIn(
+            ghost_person.id,
+            [person['surveyed_person_id'] for person in response.data['people']],
+        )
+
+    def test_excel_is_filtered_has_columns_and_neutralizes_formulas(self):
+        dangerous_person = create_person(self.survey, full_name='=HYPERLINK("x")')
+        dangerous_question = SurveyQuestion.objects.create(
+            survey=self.survey, text='+SUM(1,1)', has_score=False,
+            score_required=False, has_comment=True, display_order=4,
+        )
+        Rating.objects.create(
+            survey=self.survey, person=dangerous_person, question=dangerous_question,
+            anonymous_token='formula-submission', comment='@SUM(1,1)',
+            ip_address=self.selected_ip,
+        )
+        self.authenticate_admin()
+        response = self.client.get(
+            f'/api/admin/surveys/{self.survey.id}/ip-audit/export/excel/',
+            {'ip': self.selected_ip},
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('no-store', response['Cache-Control'])
+        self.assertIn(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            response['Content-Type'],
+        )
+
+        import io
+        import openpyxl
+        workbook = openpyxl.load_workbook(io.BytesIO(response.content))
+        sheet = workbook.active
+        self.assertEqual(
+            [cell.value for cell in sheet[6]],
+            [
+                'IP address', 'submission identifier', 'submitted at',
+                'surveyed person', 'question order', 'question text',
+                'answer type', 'numeric score', 'emoji rating',
+                'free-text answer',
+            ],
+        )
+        rows = list(sheet.iter_rows(min_row=7, values_only=True))
+        self.assertEqual(len(rows), 6)
+        flattened = [value for row in rows for value in row if isinstance(value, str)]
+        self.assertIn("'=HYPERLINK(\"x\")", flattened)
+        self.assertIn("'+SUM(1,1)", flattened)
+        self.assertIn("'@SUM(1,1)", flattened)
+        self.assertNotIn('فرد بی‌ربط', flattened)
+
+        activity = ActivityLog.objects.get(
+            action=ActivityActions.IP_RESPONSE_AUDIT_EXPORT
+        )
+        self.assertEqual(activity.metadata['selected_ip'], self.selected_ip)
+        self.assertEqual(activity.metadata['export_format'], 'excel')
