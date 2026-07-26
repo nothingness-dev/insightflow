@@ -32,6 +32,8 @@ class ActivityActions:
     EXPORT_CSV = 'export_csv'
     EXPORT_EXCEL = 'export_excel'
     EXPORT_PDF = 'export_pdf'
+    IP_RESPONSE_AUDIT_VIEW = 'ip_response_audit_view'
+    IP_RESPONSE_AUDIT_EXPORT = 'ip_response_audit_export'
     DELETE_ALL_DATA = 'delete_all_data'
     HASH_LINK_CREATE = 'hash_link_create'
     HASH_LINK_DELETE = 'hash_link_delete'
@@ -67,6 +69,8 @@ ACTION_LABELS = {
     ActivityActions.EXPORT_CSV: 'خروجی CSV',
     ActivityActions.EXPORT_EXCEL: 'خروجی Excel',
     ActivityActions.EXPORT_PDF: 'خروجی PDF',
+    ActivityActions.IP_RESPONSE_AUDIT_VIEW: 'مشاهده ممیزی پاسخ IP',
+    ActivityActions.IP_RESPONSE_AUDIT_EXPORT: 'خروجی Excel ممیزی پاسخ IP',
     ActivityActions.DELETE_ALL_DATA: 'حذف تمام داده‌ها',
     ActivityActions.HASH_LINK_CREATE: 'ایجاد لینک هش',
     ActivityActions.HASH_LINK_DELETE: 'حذف لینک هش',

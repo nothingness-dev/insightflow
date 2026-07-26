@@ -448,3 +448,27 @@ class SurveyHashLinkSerializer(serializers.ModelSerializer):
                     'expiry_value': 'مهلت انقضا باید بیشتر از زمان گذشته از ایجاد لینک باشد.'
                 })
         return attrs
+
+
+class AuditPaginationSerializer(serializers.Serializer):
+    page = serializers.IntegerField(min_value=1, default=1)
+    page_size = serializers.IntegerField(min_value=1, max_value=20, default=5)
+
+
+class IPAuditQuerySerializer(AuditPaginationSerializer):
+    ip = serializers.IPAddressField(
+        required=True,
+        error_messages={
+            'required': 'انتخاب آدرس IP الزامی است.',
+            'blank': 'انتخاب آدرس IP الزامی است.',
+            'invalid': 'آدرس IP انتخاب‌شده معتبر نیست.',
+        },
+    )
+    record_activity = serializers.BooleanField(required=False, default=True)
+
+
+class IPAuditIPListQuerySerializer(AuditPaginationSerializer):
+    page_size = serializers.IntegerField(min_value=1, max_value=50, default=8)
+    search = serializers.CharField(
+        required=False, allow_blank=True, max_length=45, default='',
+    )

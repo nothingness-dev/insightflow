@@ -3,6 +3,8 @@ import io
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Q, F
 from rest_framework import status, generics
@@ -18,12 +20,16 @@ from .serializers import (
     SurveySerializer, SurveyCreateUpdateSerializer, SurveyPersonSerializer,
     SurveyPersonPublicSerializer, SurveyPublicSerializer, RatingCreateSerializer,
     SurveyProgressDashboardSerializer, SurveyHashLinkSerializer, SurveyQuestionSerializer,
+    IPAuditIPListQuerySerializer, IPAuditQuerySerializer,
 )
 from .services import calculate_survey_results, duplicate_survey, calculate_survey_progress, validate_question_answers, effective_questions_for_person, required_question_pairs, completed_participants, completed_participants_for, completed_person_ids as participant_completed_person_ids
 from apps.activity.models import ActivityActions
 from apps.activity.services import log_activity
 from .export_data import (
     build_export_dataset, build_pdf_comment_groups, score_grade, EXCEL_CELL_LIMIT,
+)
+from .ip_audit import (
+    available_ip_payload, build_ip_audit_payload, build_ip_audit_workbook,
 )
 import logging
 from django.conf import settings
@@ -350,6 +356,111 @@ class AdminSurveyResultsView(APIView):
         }
         cache.set(ck, payload, settings.CACHE_TTL_SURVEY_RESULTS)
         return Response(payload)
+
+
+def _validated_audit_query(request):
+    serializer = IPAuditQuerySerializer(data=request.query_params)
+    if not serializer.is_valid():
+        return None, Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    query = serializer.validated_data
+    query['ip'] = str(query['ip'])
+    return query, None
+
+
+@method_decorator(never_cache, name='dispatch')
+class AdminSurveyIPAuditIPsView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, pk):
+        survey = get_object_or_404(Survey, pk=pk)
+        serializer = IPAuditIPListQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        query = serializer.validated_data
+        payload = available_ip_payload(
+            survey,
+            search=query['search'].strip(),
+            page=query['page'],
+            page_size=query['page_size'],
+        )
+        return Response({
+            'survey': {'id': survey.id, 'title': survey.title},
+            **payload,
+        })
+
+
+@method_decorator(never_cache, name='dispatch')
+class AdminSurveyIPAuditView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, pk):
+        survey = get_object_or_404(Survey, pk=pk)
+        query, error = _validated_audit_query(request)
+        if error:
+            return error
+        selected_ip = query['ip']
+        payload = build_ip_audit_payload(
+            survey, selected_ip, page=query['page'], page_size=query['page_size'],
+        )
+        if query['record_activity'] and query['page'] == 1:
+            log_activity(
+                ActivityActions.IP_RESPONSE_AUDIT_VIEW,
+                request=request,
+                description=f'مشاهده ممیزی پاسخ IP در نظرسنجی «{survey.title}»',
+                target_type='survey',
+                target_id=survey.id,
+                target_repr=survey.title,
+                metadata={
+                    'selected_ip': selected_ip,
+                    'answer_count': payload['summary']['total_answers'],
+                    'submission_count': payload['summary']['total_linked_submissions'],
+                    'surveyed_person_count': payload['summary']['total_surveyed_people'],
+                    'page': payload['pagination']['page'],
+                },
+            )
+        return Response(payload)
+
+
+@method_decorator(never_cache, name='dispatch')
+class AdminSurveyIPAuditExcelView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, pk):
+        if not HAS_OPENPYXL:
+            return Response(
+                {'detail': 'خروجی اکسل در دسترس نیست.'},
+                status=status.HTTP_501_NOT_IMPLEMENTED,
+            )
+        survey = get_object_or_404(Survey, pk=pk)
+        query, error = _validated_audit_query(request)
+        if error:
+            return error
+        selected_ip = query['ip']
+        payload = build_ip_audit_payload(survey, selected_ip)
+        workbook = build_ip_audit_workbook(survey, selected_ip, payload)
+        log_activity(
+            ActivityActions.IP_RESPONSE_AUDIT_EXPORT,
+            request=request,
+            description=f'خروجی Excel ممیزی پاسخ IP نظرسنجی «{survey.title}»',
+            target_type='survey',
+            target_id=survey.id,
+            target_repr=survey.title,
+            metadata={
+                'selected_ip': selected_ip,
+                'export_format': 'excel',
+                'answer_count': payload['summary']['total_answers'],
+                'submission_count': payload['summary']['total_linked_submissions'],
+                'surveyed_person_count': payload['summary']['total_surveyed_people'],
+            },
+        )
+        response = HttpResponse(
+            workbook,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        safe_ip = selected_ip.replace(':', '-')
+        response['Content-Disposition'] = (
+            f'attachment; filename="survey_{survey.id}_ip_audit_{safe_ip}.xlsx"'
+        )
+        return response
 
 
 class AdminSurveyExportCSVView(APIView):

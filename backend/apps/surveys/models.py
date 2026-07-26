@@ -293,6 +293,7 @@ class Rating(models.Model):
             models.Index(fields=['survey', 'voter'], name='rating_survey_voter_idx'),
             models.Index(fields=['survey', 'person'], name='rating_survey_person_idx'),
             models.Index(fields=['survey', 'anonymous_token'], name='rating_survey_anon_idx'),
+            models.Index(fields=['survey', 'ip_address'], name='rating_survey_ip_idx'),
         ]
         constraints = [
             models.UniqueConstraint(
