@@ -6,6 +6,7 @@ import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../types';
 import { Modal, AnonymousSurveySkeleton } from '../components/common/index';
 import ThemeSwitcher from '../components/common/ThemeSwitcher';
 import CopyrightNotice from '../components/common/CopyrightNotice';
+import VersionBadge from '../components/common/VersionBadge';
 import { formatNumber, getErrorMessage } from '../utils/helpers';
 import { useTheme } from '../contexts/ThemeContext';
 import { motion } from 'framer-motion';
@@ -534,7 +535,8 @@ export default function AnonymousSurvey() {
             </svg>
           </div>
           <span className="font-bold text-slate-700 text-sm">نظرسنجی ناشناس</span>
-          <div className="mr-auto">
+          <div className="mr-auto flex items-center gap-2">
+            <VersionBadge />
             <ThemeSwitcher />
           </div>
         </div>
