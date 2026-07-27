@@ -140,8 +140,30 @@ class _GradientBand(Flowable):
             c.rect(self.width * i / steps, 0, self.width / steps + 1, self.height,
                    stroke=0, fill=1)
         c.setFillColor(colors.white)
-        c.setFont('Vazir-Bold', 20)
-        c.drawCentredString(self.width / 2, self.height - 30, _rtl(self.title))
+        title = str(self.title)
+        rendered_title = _rtl(title)
+        title_size = 16
+        available_width = self.width - 32
+        while (
+            title_size > 10
+            and pdfmetrics.stringWidth(rendered_title, 'Vazir-Bold', title_size)
+            > available_width
+        ):
+            title_size -= 0.5
+
+        if (
+            pdfmetrics.stringWidth(rendered_title, 'Vazir-Bold', title_size)
+            > available_width
+        ):
+            suffix = '…'
+            while title and pdfmetrics.stringWidth(
+                _rtl(title.rstrip() + suffix), 'Vazir-Bold', title_size,
+            ) > available_width:
+                title = title[:-1]
+            rendered_title = _rtl(title.rstrip() + suffix)
+
+        c.setFont('Vazir-Bold', title_size)
+        c.drawCentredString(self.width / 2, self.height - 30, rendered_title)
         c.setFont('Vazir', 11)
         c.drawCentredString(self.width / 2, self.height - 52, _rtl(self.subtitle))
 
