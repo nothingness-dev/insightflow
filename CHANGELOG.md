@@ -1,3 +1,12 @@
+## [2.10.1] — 2026-07-27
+
+### Changed
+
+- Replaced the MIT license with a proprietary, viewing-and-evaluation-only
+  license that reserves all rights to Roham.
+- Refreshed the README screenshots for the login, dashboard, survey creation,
+  voting, results, and activity interfaces.
+
 ## [2.10.0] — 2026-07-27
 
 ### Added
