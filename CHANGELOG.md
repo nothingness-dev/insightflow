@@ -1,3 +1,10 @@
+## [2.10.0] — 2026-07-27
+
+### Added
+
+- Added a compact version badge across the admin, employee, login, and
+  anonymous-survey interfaces, sourced from the frontend package version.
+
 ## [2.9.1] — 2026-07-25
 
 ### Fixed
