@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.3] — 2026-07-27
+
+### Fixed
+
+- Prevented long survey names from overflowing the PDF report header by
+  sizing the title to the available width and safely shortening extreme cases.
+
 ## [2.10.0-ip-audit.2] — 2026-07-27
 
 ### Improved
