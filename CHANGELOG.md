@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.4] — 2026-07-27
+
+### Added
+
+- Added a compact version badge across the admin, employee, login, and
+  anonymous-survey interfaces, sourced from the frontend package version.
+
 ## [2.10.0-ip-audit.3] — 2026-07-27
 
 ### Fixed
