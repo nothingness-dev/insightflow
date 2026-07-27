@@ -6,6 +6,7 @@ import ThemeSwitcher from "../components/common/ThemeSwitcher";
 import ChangePasswordModal from "../components/common/ChangePasswordModal";
 import PageTransition from "../components/common/PageTransition";
 import CopyrightNotice from "../components/common/CopyrightNotice";
+import VersionBadge from "../components/common/VersionBadge";
 import { D, E, T, backdrop, drawerRight, listItem, useMotionDisabled } from "../motion";
 import toast from "react-hot-toast";
 
@@ -201,15 +202,18 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <p className="text-xs text-gray-400 dark:text-gray-500">پنل مدیریت</p>
           </div>
         </div>
-        {mobile && (
-          <button
-            onClick={() => setSidebarOpen(false)}
-            aria-label="بستن منوی مدیریت"
-            className="icon-button text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          >
-            <CloseIcon />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <VersionBadge />
+          {mobile && (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              aria-label="بستن منوی مدیریت"
+              className="icon-button text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <CloseIcon />
+            </button>
+          )}
+        </div>
       </div>
       <nav className="flex-1 px-4 py-4 space-y-1">
         {navItems.map((item, i) => (

@@ -6,6 +6,7 @@ import ThemeSwitcher from "../components/common/ThemeSwitcher";
 import ChangePasswordModal from "../components/common/ChangePasswordModal";
 import PageTransition from "../components/common/PageTransition";
 import CopyrightNotice from "../components/common/CopyrightNotice";
+import VersionBadge from "../components/common/VersionBadge";
 import { D, E, T, backdrop, popover, useMotionDisabled } from "../motion";
 import toast from "react-hot-toast";
 
@@ -51,6 +52,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
             </NavLink>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <VersionBadge />
             <ThemeSwitcher />
             <div className="relative">
               <button

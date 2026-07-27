@@ -5,6 +5,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import CopyrightNotice from "../components/common/CopyrightNotice";
+import VersionBadge from "../components/common/VersionBadge";
 import { D, E, T, fadeUp, useMotionDisabled } from "../motion";
 
 export default function LoginPage() {
@@ -73,9 +74,10 @@ export default function LoginPage() {
       >
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           <div
-            className="px-5 sm:px-8 py-6 sm:py-8 text-center"
+            className="relative px-5 sm:px-8 py-6 sm:py-8 text-center"
             style={{ backgroundColor: "var(--c-600)" }}
           >
+            <VersionBadge onBrand className="absolute left-4 top-4" />
             <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <svg
                 className="w-7 h-7 text-white"
