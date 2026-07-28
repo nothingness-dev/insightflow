@@ -110,7 +110,7 @@ const STATUS_META: Record<PersonStatus, { label: string; className: string }> = 
   needs_completion: { label: 'نیازمند تکمیل',  className: 'text-amber-600' },
 };
 
-const PersonRow = ({ person, onRate, disabled, rowRef, highlight }: {
+const AnonymousPersonCard = ({ person, onRate, disabled, rowRef, highlight }: {
   person: SurveyPerson & { has_rated?: boolean };
   onRate: () => void;
   disabled?: boolean;
@@ -129,51 +129,59 @@ const PersonRow = ({ person, onRate, disabled, rowRef, highlight }: {
       initial={reduced ? undefined : 'hidden'}
       animate={reduced ? undefined : 'visible'}
       transition={reduced ? undefined : { duration: D.normal / 1000, ease: E.standard }}
-      className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
-        done
-          ? 'bg-emerald-50/60 border-emerald-200'
-          : highlight
-            ? 'bg-white border-[color:var(--c-300)] ring-2 ring-[color:var(--c-200)]'
-            : 'bg-white border-gray-100'
-      }`}
-      style={{ minHeight: 88 }}
+      className={`person-card group ${
+        highlight
+          ? 'ring-2 ring-[color:var(--c-300)] ring-offset-2'
+          : ''
+      } ${done || disabled ? '!cursor-default' : ''}`}
     >
-      <div className="relative flex-shrink-0">
-        <div className="w-12 h-12 rounded-full bg-[color:var(--c-50)] dark:bg-gray-700 overflow-hidden">
+      <div className="relative">
+        <div className="w-full aspect-[16/9] bg-[color:var(--c-50)] dark:bg-gray-700 overflow-hidden">
           {person.photo_url
             ? <img src={person.photo_url} alt={person.full_name} className="w-full h-full object-cover"/>
-            : <div className="w-full h-full flex items-center justify-center text-[color:var(--c-400)] text-lg font-bold">{person.full_name[0]}</div>
+            : <div className="w-full h-full flex items-center justify-center text-[color:var(--c-300)] text-4xl font-bold">{person.full_name[0]}</div>
           }
         </div>
         {done && (
-          <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow ring-2 ring-white">
-            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-md ring-2 ring-white">
+            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
             </svg>
           </div>
         )}
       </div>
 
-      <div className="flex-1 min-w-0">
+      <div className="p-3 sm:p-3.5">
         <h3 className="font-semibold text-slate-800 text-sm leading-snug truncate">{person.full_name}</h3>
         {(person.role_title || person.department) && (
           <p className="text-xs text-gray-400 mt-0.5 truncate">{[person.role_title, person.department].filter(Boolean).join(' — ')}</p>
         )}
-        <p className={`text-xs font-medium mt-1 flex items-center gap-1 ${meta.className}`}>
-          {done && (
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-          )}
-          {meta.label}
-        </p>
-      </div>
+        {person.description && (
+          <p className="text-xs text-gray-500 mt-2 leading-relaxed line-clamp-2">{person.description}</p>
+        )}
 
-      {!done && !disabled && (
-        <button onClick={onRate}
-          className="flex-shrink-0 px-5 rounded-lg bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-sm font-semibold transition-colors shadow-sm hover:shadow-md"
-          style={{ minHeight: 44 }}>
-          پاسخ
-        </button>
-      )}
+        <div className="mt-3">
+          {done ? (
+            <div className="w-full min-h-10 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold text-center border border-emerald-200 flex items-center justify-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+              {meta.label}
+            </div>
+          ) : disabled ? (
+            <div className={`w-full min-h-10 rounded-lg bg-gray-50 text-xs font-medium text-center border border-gray-200 flex items-center justify-center ${meta.className}`}>
+              {meta.label}
+            </div>
+          ) : (
+            <button
+              onClick={onRate}
+              className="w-full min-h-10 rounded-lg bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-xs font-semibold transition-all duration-150 shadow-sm hover:shadow-md"
+            >
+              پاسخ به سوال‌ها
+            </button>
+          )}
+        </div>
+      </div>
     </motion.div>
   );
 };
@@ -600,9 +608,9 @@ export default function AnonymousSurvey() {
                   style={{ width: `${(ratedCount / totalCount) * 100}%` }}/>
               </div>
             </div>
-            <div className="space-y-2.5">
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               {people.map(p => (
-                <PersonRow key={p.id} person={p}
+                <AnonymousPersonCard key={p.id} person={p}
                   rowRef={el => { if (el) rowRefs.current.set(p.id, el); else rowRefs.current.delete(p.id); }}
                   highlight={focusPersonId === p.id}
                   onRate={() => !closed && !ipLocked && setRatingPerson(p)}
