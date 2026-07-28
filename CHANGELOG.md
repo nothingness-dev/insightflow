@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.5] — 2026-07-28
+
+### Improved
+
+- Enlarged anonymous-survey participant cards with clearer photos, details,
+  completion states, and rating actions while keeping them more compact than
+  the signed-in employee cards.
+
 ## [2.10.0-ip-audit.4] — 2026-07-27
 
 ### Added
