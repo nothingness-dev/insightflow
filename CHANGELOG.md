@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.7] — 2026-07-29
+
+### Fixed
+
+- Removed unnecessary Debian compiler packages from the backend image build,
+  avoiding repeated `deb.debian.org` failures while retaining the binary
+  PostgreSQL driver.
+- Made survey requirement normalization PostgreSQL-safe by committing its data
+  updates before adding constraints, preventing pending-trigger migration
+  failures on databases with existing survey responses.
+
 ## [2.10.0-ip-audit.6] — 2026-07-29
 
 ### Added
