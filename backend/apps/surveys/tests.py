@@ -1001,7 +1001,7 @@ class IPResponseAuditTests(APITestCase):
         )
         self.text_question = SurveyQuestion.objects.create(
             survey=self.survey, text='نظر تکمیلی', has_score=False,
-            score_required=False, has_comment=True, comment_required=False,
+            score_required=False, has_comment=True, comment_required=True,
             display_order=3,
         )
         self.selected_ip = '203.0.113.25'
@@ -1243,7 +1243,8 @@ class IPResponseAuditTests(APITestCase):
         dangerous_person = create_person(self.survey, full_name='=HYPERLINK("x")')
         dangerous_question = SurveyQuestion.objects.create(
             survey=self.survey, text='+SUM(1,1)', has_score=False,
-            score_required=False, has_comment=True, display_order=4,
+            score_required=False, has_comment=True, comment_required=True,
+            display_order=4,
         )
         Rating.objects.create(
             survey=self.survey, person=dangerous_person, question=dangerous_question,

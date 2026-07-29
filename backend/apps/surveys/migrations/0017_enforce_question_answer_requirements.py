@@ -39,7 +39,7 @@ def normalize_question_requirements(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [('surveys', '0015_person_specific_questions')]
+    dependencies = [('surveys', '0016_rating_survey_ip_index')]
 
     operations = [
         migrations.RunPython(
