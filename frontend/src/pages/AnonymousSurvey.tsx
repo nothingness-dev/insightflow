@@ -129,7 +129,7 @@ const AnonymousPersonCard = ({ person, onRate, disabled, rowRef, highlight }: {
       initial={reduced ? undefined : 'hidden'}
       animate={reduced ? undefined : 'visible'}
       transition={reduced ? undefined : { duration: D.normal / 1000, ease: E.standard }}
-      className={`person-card group ${
+      className={`person-card group flex h-full flex-col ${
         highlight
           ? 'ring-2 ring-[color:var(--c-300)] ring-offset-2'
           : ''
@@ -151,7 +151,7 @@ const AnonymousPersonCard = ({ person, onRate, disabled, rowRef, highlight }: {
         )}
       </div>
 
-      <div className="p-3 sm:p-3.5">
+      <div className="flex flex-1 flex-col p-3 sm:p-3.5">
         <h3 className="font-semibold text-slate-800 text-sm leading-snug truncate">{person.full_name}</h3>
         {(person.role_title || person.department) && (
           <p className="text-xs text-gray-400 mt-0.5 truncate">{[person.role_title, person.department].filter(Boolean).join(' — ')}</p>
@@ -160,7 +160,7 @@ const AnonymousPersonCard = ({ person, onRate, disabled, rowRef, highlight }: {
           <p className="text-xs text-gray-500 mt-2 leading-relaxed line-clamp-2">{person.description}</p>
         )}
 
-        <div className="mt-3">
+        <div className="mt-auto pt-3">
           {done ? (
             <div className="w-full min-h-10 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold text-center border border-emerald-200 flex items-center justify-center gap-1">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
