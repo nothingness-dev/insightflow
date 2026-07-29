@@ -1,3 +1,12 @@
+## [2.10.4] — 2026-07-29
+
+### Fixed
+
+- Made score-only, emoji-only, and text-only survey questions automatically
+  required across the admin editor, API, and database.
+- Normalized existing question configurations during migration and clarified
+  that multi-type questions require at least one active answer.
+
 ## [2.10.3] — 2026-07-29
 
 ### Fixed
