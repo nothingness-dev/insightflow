@@ -1,3 +1,11 @@
+## [2.10.3] — 2026-07-29
+
+### Fixed
+
+- Aligned anonymous participant-card completion and action boxes by giving
+  every card a consistent image, flexible details, and bottom action
+  partition.
+
 ## [2.10.2] — 2026-07-29
 
 ### Improved
