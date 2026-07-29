@@ -33,30 +33,27 @@ class SurveyQuestionSerializer(serializers.ModelSerializer):
         has_score = attrs.get('has_score', getattr(self.instance, 'has_score', True))
         has_comment = attrs.get('has_comment', getattr(self.instance, 'has_comment', False))
         has_emoji = attrs.get('has_emoji', getattr(self.instance, 'has_emoji', False))
-        score_required = attrs.get('score_required', getattr(self.instance, 'score_required', True))
-        comment_required = attrs.get('comment_required', getattr(self.instance, 'comment_required', False))
-        emoji_required = attrs.get('emoji_required', getattr(self.instance, 'emoji_required', False))
         text = attrs.get('text', getattr(self.instance, 'text', '')).strip()
 
         if not text:
             raise serializers.ValidationError({'text': 'متن سوال الزامی است.'})
         if not has_score and not has_comment and not has_emoji:
             raise serializers.ValidationError('هر سوال باید حداقل یک نوع پاسخ (امتیاز عددی، امتیاز ایموجی یا توضیح متنی) داشته باشد.')
-        if not has_score:
-            attrs['score_required'] = False
-            score_required = False
-        if not has_comment:
-            attrs['comment_required'] = False
-            comment_required = False
-        if not has_emoji:
-            attrs['emoji_required'] = False
-            emoji_required = False
-        if score_required and not has_score:
-            raise serializers.ValidationError({'score_required': 'وقتی امتیاز عددی غیرفعال است، الزامی بودن امتیاز مجاز نیست.'})
-        if comment_required and not has_comment:
-            raise serializers.ValidationError({'comment_required': 'وقتی توضیح متنی غیرفعال است، الزامی بودن توضیح مجاز نیست.'})
-        if emoji_required and not has_emoji:
-            raise serializers.ValidationError({'emoji_required': 'وقتی امتیاز ایموجی غیرفعال است، الزامی بودن آن مجاز نیست.'})
+
+        enabled_type_count = sum((has_score, has_comment, has_emoji))
+        single_type = enabled_type_count == 1
+        attrs['score_required'] = has_score and (
+            single_type
+            or attrs.get('score_required', getattr(self.instance, 'score_required', True))
+        )
+        attrs['comment_required'] = has_comment and (
+            single_type
+            or attrs.get('comment_required', getattr(self.instance, 'comment_required', False))
+        )
+        attrs['emoji_required'] = has_emoji and (
+            single_type
+            or attrs.get('emoji_required', getattr(self.instance, 'emoji_required', False))
+        )
         return attrs
 
 

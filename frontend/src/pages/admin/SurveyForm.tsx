@@ -8,6 +8,7 @@ import { isCanceledRequest } from "../../utils/http";
 import toast from "react-hot-toast";
 import QuestionsEditor, {
   createEmptyQuestion,
+  normalizeQuestionRequirements,
   validateQuestions,
   QuestionFocusRequest,
 } from "../../components/admin/QuestionsEditor";
@@ -64,7 +65,7 @@ export default function SurveyForm() {
         const questions = s.questions?.length
           ? s.questions
               .filter((q) => q.is_active !== false)
-              .map((q, index) => ({
+              .map((q, index) => normalizeQuestionRequirements({
                 id: q.id,
                 text: q.text,
                 help_text: q.help_text || "",
@@ -118,7 +119,10 @@ export default function SurveyForm() {
       try {
         const saved = JSON.parse(raw);
         if (saved?.form) {
-          setForm(saved.form);
+          const savedQuestions = Array.isArray(saved.form.questions)
+            ? saved.form.questions.map(normalizeQuestionRequirements)
+            : [createEmptyQuestion(0)];
+          setForm({ ...saved.form, questions: savedQuestions });
           setAutosavedAt(saved.savedAt || null);
           toast.success("پیش‌نویس ذخیره‌شده بازیابی شد");
         }
@@ -208,18 +212,15 @@ export default function SurveyForm() {
     if (!isDraft) return base;
     return {
       ...base,
-      questions: form.questions.map((question, index) => ({
-        ...question,
-        text: question.text.trim(),
-        help_text: question.help_text.trim(),
-        score_required: question.has_score ? question.score_required : false,
-        comment_required: question.has_comment
-          ? question.comment_required
-          : false,
-        emoji_required: question.has_emoji ? question.emoji_required : false,
-        display_order: index,
-        is_active: true,
-      })),
+      questions: form.questions.map((question, index) =>
+        normalizeQuestionRequirements({
+          ...question,
+          text: question.text.trim(),
+          help_text: question.help_text.trim(),
+          display_order: index,
+          is_active: true,
+        }),
+      ),
     };
   };
 

@@ -15,6 +15,30 @@ export const createEmptyQuestion = (displayOrder: number): SurveyQuestionInput =
   is_active: true,
 });
 
+export const normalizeQuestionRequirements = (
+  question: SurveyQuestionInput,
+): SurveyQuestionInput => {
+  const enabledTypeCount = [
+    question.has_score,
+    question.has_comment,
+    question.has_emoji,
+  ].filter(Boolean).length;
+  const hasSingleType = enabledTypeCount === 1;
+
+  return {
+    ...question,
+    score_required: question.has_score
+      ? hasSingleType || question.score_required
+      : false,
+    comment_required: question.has_comment
+      ? hasSingleType || question.comment_required
+      : false,
+    emoji_required: question.has_emoji
+      ? hasSingleType || question.emoji_required
+      : false,
+  };
+};
+
 export interface QuestionFocusRequest {
   index: number;
   field: "text" | "type";
@@ -57,13 +81,14 @@ export function validateQuestions(questions: SurveyQuestionInput[]) {
 }
 
 export function questionTypeSummary(question: SurveyQuestionInput) {
+  const normalized = normalizeQuestionRequirements(question);
   const parts: string[] = [];
-  if (question.has_score)
-    parts.push(`امتیاز عددی ${question.score_required ? "الزامی" : "اختیاری"}`);
-  if (question.has_emoji)
-    parts.push(`ایموجی ${question.emoji_required ? "الزامی" : "اختیاری"}`);
-  if (question.has_comment)
-    parts.push(`توضیح ${question.comment_required ? "الزامی" : "اختیاری"}`);
+  if (normalized.has_score)
+    parts.push(`امتیاز عددی ${normalized.score_required ? "الزامی" : "اختیاری"}`);
+  if (normalized.has_emoji)
+    parts.push(`ایموجی ${normalized.emoji_required ? "الزامی" : "اختیاری"}`);
+  if (normalized.has_comment)
+    parts.push(`توضیح ${normalized.comment_required ? "الزامی" : "اختیاری"}`);
   return parts.length ? parts.join(" · ") : "بدون نوع پاسخ";
 }
 
@@ -121,11 +146,7 @@ export default function QuestionsEditor({
     onChange(
       questions.map((question, i) => {
         if (i !== index) return question;
-        const next = { ...question, ...patch };
-        if (!next.has_score) next.score_required = false;
-        if (!next.has_comment) next.comment_required = false;
-        if (!next.has_emoji) next.emoji_required = false;
-        return next;
+        return normalizeQuestionRequirements({ ...question, ...patch });
       }),
     );
     onClearError?.(`question_${index}`);
@@ -180,6 +201,12 @@ export default function QuestionsEditor({
       <div className="space-y-3">
         {questions.map((question, index) => {
           const isCollapsed = collapsed[index] ?? false;
+          const enabledTypeCount = [
+            question.has_score,
+            question.has_comment,
+            question.has_emoji,
+          ].filter(Boolean).length;
+          const hasSingleType = enabledTypeCount === 1;
           const hasError = !!(
             errors[`question_${index}`] || errors[`question_type_${index}`]
           );
@@ -311,14 +338,20 @@ export default function QuestionsEditor({
                         امتیاز عددی ۱ تا ۱۰
                       </label>
                       {question.has_score && (
-                        <label className="flex items-center gap-2 text-xs text-gray-500 mt-3">
-                          <input
-                            type="checkbox"
-                            checked={question.score_required}
-                            onChange={(e) => updateQuestion(index, { score_required: e.target.checked })}
-                          />
-                          امتیاز عددی الزامی باشد
-                        </label>
+                        hasSingleType ? (
+                          <p className="text-xs font-medium text-emerald-600 mt-3">
+                            تنها نوع پاسخ و الزامی است
+                          </p>
+                        ) : (
+                          <label className="flex items-center gap-2 text-xs text-gray-500 mt-3">
+                            <input
+                              type="checkbox"
+                              checked={question.score_required}
+                              onChange={(e) => updateQuestion(index, { score_required: e.target.checked })}
+                            />
+                            امتیاز عددی الزامی باشد
+                          </label>
+                        )
                       )}
                     </div>
 
@@ -332,14 +365,20 @@ export default function QuestionsEditor({
                         امتیاز ایموجی (بد تا عالی)
                       </label>
                       {question.has_emoji && (
-                        <label className="flex items-center gap-2 text-xs text-gray-500 mt-3">
-                          <input
-                            type="checkbox"
-                            checked={question.emoji_required}
-                            onChange={(e) => updateQuestion(index, { emoji_required: e.target.checked })}
-                          />
-                          امتیاز ایموجی الزامی باشد
-                        </label>
+                        hasSingleType ? (
+                          <p className="text-xs font-medium text-emerald-600 mt-3">
+                            تنها نوع پاسخ و الزامی است
+                          </p>
+                        ) : (
+                          <label className="flex items-center gap-2 text-xs text-gray-500 mt-3">
+                            <input
+                              type="checkbox"
+                              checked={question.emoji_required}
+                              onChange={(e) => updateQuestion(index, { emoji_required: e.target.checked })}
+                            />
+                            امتیاز ایموجی الزامی باشد
+                          </label>
+                        )
                       )}
                     </div>
 
@@ -353,17 +392,29 @@ export default function QuestionsEditor({
                         کادر توضیح متنی
                       </label>
                       {question.has_comment && (
-                        <label className="flex items-center gap-2 text-xs text-gray-500 mt-3">
-                          <input
-                            type="checkbox"
-                            checked={question.comment_required}
-                            onChange={(e) => updateQuestion(index, { comment_required: e.target.checked })}
-                          />
-                          توضیح متنی الزامی باشد
-                        </label>
+                        hasSingleType ? (
+                          <p className="text-xs font-medium text-emerald-600 mt-3">
+                            تنها نوع پاسخ و الزامی است
+                          </p>
+                        ) : (
+                          <label className="flex items-center gap-2 text-xs text-gray-500 mt-3">
+                            <input
+                              type="checkbox"
+                              checked={question.comment_required}
+                              onChange={(e) => updateQuestion(index, { comment_required: e.target.checked })}
+                            />
+                            توضیح متنی الزامی باشد
+                          </label>
+                        )
                       )}
                     </div>
                   </div>
+
+                  {enabledTypeCount > 1 && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      کاربر باید حداقل یکی از انواع پاسخ فعال را تکمیل کند.
+                    </p>
+                  )}
 
                   {errors[`question_type_${index}`] && (
                     <p

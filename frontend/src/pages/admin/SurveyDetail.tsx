@@ -8,7 +8,11 @@ import { isCanceledRequest } from '../../utils/http';
 import toast from 'react-hot-toast';
 import PersonModal from '../../components/admin/PersonModal';
 import HashLinksPanel from '../../components/admin/HashLinksPanel';
-import QuestionsEditor, { createEmptyQuestion, validateQuestions } from '../../components/admin/QuestionsEditor';
+import QuestionsEditor, {
+  createEmptyQuestion,
+  normalizeQuestionRequirements,
+  validateQuestions,
+} from '../../components/admin/QuestionsEditor';
 
 export default function SurveyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -124,7 +128,7 @@ export default function SurveyDetail() {
       ? (person.questions ?? [])
           .slice()
           .sort((a, b) => a.display_order - b.display_order)
-          .map((q, index) => ({
+          .map((q, index) => normalizeQuestionRequirements({
             id: q.id,
             text: q.text,
             help_text: q.help_text || '',
@@ -152,16 +156,15 @@ export default function SurveyDetail() {
     try {
       const response = await adminPersonApi.setQuestions(
         questionPerson.id,
-        questionsDraft.map((question, index) => ({
-          ...question,
-          text: question.text.trim(),
-          help_text: question.help_text.trim(),
-          score_required: question.has_score ? question.score_required : false,
-          comment_required: question.has_comment ? question.comment_required : false,
-          emoji_required: question.has_emoji ? question.emoji_required : false,
-          display_order: index,
-          is_active: true,
-        })),
+        questionsDraft.map((question, index) =>
+          normalizeQuestionRequirements({
+            ...question,
+            text: question.text.trim(),
+            help_text: question.help_text.trim(),
+            display_order: index,
+            is_active: true,
+          }),
+        ),
       );
       setPeople(items => items.map(item => item.id === questionPerson.id ? response.data : item));
       toast.success('سوال‌های اختصاصی ذخیره شد');
