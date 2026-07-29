@@ -89,7 +89,7 @@ export default function ThemeSwitcher() {
             exit="exit"
             transition={reduced ? T.instant : { duration: D.fast / 1000, ease: E.standard }}
             style={{ transformOrigin: 'top left', backgroundColor: 'var(--surface)', borderColor: 'var(--border-soft)' }}
-            className="absolute left-0 top-12 rounded-xl shadow-xl border p-3 z-50 min-w-[176px]"
+            className="absolute end-0 top-12 rounded-xl shadow-xl border p-3 z-50 min-w-[176px]"
           >
             <p className="text-xs text-gray-400 mb-2 px-1">حالت نمایش</p>
             <div className="flex gap-1.5 mb-3 p-1 rounded-lg" style={{ backgroundColor: 'var(--surface-alt)' }}>
@@ -123,7 +123,7 @@ export default function ThemeSwitcher() {
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">{t.label}</span>
                   {theme === t.key && (
-                    <svg className="w-3.5 h-3.5 text-gray-400 mr-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <svg className="w-3.5 h-3.5 text-gray-400 ms-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
                     </svg>
                   )}

@@ -312,7 +312,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               animate="visible"
               exit="exit"
               transition={reduced ? T.instant : E.spring}
-              className="absolute right-0 top-0 h-full w-[min(20rem,calc(100vw-2rem))] max-w-full"
+              className="absolute start-0 top-0 h-full w-[min(20rem,calc(100vw-2rem))] max-w-full"
             >
               <Sidebar mobile />
             </motion.div>
@@ -321,7 +321,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </AnimatePresence>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
+        <header className="app-container bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 py-3 sm:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <button
               aria-label="باز کردن منوی مدیریت"
@@ -337,7 +337,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <ThemeSwitcher />
         </header>
 
-        <main className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-7">
+        <main className="app-page flex-1 min-w-0 overflow-y-auto lg:[--page-gutter:1.75rem]">
           <PageTransition>{children}</PageTransition>
           <CopyrightNotice className="mt-8 border-t border-gray-100 pt-5" />
         </main>

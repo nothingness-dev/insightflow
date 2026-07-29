@@ -284,7 +284,7 @@ export default function AdminSurveyList() {
                     <Link
                       to={`/admin/surveys/${survey.id}`}
                       title={survey.title}
-                      className="inline-flex min-h-11 max-w-full items-center text-sm font-semibold leading-6 text-slate-800 hover:text-[color:var(--c-700)]"
+                      className="inline-flex min-h-11 min-w-11 max-w-full items-center text-sm font-semibold leading-6 text-slate-800 hover:text-[color:var(--c-700)]"
                     >
                       <span className="line-clamp-2 break-words">{survey.title}</span>
                     </Link>
@@ -328,7 +328,7 @@ export default function AdminSurveyList() {
                         <Link
                           to={`/admin/surveys/${survey.id}`}
                           title={survey.title}
-                          className="inline-flex min-h-11 max-w-full items-center text-sm font-semibold leading-6 text-slate-800 hover:text-[color:var(--c-700)] focus-visible:text-[color:var(--c-700)]"
+                          className="inline-flex min-h-11 min-w-11 max-w-full items-center text-sm font-semibold leading-6 text-slate-800 hover:text-[color:var(--c-700)] focus-visible:text-[color:var(--c-700)]"
                         >
                           <span className="line-clamp-2 break-words">{survey.title}</span>
                         </Link>

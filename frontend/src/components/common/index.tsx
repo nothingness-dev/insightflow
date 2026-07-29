@@ -26,13 +26,13 @@ export function PasswordInput({ value, onChange, placeholder, autoFocus, error }
         placeholder={placeholder}
         autoFocus={autoFocus}
         autoComplete="new-password"
-        className={`input-field w-full pl-12 ${error ? 'border-red-400' : ''}`}
+        className={`input-field w-full pe-12 ${error ? 'border-red-400' : ''}`}
       />
       <button
         type="button"
         onClick={() => setShow(s => !s)}
         aria-label={show ? 'پنهان کردن رمز' : 'نمایش رمز'}
-        className="icon-button absolute left-0 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+        className="icon-button absolute end-0 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
       >
         {show ? (
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>

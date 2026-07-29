@@ -62,7 +62,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-[100dvh] flex items-center justify-center p-3 sm:p-4"
+      className="app-page min-h-[100dvh] flex items-center justify-center"
       style={{ background: pageBackground }}
       dir="rtl"
     >
@@ -77,7 +77,7 @@ export default function LoginPage() {
             className="relative px-5 sm:px-8 py-6 sm:py-8 text-center"
             style={{ backgroundColor: "var(--c-600)" }}
           >
-            <VersionBadge onBrand className="absolute left-4 top-4" />
+            <VersionBadge onBrand className="absolute end-4 top-4" />
             <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <svg
                 className="w-7 h-7 text-white"
@@ -113,7 +113,7 @@ export default function LoginPage() {
                       if (errors.username)
                         setErrors((er) => ({ ...er, username: undefined }));
                     }}
-                    className={`input-field pr-10 ${errors.username ? "border-red-400" : ""}`}
+                    className={`input-field ps-10 ${errors.username ? "border-red-400" : ""}`}
                     placeholder="نام کاربری خود را وارد کنید"
                     autoComplete="username"
                     disabled={loading}
@@ -122,7 +122,7 @@ export default function LoginPage() {
                       errors.username ? "username-error" : undefined
                     }
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-gray-500">
                     <svg
                       className="w-4 h-4"
                       fill="none"
@@ -164,7 +164,7 @@ export default function LoginPage() {
                       if (errors.password)
                         setErrors((er) => ({ ...er, password: undefined }));
                     }}
-                    className={`input-field pr-10 pl-10 ${errors.password ? "border-red-400" : ""}`}
+                    className={`input-field ps-10 pe-12 ${errors.password ? "border-red-400" : ""}`}
                     placeholder="رمز عبور خود را وارد کنید"
                     autoComplete="current-password"
                     disabled={loading}
@@ -173,7 +173,7 @@ export default function LoginPage() {
                       errors.password ? "password-error" : undefined
                     }
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-gray-500">
                     <svg
                       className="w-4 h-4"
                       fill="none"
@@ -192,7 +192,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setShowPass(!showPass)}
                     aria-label={showPass ? "پنهان کردن رمز عبور" : "نمایش رمز عبور"}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="icon-button absolute end-0 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
                     {showPass ? (
                       <svg

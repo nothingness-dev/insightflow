@@ -86,8 +86,14 @@ function EmojiPicker({ value, onChange }: { value: EmojiRatingValue | null; onCh
   return (
     <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
       {EMOJI_OPTIONS.map(opt => (
-        <button key={opt.value} type="button" onClick={() => onChange(opt.value)}
-          className={`flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border-2 text-xs font-bold transition-all duration-150 ${value === opt.value ? opt.selectedClass : opt.idleClass}`}>
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          aria-pressed={value === opt.value}
+          aria-label={`امتیاز کیفی: ${opt.label}`}
+          className={`flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border-2 text-xs font-bold transition-all duration-150 ${value === opt.value ? opt.selectedClass : opt.idleClass}`}
+        >
           <opt.Icon/>
           {opt.label}
         </button>
@@ -143,7 +149,7 @@ const AnonymousPersonCard = ({ person, onRate, disabled, rowRef, highlight }: {
           }
         </div>
         {done && (
-          <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-md ring-2 ring-white">
+          <div className="absolute top-2 end-2 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-md ring-2 ring-white">
             <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
             </svg>
@@ -162,20 +168,20 @@ const AnonymousPersonCard = ({ person, onRate, disabled, rowRef, highlight }: {
 
         <div className="mt-3">
           {done ? (
-            <div className="w-full min-h-10 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold text-center border border-emerald-200 flex items-center justify-center gap-1">
+            <div className="w-full min-h-11 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold text-center border border-emerald-200 flex items-center justify-center gap-1">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
               </svg>
               {meta.label}
             </div>
           ) : disabled ? (
-            <div className={`w-full min-h-10 rounded-lg bg-gray-50 text-xs font-medium text-center border border-gray-200 flex items-center justify-center ${meta.className}`}>
+            <div className={`w-full min-h-11 rounded-lg bg-gray-50 text-xs font-medium text-center border border-gray-200 flex items-center justify-center ${meta.className}`}>
               {meta.label}
             </div>
           ) : (
             <button
               onClick={onRate}
-              className="w-full min-h-10 rounded-lg bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-xs font-semibold transition-all duration-150 shadow-sm hover:shadow-md"
+              className="w-full min-h-11 rounded-lg bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-xs font-semibold transition-all duration-150 shadow-sm hover:shadow-md"
             >
               پاسخ به سوال‌ها
             </button>
@@ -327,6 +333,8 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
                         <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
                           {[1,2,3,4,5,6,7,8,9,10].map(s => (
                             <button key={s} type="button" onClick={() => updateAnswer(q.id, { score: s })}
+                              aria-pressed={a.score === s}
+                              aria-label={`امتیاز ${formatNumber(s)} از ۱۰`}
                               className={`py-2.5 rounded-xl border-2 text-sm font-bold transition-all duration-150 ${getColor(s, a.score === s)}`}>
                               {formatNumber(s)}
                             </button>
@@ -509,7 +517,7 @@ export default function AnonymousSurvey() {
   if (loading) return <AnonymousSurveySkeleton/>;
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4" dir="rtl">
+    <div className="app-page min-h-[100dvh] flex items-center justify-center bg-gray-50" dir="rtl">
       <div className="card p-8 max-w-md w-full text-center">
         <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -534,23 +542,23 @@ export default function AnonymousSurvey() {
   const nextUnanswered = !closed && !ipLocked ? people.find(p => !p.has_rated) : undefined;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--c-bg)' }} dir="rtl">
+    <div className="min-h-[100dvh]" style={{ backgroundColor: 'var(--c-bg)' }} dir="rtl">
 <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="app-container max-w-4xl py-3 flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--c-600)' }}>
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
             </svg>
           </div>
           <span className="font-bold text-slate-700 text-sm">نظرسنجی ناشناس</span>
-          <div className="mr-auto flex items-center gap-2">
+          <div className="ms-auto flex items-center gap-2">
             <VersionBadge />
             <ThemeSwitcher />
           </div>
         </div>
       </header>
 
-      <main className={`max-w-4xl mx-auto px-4 py-6 ${nextUnanswered && !allDone ? 'pb-28' : ''}`}>
+      <main className={`app-container max-w-4xl py-6 ${nextUnanswered && !allDone ? 'pb-28' : ''}`}>
         {closed && (
           <div className="mb-5 flex items-center gap-3 rounded-xl px-5 py-3 border" style={{ backgroundColor: 'var(--c-50)', borderColor: 'var(--c-200)' }}>
             <p className="text-sm font-medium" style={{ color: 'var(--c-700)' }}>این نظرسنجی بسته شده است</p>
@@ -628,12 +636,12 @@ export default function AnonymousSurvey() {
 
       {nextUnanswered && !allDone && (
         <div className="fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
-          <div className="max-w-4xl mx-auto px-4 py-3">
+          <div className="app-container max-w-4xl py-3">
             <button onClick={() => setRatingPerson(nextUnanswered)}
               className="w-full rounded-xl bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-sm font-semibold transition-colors shadow-sm flex items-center justify-center gap-2"
               style={{ minHeight: 44 }}>
               ادامه با نفر بعدی
-              <span className="text-xs opacity-80 truncate max-w-[40%]">({nextUnanswered.full_name})</span>
+              <span className="text-xs text-white truncate max-w-[40%]">({nextUnanswered.full_name})</span>
             </button>
           </div>
         </div>

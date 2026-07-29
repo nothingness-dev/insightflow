@@ -364,9 +364,23 @@ async function collectMetrics(page) {
         'button,a[href],input:not([type="hidden"]),select,textarea,[role="button"],[tabindex]:not([tabindex="-1"])',
       ),
     ].filter(visible);
+    const effectiveTarget = element => {
+      if (
+        element instanceof HTMLInputElement &&
+        ['checkbox', 'radio'].includes(element.type)
+      ) {
+        const explicitLabel = element.id
+          ? document.querySelector(`label[for="${CSS.escape(element.id)}"]`)
+          : null;
+        const label = explicitLabel || element.closest('label');
+        if (label && visible(label)) return label;
+      }
+      return element;
+    };
     const smallTargets = interactive
       .map(element => {
-        const rect = element.getBoundingClientRect();
+        const target = effectiveTarget(element);
+        const rect = target.getBoundingClientRect();
         return {
           tag: element.tagName.toLowerCase(),
           name:
@@ -381,7 +395,9 @@ async function collectMetrics(page) {
       })
       .filter(item => item.width < 44 || item.height < 44);
     const smallMobileFormText = [
-      ...document.querySelectorAll('input:not([type="hidden"]),select,textarea'),
+      ...document.querySelectorAll(
+        'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),select,textarea',
+      ),
     ]
       .filter(visible)
       .map(element => ({
@@ -485,6 +501,10 @@ async function captureRoute(page, route, viewport, theme) {
       impact: violation.impact,
       help: violation.help,
       nodes: violation.nodes.length,
+      examples: violation.nodes.slice(0, 10).map(node => ({
+        target: node.target,
+        failureSummary: node.failureSummary,
+      })),
     }));
     for (const violation of axe) {
       report.findings.push({
