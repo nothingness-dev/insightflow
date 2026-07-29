@@ -39,12 +39,17 @@ def normalize_question_requirements(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    # PostgreSQL must commit the data-normalization UPDATEs before constraints
+    # can ALTER this table; otherwise pending FK trigger events block the DDL.
+    atomic = False
+
     dependencies = [('surveys', '0016_rating_survey_ip_index')]
 
     operations = [
         migrations.RunPython(
             normalize_question_requirements,
             migrations.RunPython.noop,
+            atomic=True,
         ),
         migrations.AddConstraint(
             model_name='surveyquestion',
