@@ -1,4 +1,5 @@
 from django.test import TestCase
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework.test import APITestCase, APIClient
@@ -799,6 +800,83 @@ class EmployeeSurveyListTests(APITestCase):
         self.assertEqual(published_item['total_people'], 1)
         self.assertEqual(published_item['total_questions'], 1)
         self.assertEqual(published_item['my_votes_count'], 0)
+
+
+class QuestionRequirementInvariantTests(TestCase):
+    def setUp(self):
+        self.admin = create_admin(username='question_requirement_admin')
+        self.survey = create_survey(
+            self.admin,
+            status=Survey.STATUS_DRAFT,
+            with_question=False,
+        )
+
+    def test_each_single_answer_type_is_always_required(self):
+        from apps.surveys.serializers import SurveyQuestionSerializer
+
+        cases = (
+            ('score', 'has_score', 'score_required'),
+            ('comment', 'has_comment', 'comment_required'),
+            ('emoji', 'has_emoji', 'emoji_required'),
+        )
+        for label, enabled_field, required_field in cases:
+            with self.subTest(answer_type=label):
+                payload = {
+                    'text': f'سوال فقط {label}',
+                    'has_score': False,
+                    'score_required': True,
+                    'has_comment': False,
+                    'comment_required': True,
+                    'has_emoji': False,
+                    'emoji_required': True,
+                    enabled_field: True,
+                    required_field: False,
+                }
+                serializer = SurveyQuestionSerializer(data=payload)
+
+                self.assertTrue(serializer.is_valid(), serializer.errors)
+                self.assertTrue(serializer.validated_data[required_field])
+                for field in (
+                    'score_required',
+                    'comment_required',
+                    'emoji_required',
+                ):
+                    self.assertEqual(
+                        serializer.validated_data[field],
+                        field == required_field,
+                    )
+
+    def test_multiple_answer_types_can_remain_individually_optional(self):
+        from apps.surveys.serializers import SurveyQuestionSerializer
+
+        serializer = SurveyQuestionSerializer(data={
+            'text': 'سوال ترکیبی',
+            'has_score': True,
+            'score_required': False,
+            'has_comment': True,
+            'comment_required': False,
+            'has_emoji': False,
+            'emoji_required': True,
+        })
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertFalse(serializer.validated_data['score_required'])
+        self.assertFalse(serializer.validated_data['comment_required'])
+        self.assertFalse(serializer.validated_data['emoji_required'])
+
+    def test_database_rejects_optional_single_answer_type(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                SurveyQuestion.objects.create(
+                    survey=self.survey,
+                    text='امتیاز اختیاری نامعتبر',
+                    has_score=True,
+                    score_required=False,
+                    has_comment=False,
+                    comment_required=False,
+                    has_emoji=False,
+                    emoji_required=False,
+                )
 
 
 class EmojiRatingQuestionTests(APITestCase):

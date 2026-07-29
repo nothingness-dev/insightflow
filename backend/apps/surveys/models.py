@@ -94,6 +94,49 @@ class SurveyQuestion(models.Model):
         verbose_name = 'سوال نظرسنجی'
         verbose_name_plural = 'سوال‌های نظرسنجی'
         ordering = ['display_order', 'created_at']
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(has_score=True)
+                    | models.Q(has_comment=True)
+                    | models.Q(has_emoji=True)
+                ),
+                name='surveyq_has_answer_type',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(has_score=True) | models.Q(score_required=False),
+                name='surveyq_score_req_enabled',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(has_comment=True) | models.Q(comment_required=False),
+                name='surveyq_comment_req_enabled',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(has_emoji=True) | models.Q(emoji_required=False),
+                name='surveyq_emoji_req_enabled',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(has_score=True, has_comment=False, has_emoji=False)
+                    | models.Q(score_required=True)
+                ),
+                name='surveyq_single_score_req',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(has_score=False, has_comment=True, has_emoji=False)
+                    | models.Q(comment_required=True)
+                ),
+                name='surveyq_single_comment_req',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(has_score=False, has_comment=False, has_emoji=True)
+                    | models.Q(emoji_required=True)
+                ),
+                name='surveyq_single_emoji_req',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.text[:60]} - {self.survey.title}'
