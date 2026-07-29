@@ -13,7 +13,7 @@ export default function CopyrightNotice({
         target="_blank"
         rel="noreferrer"
         title={GITHUB_URL}
-        className="font-semibold text-gray-500 underline decoration-transparent underline-offset-4 transition-colors hover:text-[color:var(--c-700)] hover:decoration-current focus:outline-none focus:ring-2 focus:ring-[color:var(--c-300)] focus:ring-offset-2"
+        className="compact-link align-middle font-semibold text-gray-600 underline decoration-transparent underline-offset-4 transition-colors hover:text-[color:var(--c-700)] hover:decoration-current"
       >
         nothingness-dev
       </a>{" "}

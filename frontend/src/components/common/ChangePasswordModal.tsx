@@ -31,15 +31,14 @@ function PasswordField({ label, value, onChange, placeholder, autoFocus }: {
           onChange={e => onChange(e.target.value)}
           autoFocus={autoFocus}
           autoComplete="off"
-          className="input-field w-full pl-10"
+          className="input-field w-full pe-12"
           placeholder={placeholder}
         />
         <button
           type="button"
           onClick={() => setShow(s => !s)}
-          tabIndex={-1}
           aria-label={show ? 'پنهان کردن رمز' : 'نمایش رمز'}
-          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+          className="icon-button absolute end-0 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
         >
           {show ? <EyeOffIcon /> : <EyeIcon />}
         </button>

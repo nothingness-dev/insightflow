@@ -111,9 +111,9 @@ export default function SurveyResultsPage() {
   return (
     <div className="responsive-page max-w-4xl">
 <div className="flex flex-wrap items-center gap-1.5 text-sm text-slate-400 mb-5">
-        <Link to="/admin/surveys" className="hover:text-slate-600 transition-colors">نظرسنجی‌ها</Link>
+        <Link to="/admin/surveys" className="compact-link hover:text-slate-700 transition-colors">نظرسنجی‌ها</Link>
         <span>/</span>
-        <Link to={`/admin/surveys/${id}`} className="hover:text-slate-600 transition-colors truncate max-w-[160px]">{survey.title}</Link>
+        <Link to={`/admin/surveys/${id}`} className="compact-link hover:text-slate-700 transition-colors truncate max-w-[160px]">{survey.title}</Link>
         <span>/</span>
         <span className="text-slate-700">نتایج</span>
       </div>

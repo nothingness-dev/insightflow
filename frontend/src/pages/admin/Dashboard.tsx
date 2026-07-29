@@ -277,7 +277,7 @@ export default function AdminDashboard() {
           <h2 className="section-title">آخرین نظرسنجی‌ها</h2>
           <Link
             to="/admin/surveys"
-            className="text-sm font-medium transition-colors"
+            className="compact-link text-sm font-medium transition-colors"
             style={{ color: "var(--c-600)" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--c-700)")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "var(--c-600)")}
@@ -308,7 +308,7 @@ export default function AdminDashboard() {
                   <StatusBadge status={survey.status} />
                   <Link
                     to={`/admin/surveys/${survey.id}`}
-                    className="text-xs hover:underline"
+                    className="compact-link text-xs hover:underline"
                     style={{ color: "var(--c-600)" }}
                   >
                     جزئیات

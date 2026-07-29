@@ -25,12 +25,12 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-[100dvh]"
       style={{ backgroundColor: "var(--c-bg)" }}
       dir="rtl"
     >
       <header className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 shadow-sm sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+        <div className="app-container max-w-5xl py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="w-8 h-8 theme-bg rounded-lg flex items-center justify-center">
               <svg
@@ -47,7 +47,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
                 />
               </svg>
             </div>
-            <NavLink to="/surveys" className="text-sm font-bold text-slate-800 dark:text-slate-200">
+            <NavLink to="/surveys" className="compact-link text-sm font-bold text-slate-800 dark:text-slate-200">
               InsightFlow
             </NavLink>
           </div>
@@ -102,7 +102,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
                       exit="exit"
                       transition={reduced ? T.instant : { duration: D.fast / 1000, ease: E.standard }}
                       style={{ transformOrigin: "top left" }}
-                      className="absolute left-0 mt-2 w-52 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 py-1.5 z-40"
+                      className="absolute end-0 mt-2 w-52 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 py-1.5 z-40"
                     >
                       <div className="px-3 py-2 border-b border-gray-50 dark:border-gray-700">
                         <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
@@ -164,7 +164,7 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="responsive-page max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
+      <main className="responsive-page app-container max-w-5xl py-5 sm:py-8">
         <PageTransition>{children}</PageTransition>
         <CopyrightNotice className="mt-8 border-t border-gray-100 pt-5" />
       </main>

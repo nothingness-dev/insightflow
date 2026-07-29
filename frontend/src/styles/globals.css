@@ -21,22 +21,24 @@
   --surface: #ffffff;
   --surface-alt: #f9fafb;
   --border-soft: #f3f4f6;
+  --focus-ring: #7e22ce;
+  --page-gutter: 1rem;
+  --page-block-space: 1.25rem;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 .dark {
   --surface: #171b25;
   --surface-alt: #202634;
   --border-soft: #343b4d;
+  --focus-ring: #d8b4fe;
 }
 
 @keyframes skeleton-shimmer {
   100% { transform: translateX(100%); }
-}
-
-*, *::before, *::after {
-  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
-  transition-timing-function: ease;
-  transition-duration: 0.2s;
 }
 
 @layer base {
@@ -48,10 +50,9 @@
 
   
   :focus-visible {
-    outline: 2px solid var(--c-400);
+    outline: 3px solid var(--focus-ring);
     outline-offset: 2px;
     border-radius: 4px;
-    transition: outline-color 0.15s ease;
   }
   button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
@@ -61,10 +62,15 @@
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
   .skeleton::after { animation: none !important; }
+  button:hover,
+  a:hover,
+  .card:hover,
   .person-card:hover { transform: none !important; }
 }
 
@@ -120,11 +126,11 @@
   
   .input-field {
     @apply w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm
-           focus:outline-none focus:border-transparent
+           focus:border-transparent
            transition-all duration-200 ease-out placeholder-gray-400;
     background-color: var(--surface);
   }
-  .input-field:focus { box-shadow: 0 0 0 3px var(--c-200); border-color: var(--c-400); }
+  .input-field:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 25%, transparent); border-color: var(--focus-ring); }
   .dark .input-field { @apply border-transparent text-gray-100; background-color: var(--surface-alt); }
   .dark .input-field::placeholder { color: #79869b; }
 
@@ -152,10 +158,10 @@
 
   .select-search {
     @apply px-3 py-2 rounded-lg border border-gray-200 text-sm text-right text-gray-700
-           focus:outline-none placeholder-gray-400;
+           placeholder-gray-400;
     background-color: var(--surface-alt);
   }
-  .select-search:focus { box-shadow: 0 0 0 3px var(--c-200); border-color: var(--c-400); }
+  .select-search:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 25%, transparent); border-color: var(--focus-ring); }
   .dark .select-search { @apply border-transparent text-gray-100; }
   .dark .select-search::placeholder { color: #79869b; }
 
@@ -313,16 +319,34 @@
 
 @layer base {
   *, *::before, *::after { box-sizing: border-box; }
-  html, body, #root { min-height: 100%; }
+  html, body, #root { min-height: 100%; min-inline-size: 0; }
   html { -webkit-text-size-adjust: 100%; }
-  body { min-width: 320px; }
+  body { min-inline-size: 0; overflow-wrap: break-word; }
   img, svg, video, canvas { max-width: 100%; }
   button, input, textarea, select { min-width: 0; }
-  input, textarea, select { font-size: 16px; }
 }
 
 @layer components {
-  .responsive-page { width: 100%; min-width: 0; }
+  .responsive-page {
+    width: 100%;
+    min-width: 0;
+    max-inline-size: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .app-container {
+    width: 100%;
+    min-width: 0;
+    margin-inline: auto;
+    padding-inline-start: max(var(--page-gutter), var(--safe-right));
+    padding-inline-end: max(var(--page-gutter), var(--safe-left));
+  }
+
+  .app-page {
+    padding-block: var(--page-block-space);
+    padding-inline-start: max(var(--page-gutter), var(--safe-right));
+    padding-inline-end: max(var(--page-gutter), var(--safe-left));
+  }
 
   .table-wrapper,
   .responsive-table-wrap {
@@ -338,14 +362,24 @@
   .responsive-table { width: 100%; min-width: 640px; }
 
   .touch-target {
-    min-height: 2.75rem;
-    min-width: 2.75rem;
+    display: inline-flex;
+    min-block-size: 2.75rem;
+    min-inline-size: 2.75rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .compact-link {
+    display: inline-flex;
+    min-block-size: 2.75rem;
+    min-inline-size: 2.75rem;
+    align-items: center;
   }
 
   .icon-button {
     display: inline-flex;
-    min-height: 2.75rem;
-    min-width: 2.75rem;
+    min-block-size: 2.75rem;
+    min-inline-size: 2.75rem;
     align-items: center;
     justify-content: center;
   }
@@ -358,11 +392,17 @@
 }
 
 @media (max-width: 639px) {
-  button {
-    min-height: 2.75rem;
-    min-width: 2.75rem;
+  :root {
+    --page-gutter: 0.875rem;
+    --page-block-space: 1rem;
   }
 
+  button {
+    min-block-size: 2.75rem;
+    min-inline-size: 2.75rem;
+  }
+
+  .text-xs { font-size: 0.8125rem; line-height: 1.25rem; }
   .page-title { font-size: 1.25rem; line-height: 1.75rem; }
   .section-title { font-size: 1rem; }
 
@@ -384,6 +424,84 @@
     display: block;
     width: 1px;
     height: 1px;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select,
+  .input-field,
+  .select-search {
+    min-block-size: 2.75rem;
+    font-size: 1rem !important;
+  }
+
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]) {
+    min-block-size: 2.75rem;
+  }
+}
+
+@media (min-width: 640px) {
+  :root {
+    --page-gutter: 1.5rem;
+    --page-block-space: 1.5rem;
+  }
+}
+
+/* Dynamic viewport utilities keep existing Tailwind markup stable on mobile
+   browsers whose URL bar changes the legacy vh unit while scrolling. */
+.min-h-screen { min-height: 100vh; min-height: 100dvh; }
+.h-screen { height: 100vh; height: 100dvh; }
+
+/* These utilities are used as secondary copy throughout the app. Tailwind's
+   gray-400 is too light for normal-size text on white, so the light-mode
+   foundation uses the AA-safe slate-500 value. Dark-mode mappings below remain
+   intentionally lighter. */
+.text-gray-400,
+.text-slate-400 { color: #59687d; }
+.text-gray-500,
+.text-slate-500 { color: #596579; }
+.placeholder-gray-400::placeholder {
+  color: #59687d;
+  opacity: 1;
+}
+.text-red-500 { color: #dc2626; }
+
+:where(button, input, textarea, select):disabled,
+:where([aria-disabled="true"]) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+:where(button, input, textarea, select)[aria-busy="true"] {
+  cursor: progress;
+}
+
+:where(input, textarea, select)[aria-invalid="true"] {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.16);
+}
+
+:where([aria-pressed="true"], [aria-selected="true"]) {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--focus-ring);
+}
+
+/* Unlayered focus styling intentionally wins over utility classes such as
+   focus:outline-none. This keeps the same visible keyboard treatment across
+   native controls, links, and custom trigger buttons. */
+:where(a[href], button, input, textarea, select, [role="button"], [tabindex]):focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  :where(a[href], button, input, textarea, select, [role="button"], [tabindex]):focus-visible {
+    outline: 3px solid CanvasText;
+  }
+  :where([aria-current="page"], [aria-selected="true"], [aria-pressed="true"]) {
+    outline: 2px solid CanvasText;
   }
 }
 
@@ -466,6 +584,7 @@
 .dark .text-emerald-600 { color: #34d399; }
 .dark .text-red-700, .dark .text-red-800 { color: #fca5a5; }
 .dark .text-red-600 { color: #f87171; }
+.dark .text-red-500 { color: #f87171; }
 .dark .text-amber-700, .dark .text-amber-800 { color: #fcd34d; }
 .dark .text-amber-600 { color: #fbbf24; }
 .dark .text-purple-700, .dark .text-purple-800 { color: #d8b4fe; }

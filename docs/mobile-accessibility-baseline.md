@@ -86,3 +86,35 @@ The first complete run on 2026-07-29 produced:
 - no serious/critical axe violation in the representative admin-dashboard scan.
 
 These are baseline failures, not accepted exceptions. Milestone 2 should start with shared target sizing, mobile form typography, and muted-text contrast because those changes have the widest cross-route effect.
+
+## Milestone 2 verification
+
+The shared-foundation implementation was verified on 2026-07-29 with the same 90-state matrix:
+
+| Check | Before | After |
+| --- | ---: | ---: |
+| Serious/high findings | 3 | 0 |
+| Axe violations in representative scans | 3 | 0 |
+| State combinations with sub-44 px targets | 90 | 20 |
+| Mobile state combinations with sub-44 px targets | 60 | 0 |
+| Mobile form-font findings | 28 | 0 |
+| Horizontal overflow | 0 | 0 |
+| Missing initial focus indicator | 0 | 0 |
+| Browser console errors | 0 | 0 |
+| Blocked routes | 0 | 0 |
+
+The 20 remaining target-size advisories are all desktop-only compact controls. They remain recorded, but are not mobile regressions and do not block completion of the shared mobile foundation milestone.
+
+Milestone 2 introduced:
+
+- AA-safe light-mode muted and error colors;
+- a high-contrast, forced-colors-compatible focus ring;
+- consistent disabled, busy, invalid, and selected states;
+- 44 px mobile buttons, form controls, icon buttons, and compact links;
+- 16 px mobile input text and 13 px mobile secondary text;
+- dynamic viewport-height fallbacks and safe-area-aware page gutters;
+- reusable `app-container`, `app-page`, `touch-target`, and `compact-link` foundations;
+- logical RTL positioning and spacing in the shared shells and form controls;
+- selected-state semantics for numeric and emoji ratings;
+- stronger reduced-motion fallbacks;
+- correct effective-target measurement for checkboxes and radio controls wrapped by labels.
