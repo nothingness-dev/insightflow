@@ -1,5 +1,27 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.6] — 2026-07-29
+
+### Added
+
+- Added a repeatable mobile accessibility baseline covering 15 application
+  routes and states across mobile and desktop viewports, light and dark themes,
+  overflow, focus, target sizing, form typography, and automated axe checks.
+
+### Improved
+
+- Improved shared mobile foundations with accessible touch targets, form text,
+  focus and selected states, contrast, safe-area spacing, RTL positioning, and
+  reduced-motion behavior.
+
+### Fixed
+
+- Enforced valid, required answers for score-only, comment-only, and emoji-only
+  survey questions consistently in the admin UI, API, model validation, and
+  database, while safely normalizing existing question records.
+- Sequenced the survey requirement migration after the IP-audit index migration
+  and aligned IP-audit test data with the new database guarantees.
+
 ## [2.10.0-ip-audit.5] — 2026-07-28
 
 ### Improved
