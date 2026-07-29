@@ -1,3 +1,11 @@
+## [2.10.2] — 2026-07-29
+
+### Improved
+
+- Enlarged anonymous-survey participant cards with clearer photos, details,
+  completion states, and rating actions while keeping them more compact than
+  the signed-in employee cards.
+
 ## [2.10.1] — 2026-07-27
 
 ### Changed
