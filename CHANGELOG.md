@@ -1,3 +1,12 @@
+## [2.10.5] — 2026-07-29
+
+### Fixed
+
+- Committed survey-question normalization before adding PostgreSQL constraints,
+  preventing pending trigger events from blocking container startup.
+- Removed unused compiler and PostgreSQL development packages from the backend
+  image, eliminating an unnecessary Debian download and reducing image size.
+
 ## [2.10.4] — 2026-07-29
 
 ### Fixed
