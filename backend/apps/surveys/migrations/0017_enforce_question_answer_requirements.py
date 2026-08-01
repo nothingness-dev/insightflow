@@ -1,6 +1,25 @@
 from django.db import migrations, models
 
 
+class AddConstraintIfMissing(migrations.AddConstraint):
+    """Keep this branch compatible with databases previously migrated on main."""
+
+    def database_forwards(self, app_label, schema_editor, from_state, to_state):
+        model = to_state.apps.get_model(app_label, self.model_name)
+        if not self.allow_migrate_model(schema_editor.connection.alias, model):
+            return
+
+        with schema_editor.connection.cursor() as cursor:
+            existing = schema_editor.connection.introspection.get_constraints(
+                cursor,
+                model._meta.db_table,
+            )
+        if self.constraint.name in existing:
+            return
+
+        super().database_forwards(app_label, schema_editor, from_state, to_state)
+
+
 def normalize_question_requirements(apps, schema_editor):
     SurveyQuestion = apps.get_model('surveys', 'SurveyQuestion')
 
@@ -51,7 +70,7 @@ class Migration(migrations.Migration):
             migrations.RunPython.noop,
             atomic=True,
         ),
-        migrations.AddConstraint(
+        AddConstraintIfMissing(
             model_name='surveyquestion',
             constraint=models.CheckConstraint(
                 condition=(
@@ -62,28 +81,28 @@ class Migration(migrations.Migration):
                 name='surveyq_has_answer_type',
             ),
         ),
-        migrations.AddConstraint(
+        AddConstraintIfMissing(
             model_name='surveyquestion',
             constraint=models.CheckConstraint(
                 condition=models.Q(has_score=True) | models.Q(score_required=False),
                 name='surveyq_score_req_enabled',
             ),
         ),
-        migrations.AddConstraint(
+        AddConstraintIfMissing(
             model_name='surveyquestion',
             constraint=models.CheckConstraint(
                 condition=models.Q(has_comment=True) | models.Q(comment_required=False),
                 name='surveyq_comment_req_enabled',
             ),
         ),
-        migrations.AddConstraint(
+        AddConstraintIfMissing(
             model_name='surveyquestion',
             constraint=models.CheckConstraint(
                 condition=models.Q(has_emoji=True) | models.Q(emoji_required=False),
                 name='surveyq_emoji_req_enabled',
             ),
         ),
-        migrations.AddConstraint(
+        AddConstraintIfMissing(
             model_name='surveyquestion',
             constraint=models.CheckConstraint(
                 condition=(
@@ -93,7 +112,7 @@ class Migration(migrations.Migration):
                 name='surveyq_single_score_req',
             ),
         ),
-        migrations.AddConstraint(
+        AddConstraintIfMissing(
             model_name='surveyquestion',
             constraint=models.CheckConstraint(
                 condition=(
@@ -103,7 +122,7 @@ class Migration(migrations.Migration):
                 name='surveyq_single_comment_req',
             ),
         ),
-        migrations.AddConstraint(
+        AddConstraintIfMissing(
             model_name='surveyquestion',
             constraint=models.CheckConstraint(
                 condition=(
