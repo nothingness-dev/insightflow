@@ -1,3 +1,24 @@
+## [2.10.8] — 2026-08-02
+
+### Added
+
+- Added shared, screen-reader-friendly participation progress for anonymous and
+  signed-in survey flows.
+- Added inline, recoverable submission feedback that preserves entered answers
+  when a request fails.
+
+### Improved
+
+- Compressed participant cards without reserving portrait space when no photo
+  exists, while keeping identities, metadata, statuses, and actions aligned.
+- Replaced the fixed anonymous continuation bar with safe sticky actions for
+  both anonymous and employee participation.
+- Simplified question-card chrome and added visible checkmarks alongside ARIA
+  selected states for score and SVG emoji ratings.
+- Made score and emoji grids reflow cleanly at 320 px and 200% text scaling.
+- Expanded the mobile regression suite to verify participant cards, progress,
+  sticky actions, touch targets, and keyboard-selected rating states.
+
 ## [2.10.7] — 2026-08-02
 
 ### Added
