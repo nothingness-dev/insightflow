@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, FormEvent } from 'react';
-import { Modal } from '../common/index';
+import { useEffect, useId, useRef, useState, FormEvent } from 'react';
+import { Modal, ModalErrorSummary } from '../common/index';
 import { adminPersonApi } from '../../api/endpoints';
 import { SurveyPerson } from '../../types';
 import { getErrorMessage } from '../../utils/helpers';
@@ -16,6 +16,9 @@ interface Props {
 export default function PersonModal({ open, onClose, onSaved, surveyId, person }: Props) {
   const isEdit = !!person;
   const fileRef = useRef<HTMLInputElement>(null);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
+  const formId = useId();
+  const fullNameId = `${formId}-full-name`;
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -57,6 +60,9 @@ export default function PersonModal({ open, onClose, onSaved, surveyId, person }
     const e: Record<string, string> = {};
     if (!form.full_name.trim()) e.full_name = 'نام و نام خانوادگی الزامی است';
     setErrors(e);
+    if (Object.keys(e).length > 0) {
+      window.requestAnimationFrame(() => errorSummaryRef.current?.focus());
+    }
     return Object.keys(e).length === 0;
   };
 
@@ -96,9 +102,27 @@ export default function PersonModal({ open, onClose, onSaved, surveyId, person }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? 'ویرایش فرد' : 'افزودن فرد'} size="md">
-      <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
-<div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={isEdit ? 'ویرایش فرد' : 'افزودن فرد'}
+      size="md"
+      dismissible={!saving}
+      busy={saving}
+      bodyClassName="p-4 sm:p-6"
+      footer={(
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+          <button type="submit" form={formId} disabled={saving} className="btn-primary flex items-center justify-center gap-2">
+            {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+            {isEdit ? 'ذخیره تغییرات' : 'افزودن فرد'}
+          </button>
+          <button type="button" onClick={onClose} className="btn-secondary" disabled={saving}>انصراف</button>
+        </div>
+      )}
+    >
+      <form id={formId} onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <ModalErrorSummary ref={errorSummaryRef} errors={Object.values(errors).filter(Boolean)} />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div
             className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center cursor-pointer border-2 border-dashed border-gray-200 hover:border-[color:var(--c-400)] transition-colors flex-shrink-0"
             onClick={() => fileRef.current?.click()}
@@ -119,10 +143,10 @@ export default function PersonModal({ open, onClose, onSaved, surveyId, person }
             <input ref={fileRef} type="file" className="hidden" accept="image/jpeg,image/png,image/webp" onChange={handleFile} />
           </div>
         </div>
-<div>
-          <label className="label">نام و نام خانوادگی <span className="text-red-500">*</span></label>
-          <input type="text" value={form.full_name} onChange={set('full_name')} className={`input-field ${errors.full_name ? 'border-red-400' : ''}`} placeholder="مثال: علی رضایی" />
-          {errors.full_name && <p className="text-xs text-red-500 mt-1">{errors.full_name}</p>}
+        <div>
+          <label htmlFor={fullNameId} className="label">نام و نام خانوادگی <span className="text-red-500">*</span></label>
+          <input id={fullNameId} type="text" value={form.full_name} onChange={set('full_name')} className={`input-field ${errors.full_name ? 'border-red-400' : ''}`} placeholder="مثال: علی رضایی" aria-invalid={!!errors.full_name || undefined} aria-describedby={errors.full_name ? `${fullNameId}-error` : undefined} />
+          {errors.full_name && <p id={`${fullNameId}-error`} role="alert" className="text-xs text-red-500 mt-1">{errors.full_name}</p>}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -159,13 +183,6 @@ export default function PersonModal({ open, onClose, onSaved, surveyId, person }
           </div>
         </div>
 
-        <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
-          <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto flex items-center gap-2">
-            {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-            {isEdit ? 'ذخیره تغییرات' : 'افزودن فرد'}
-          </button>
-          <button type="button" onClick={onClose} className="btn-secondary w-full sm:w-auto" disabled={saving}>انصراف</button>
-        </div>
       </form>
     </Modal>
   );

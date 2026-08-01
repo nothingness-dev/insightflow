@@ -98,40 +98,56 @@ export const listItem: Variants = {
 export function useFocusTrap(
   containerRef: React.RefObject<HTMLElement | null>,
   active: boolean,
+  initialFocusRef?: React.RefObject<HTMLElement | null>,
 ): void {
   useEffect(() => {
     if (!active || !containerRef.current) return;
 
     const el = containerRef.current;
-    const focusable =
+    const getFocusable = () => Array.from(
       el.querySelectorAll<HTMLElement>(
         'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      );
-    if (focusable.length === 0) return;
-
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
+      ),
+    ).filter(item => {
+      if (item.getAttribute('aria-hidden') === 'true') return false;
+      const styles = window.getComputedStyle(item);
+      return styles.visibility !== 'hidden' && styles.display !== 'none' && item.getClientRects().length > 0;
+    });
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Tab') return;
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
+
+      const focusable = getFocusable();
+      if (focusable.length === 0) {
+        e.preventDefault();
+        el.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const current = document.activeElement;
+
+      if (e.shiftKey && (current === first || !el.contains(current))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (current === last || !el.contains(current))) {
+        e.preventDefault();
+        first.focus();
       }
     }
 
     el.addEventListener('keydown', handleKeyDown);
-    first.focus();
+    const preferredTarget = initialFocusRef?.current;
+    if (preferredTarget && el.contains(preferredTarget)) {
+      preferredTarget.focus();
+    } else if (!el.contains(document.activeElement)) {
+      const first = getFocusable()[0];
+      (first || el).focus();
+    }
 
     return () => el.removeEventListener('keydown', handleKeyDown);
-  }, [active, containerRef]);
+  }, [active, containerRef, initialFocusRef]);
 }
 
 export function useKeyboardNav(
