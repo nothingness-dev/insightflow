@@ -416,6 +416,22 @@
     padding-block-end: calc(7rem + var(--safe-bottom)) !important;
   }
 
+  .has-sticky-bottom-action {
+    padding-block-end: max(1.5rem, calc(0.75rem + var(--safe-bottom))) !important;
+  }
+
+  .participation-sticky-action {
+    inset-block-end: max(0.5rem, var(--safe-bottom));
+  }
+
+  .rating-score-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(2.75rem, 100%), 1fr));
+  }
+
+  .rating-emoji-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(4rem, 100%), 1fr));
+  }
+
   .safe-sticky-action {
     inset-block-end: max(0.5rem, var(--safe-bottom));
     margin-block-end: var(--safe-bottom);

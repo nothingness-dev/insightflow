@@ -519,6 +519,55 @@ async function collectFocusEvidence(page) {
   });
 }
 
+async function collectParticipationEvidence(page, route, viewport, theme) {
+  if (!['anonymous-survey', 'employee-survey-detail'].includes(route.id)) return null;
+  const prefix = route.role === 'anonymous' ? 'anonymous' : 'employee';
+  const evidence = await page.evaluate(prefixValue => {
+    const cards = [...document.querySelectorAll(`[data-testid^="${prefixValue}-participant-card-"]`)];
+    const actions = [...document.querySelectorAll(`[data-testid^="${prefixValue}-rating-trigger-"]`)];
+    const progress = document.querySelector(`[data-testid="${prefixValue}-participation-progress"]`);
+    const progressbar = progress?.querySelector('[role="progressbar"]');
+    const sticky = document.querySelector(`[data-testid="${prefixValue}-sticky-next"]`);
+    return {
+      cardCount: cards.length,
+      compactIdentityCount: cards.filter(card => card.querySelector(`[data-testid^="${prefixValue}-participant-identity-"]`)).length,
+      emptyMediaReserved: cards.some(card => (
+        !card.querySelector(`[data-testid^="${prefixValue}-participant-media-"]`) &&
+        !card.querySelector(`[data-testid^="${prefixValue}-participant-identity-"]`)
+      )),
+      allActionsTouchSized: actions.every(action => {
+        const rect = action.getBoundingClientRect();
+        return rect.width >= 44 && rect.height >= 44;
+      }),
+      progressVisible: Boolean(progress && progress.getBoundingClientRect().height > 0),
+      progressValue: progressbar?.getAttribute('aria-valuenow') ?? null,
+      progressMax: progressbar?.getAttribute('aria-valuemax') ?? null,
+      stickyVisible: Boolean(sticky && sticky.getBoundingClientRect().height > 0),
+      stickyPosition: sticky ? getComputedStyle(sticky).position : null,
+    };
+  }, prefix);
+
+  const invalid = {
+    cardsRendered: evidence.cardCount > 0,
+    compactIdentityAvailable: evidence.compactIdentityCount === evidence.cardCount,
+    noEmptyMediaReservation: !evidence.emptyMediaReserved,
+    touchSizedActions: evidence.allActionsTouchSized,
+    progressAvailable: evidence.progressVisible && evidence.progressValue !== null && evidence.progressMax !== null,
+    stickyContinuation: evidence.stickyVisible && evidence.stickyPosition === 'sticky',
+  };
+  if (Object.values(invalid).some(value => !value)) {
+    report.findings.push({
+      severity: 'high',
+      route: route.id,
+      viewport: viewport.key,
+      theme,
+      rule: 'participation-flow',
+      detail: JSON.stringify({ ...invalid, evidence }),
+    });
+  }
+  return evidence;
+}
+
 async function openAndVerifyOverlay(page, route, viewport, theme) {
   const trigger = page.getByTestId(route.triggerTestId);
   const dialog = page.getByTestId(route.dialogTestId);
@@ -638,6 +687,39 @@ async function openAndVerifyRatingModal(page, route, viewport, theme) {
   await page.waitForTimeout(100);
   const reopenedFocusContained = await dialog.evaluate(element => element.contains(document.activeElement));
 
+  let selectedState = null;
+  if (route.setup === 'open-rating-dialog') {
+    const scoreOption = dialog.locator('button[aria-label^="امتیاز "]').first();
+    const emojiOption = dialog.locator('button[aria-label^="امتیاز کیفی:"]').first();
+    const hitTargetMatches = locator => locator.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return hit === element || element.contains(hit);
+    });
+    let scoreHitTarget = false;
+    let emojiHitTarget = false;
+    if (await scoreOption.isVisible().catch(() => false)) {
+      await scoreOption.focus();
+      await page.waitForTimeout(50);
+      scoreHitTarget = await hitTargetMatches(scoreOption).catch(() => false);
+      await page.keyboard.press('Space');
+    }
+    if (await emojiOption.isVisible().catch(() => false)) {
+      await emojiOption.focus();
+      await page.waitForTimeout(50);
+      emojiHitTarget = await hitTargetMatches(emojiOption).catch(() => false);
+      await page.keyboard.press('Space');
+    }
+    selectedState = {
+      scorePressed: await scoreOption.getAttribute('aria-pressed').catch(() => null),
+      scoreHasCheck: await scoreOption.locator('svg').count().then(count => count > 0).catch(() => false),
+      scoreHitTarget,
+      emojiPressed: await emojiOption.getAttribute('aria-pressed').catch(() => null),
+      emojiHasCheck: await emojiOption.locator('span svg').count().then(count => count > 0).catch(() => false),
+      emojiHitTarget,
+    };
+  }
+
   let validationSummary = null;
   if (route.setup === 'open-rating-errors') {
     await page.getByTestId('anonymous-rating-submit').click();
@@ -661,6 +743,7 @@ async function openAndVerifyRatingModal(page, route, viewport, theme) {
     independentlyScrollable,
     bodyScroll,
     validationSummary,
+    selectedState,
   };
   const coreChecks = {
     initialFocusContained,
@@ -672,6 +755,9 @@ async function openAndVerifyRatingModal(page, route, viewport, theme) {
     independentlyScrollable,
     validationSummaryValid: validationSummary
       ? Object.values(validationSummary).every(Boolean)
+      : true,
+    selectedStateExposed: selectedState
+      ? Object.values(selectedState).every(value => value === true || value === 'true')
       : true,
   };
 
@@ -715,6 +801,7 @@ async function captureRoute(page, route, viewport, theme) {
 
   const metrics = await collectMetrics(page);
   const focus = await collectFocusEvidence(page);
+  const participationEvidence = await collectParticipationEvidence(page, route, viewport, theme);
   let axe = null;
   if (route.axe && viewport.key === 'mobile-390' && theme === 'light') {
     const result = await new AxeBuilder({ page })
@@ -795,6 +882,7 @@ async function captureRoute(page, route, viewport, theme) {
     axe,
     overlayEvidence,
     modalEvidence,
+    participationEvidence,
   });
 }
 
