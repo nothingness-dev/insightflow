@@ -1,5 +1,21 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.8] — 2026-08-01
+
+### Added
+
+- Added a shared shell menu for version, display, theme, settings, and account
+  actions across admin, employee, and anonymous survey pages.
+- Expanded the mobile accessibility matrix with open-state checks for the
+  admin drawer and shared shell menus at 320 and 390 CSS pixels.
+
+### Improved
+
+- Rebuilt the admin mobile drawer and shared headers with focus trapping,
+  Escape dismissal, focus restoration, and background scroll locking.
+- Added safe-area spacing for headers, drawers, sticky controls, and fixed
+  anonymous-survey actions so content is not covered on narrow devices.
+
 ## [2.10.0-ip-audit.7] — 2026-07-29
 
 ### Fixed
