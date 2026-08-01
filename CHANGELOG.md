@@ -1,3 +1,21 @@
+## [2.10.6] — 2026-08-01
+
+### Added
+
+- Added automated mobile accessibility coverage for the main public, employee,
+  and admin flows at 320 and 390 CSS pixels in light and dark themes.
+- Added a shared shell menu for version, display, theme, settings, and account
+  actions across admin, employee, and anonymous survey pages.
+
+### Improved
+
+- Rebuilt the admin mobile drawer and shared headers with keyboard focus
+  trapping, Escape dismissal, focus restoration, and background scroll locking.
+- Standardized mobile touch targets, form text, focus indicators, contrast,
+  logical RTL spacing, reduced motion, and selected-state semantics.
+- Added safe-area spacing for headers, drawers, sticky controls, and fixed
+  anonymous-survey actions so content remains visible on narrow devices.
+
 ## [2.10.5] — 2026-07-29
 
 ### Fixed
