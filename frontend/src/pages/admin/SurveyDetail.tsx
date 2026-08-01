@@ -383,8 +383,26 @@ export default function SurveyDetail() {
         surveyId={surveyId}
         person={personModal.person}
       />
-      <Modal open={!!questionPerson} onClose={() => !savingQuestions && !revertingQuestions && setQuestionPerson(null)} title="سوال‌های اختصاصی فرد" size="lg">
-        <div className="flex flex-col max-h-[80vh]" dir="rtl">
+      <Modal
+        open={!!questionPerson}
+        onClose={() => !savingQuestions && !revertingQuestions && setQuestionPerson(null)}
+        title="سوال‌های اختصاصی فرد"
+        size="lg"
+        dismissible={!savingQuestions && !revertingQuestions}
+        busy={savingQuestions || revertingQuestions}
+        footer={(
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:justify-end sm:gap-3">
+            {questionPerson?.uses_default_questions === false && (
+              <button type="button" className="btn-secondary text-red-600" disabled={savingQuestions || revertingQuestions} onClick={revertPersonToDefault}>
+                {revertingQuestions ? 'در حال بازگشت…' : 'بازگشت به سوال‌های پیش‌فرض'}
+              </button>
+            )}
+            <button type="button" className="btn-secondary" disabled={savingQuestions || revertingQuestions} onClick={() => setQuestionPerson(null)}>انصراف</button>
+            <button type="button" className="btn-primary" disabled={savingQuestions || revertingQuestions} onClick={savePersonQuestions}>{savingQuestions ? 'در حال ذخیره…' : 'ذخیره'}</button>
+          </div>
+        )}
+      >
+        <div dir="rtl">
           <div className="p-4 sm:p-5 pb-3 space-y-2 flex-shrink-0">
             <div className="rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 px-3 py-2">
               <p className="text-sm font-bold text-slate-800 dark:text-slate-100 break-words">{questionPerson?.full_name}</p>
@@ -401,7 +419,7 @@ export default function SurveyDetail() {
             )}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5">
+          <div className="px-4 pb-4 sm:px-5 sm:pb-5">
             <QuestionsEditor
               questions={questionsDraft}
               onChange={setQuestionsDraft}
@@ -415,15 +433,6 @@ export default function SurveyDetail() {
             />
           </div>
 
-          <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end p-4 sm:p-5 pt-3 border-t border-gray-100 flex-shrink-0">
-            {questionPerson?.uses_default_questions === false && (
-              <button className="btn-secondary w-full sm:w-auto text-red-600" disabled={savingQuestions || revertingQuestions} onClick={revertPersonToDefault}>
-                {revertingQuestions ? 'در حال بازگشت…' : 'بازگشت به سوال‌های پیش‌فرض'}
-              </button>
-            )}
-            <button className="btn-secondary w-full sm:w-auto" disabled={savingQuestions || revertingQuestions} onClick={() => setQuestionPerson(null)}>انصراف</button>
-            <button className="btn-primary w-full sm:w-auto" disabled={savingQuestions || revertingQuestions} onClick={savePersonQuestions}>{savingQuestions ? 'در حال ذخیره…' : 'ذخیره'}</button>
-          </div>
         </div>
       </Modal>
 

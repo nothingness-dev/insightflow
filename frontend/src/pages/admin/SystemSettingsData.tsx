@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { dashboardApi } from '../../api/endpoints';
 import { PageHeader, EmptyState, Modal, PasswordInput } from '../../components/common/index';
 import { formatNumber, getErrorMessage } from '../../utils/helpers';
@@ -15,6 +15,7 @@ interface DataCounts {
 const CONFIRM_PHRASE = 'حذف همه';
 
 export default function SystemSettingsData() {
+  const fieldPrefix = useId();
   const [counts, setCounts] = useState<DataCounts | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -117,8 +118,30 @@ export default function SystemSettingsData() {
         </div>
       </div>
 
-      <Modal open={modalOpen} onClose={closeModal} title="حذف تمام داده‌ها" size="sm">
-        <div className="p-6 space-y-4">
+      <Modal
+        open={modalOpen}
+        onClose={closeModal}
+        title="حذف تمام داده‌ها"
+        size="sm"
+        dismissible={!deleting}
+        busy={deleting}
+        bodyClassName="p-5 sm:p-6"
+        footer={(
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={handleDeleteAll}
+              disabled={!canDelete}
+              className="min-h-11 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              {deleting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              حذف تمام داده‌ها
+            </button>
+            <button type="button" onClick={closeModal} className="btn-secondary" disabled={deleting}>انصراف</button>
+          </div>
+        )}
+      >
+        <div className="space-y-4">
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
             <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5C2.962 18.333 3.924 20 5.464 20z" />
@@ -137,8 +160,9 @@ export default function SystemSettingsData() {
             </div>
           )}
           <div>
-            <label className="label">برای تأیید، عبارت «حذف همه» را تایپ کنید</label>
+            <label htmlFor={`${fieldPrefix}-confirm`} className="label">برای تأیید، عبارت «حذف همه» را تایپ کنید</label>
             <input
+              id={`${fieldPrefix}-confirm`}
               value={confirmText}
               onChange={e => setConfirmText(e.target.value)}
               className="input-field"
@@ -146,19 +170,8 @@ export default function SystemSettingsData() {
             />
           </div>
           <div>
-            <label className="label">رمز عبور خود را وارد کنید</label>
-            <PasswordInput value={password} onChange={setPassword} placeholder="رمز عبور" />
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={handleDeleteAll}
-              disabled={!canDelete}
-              className="flex-1 py-2.5 text-sm font-medium rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors flex items-center justify-center gap-2"
-            >
-              {deleting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              حذف تمام داده‌ها
-            </button>
-            <button onClick={closeModal} className="btn-secondary" disabled={deleting}>انصراف</button>
+            <label htmlFor={`${fieldPrefix}-password`} className="label">رمز عبور خود را وارد کنید</label>
+            <PasswordInput id={`${fieldPrefix}-password`} value={password} onChange={setPassword} placeholder="رمز عبور" autoComplete="current-password" />
           </div>
         </div>
       </Modal>

@@ -481,8 +481,18 @@ export default function SurveyForm() {
         onClose={() => setPreviewOpen(false)}
         title="پیش‌نمایش نظرسنجی"
         size="lg"
+        bodyClassName="p-4 sm:p-6"
+        footer={(
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(false)}
+            className="btn-primary w-full sm:w-auto"
+          >
+            بستن پیش‌نمایش
+          </button>
+        )}
       >
-        <div className="p-4 sm:p-6 space-y-5" dir="rtl">
+        <div className="space-y-5" dir="rtl">
           <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
             <p className="text-xs font-semibold text-gray-400 mb-2">
               نمای شرکت‌کننده
@@ -530,15 +540,6 @@ export default function SurveyForm() {
                 </div>
               </div>
             ))}
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => setPreviewOpen(false)}
-              className="btn-primary"
-            >
-              بستن پیش‌نمایش
-            </button>
           </div>
         </div>
       </Modal>

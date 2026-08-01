@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { anonymousApi } from '../api/endpoints';
 import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../types';
-import { Modal, AnonymousSurveySkeleton } from '../components/common/index';
+import { Modal, ModalErrorSummary, AnonymousSurveySkeleton } from '../components/common/index';
 import ShellOverflowMenu from '../components/common/ShellOverflowMenu';
 import CopyrightNotice from '../components/common/CopyrightNotice';
 import { formatNumber, getErrorMessage } from '../utils/helpers';
@@ -179,7 +179,9 @@ const AnonymousPersonCard = ({ person, onRate, disabled, rowRef, highlight }: {
             </div>
           ) : (
             <button
+              type="button"
               onClick={onRate}
+              data-testid={`anonymous-rating-trigger-${person.id}`}
               className="w-full min-h-11 rounded-lg bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-xs font-semibold transition-all duration-150 shadow-sm hover:shadow-md"
             >
               پاسخ به سوال‌ها
@@ -201,6 +203,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
   const [answers, setAnswers] = useState<Record<number, DraftAnswer>>({});
   const [localErrors, setLocalErrors] = useState<Record<number, string>>({});
   const [step, setStep] = useState(0);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
   // For long surveys, present one question at a time to reduce scrolling.
   const paged = questions.length > 3;
 
@@ -241,6 +244,9 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
       if (!hasVal) errs[q.id] = 'این سوال نباید خالی بماند.';
     }
     setLocalErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      window.requestAnimationFrame(() => errorSummaryRef.current?.focus());
+    }
     return Object.keys(errs).length === 0;
   };
 
@@ -255,7 +261,10 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
       const hasVal = (q.has_score && a.score !== null) || (q.has_emoji && !!a.emoji_rating) || (q.has_comment && !!comment);
       if (!hasVal) err = 'این سوال نباید خالی بماند.';
     }
-    if (err) setLocalErrors(cur => ({ ...cur, [q.id]: err }));
+    if (err) {
+      setLocalErrors(cur => ({ ...cur, [q.id]: err }));
+      window.requestAnimationFrame(() => errorSummaryRef.current?.focus());
+    }
     return !err;
   };
 
@@ -285,11 +294,55 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
     onClose(incomplete);
   };
 
+  const footer = person ? (
+    <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:gap-3">
+      {paged ? (
+        <>
+          {step < questions.length - 1 ? (
+            <button type="button" onClick={goNext} className="btn-primary min-w-0">بعدی</button>
+          ) : (
+            <button type="button" onClick={submit} disabled={submitting} data-testid="anonymous-rating-submit"
+              className="btn-primary min-w-0 flex items-center justify-center gap-2">
+              {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
+              <span className="truncate">ثبت همه پاسخ‌ها</span>
+            </button>
+          )}
+          <button type="button" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0 || submitting}
+            className="btn-secondary min-w-0 disabled:opacity-40">قبلی</button>
+        </>
+      ) : (
+        <>
+          <button type="button" onClick={submit} disabled={submitting} data-testid="anonymous-rating-submit"
+            className="btn-primary min-w-0 flex items-center justify-center gap-2">
+            {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
+            <span className="truncate">ثبت همه پاسخ‌ها</span>
+          </button>
+          <button type="button" onClick={handleCloseAttempt} className="btn-secondary min-w-0" disabled={submitting}>انصراف</button>
+        </>
+      )}
+    </div>
+  ) : null;
+
   return (
-    <Modal open={open} onClose={handleCloseAttempt} size="lg">
-      <div className="p-4 sm:p-6 max-h-[85dvh] overflow-y-auto">
+    <Modal
+      open={open}
+      onClose={handleCloseAttempt}
+      title={person ? `پاسخ به سوال‌ها · ${person.full_name}` : 'پاسخ به سوال‌ها'}
+      size="lg"
+      dismissible={!submitting}
+      busy={submitting}
+      bodyClassName="p-4 sm:p-6"
+      footer={footer}
+      testId="anonymous-rating-modal"
+    >
+      <div>
         {person && (
           <>
+            <ModalErrorSummary
+              ref={errorSummaryRef}
+              errors={Object.values(localErrors)}
+              className="mb-4"
+            />
             <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-3 sm:gap-4 mb-5 pb-5 border-b border-gray-100">
               <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[color:var(--c-100)] flex-shrink-0 shadow-sm">
                 {person.photo_url
@@ -319,9 +372,15 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
                 if (paged && idx !== step) return null;
                 const a = answers[q.id] || { score: null, emoji_rating: null, comment: '' };
                 return (
-                  <div key={q.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <section
+                    key={q.id}
+                    id={`anonymous-rating-question-${q.id}`}
+                    aria-labelledby={`anonymous-rating-question-${q.id}-label`}
+                    aria-describedby={localErrors[q.id] ? `anonymous-rating-question-${q.id}-error` : undefined}
+                    className="rounded-2xl border border-gray-100 bg-gray-50 p-4"
+                  >
                     <div className="mb-3">
-                      <p className="text-sm font-bold text-slate-800 leading-relaxed">{formatNumber(idx + 1)}. {q.text}</p>
+                      <p id={`anonymous-rating-question-${q.id}-label`} className="text-sm font-bold text-slate-800 leading-relaxed">{formatNumber(idx + 1)}. {q.text}</p>
                       {q.help_text && <p className="text-xs text-gray-400 mt-1">{q.help_text}</p>}
                       <p className="text-[11px] text-gray-400 mt-1">{getQuestionTypeLabel(q)}</p>
                     </div>
@@ -351,47 +410,22 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
 
                     {q.has_comment && (
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                        <label htmlFor={`anonymous-rating-comment-${q.id}`} className="block text-xs font-medium text-gray-500 mb-1.5">
                           توضیحات {q.comment_required ? <span className="text-red-500">*</span> : <span className="text-gray-400 font-normal">(اختیاری)</span>}
                         </label>
-                        <textarea value={a.comment} onChange={e => updateAnswer(q.id, { comment: e.target.value })}
+                        <textarea id={`anonymous-rating-comment-${q.id}`} value={a.comment} onChange={e => updateAnswer(q.id, { comment: e.target.value })}
                           rows={3} maxLength={1000} placeholder="نظر یا توضیح خود را بنویسید..."
-                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--c-400)] focus:border-transparent resize-none placeholder-gray-300 leading-relaxed bg-white"/>
+                          aria-invalid={!!localErrors[q.id] || undefined}
+                          aria-describedby={localErrors[q.id] ? `anonymous-rating-question-${q.id}-error` : undefined}
+                          className="input-field w-full resize-none rounded-xl leading-relaxed"/>
                         {a.comment.length > 0 && <p className="text-xs text-gray-400 text-left mt-1">{formatNumber(a.comment.length)}/{formatNumber(1000)}</p>}
                       </div>
                     )}
 
-                    {localErrors[q.id] && <p className="text-xs text-red-500 mt-2">{localErrors[q.id]}</p>}
-                  </div>
+                    {localErrors[q.id] && <p id={`anonymous-rating-question-${q.id}-error`} role="alert" className="text-xs text-red-500 mt-2">{localErrors[q.id]}</p>}
+                  </section>
                 );
               })}
-            </div>
-
-            <div className="flex gap-2 sm:gap-3 pt-3 border-t border-gray-100">
-              {paged ? (
-                <>
-                  {step < questions.length - 1 ? (
-                    <button onClick={goNext} className="btn-primary flex-1 min-w-0">بعدی</button>
-                  ) : (
-                    <button onClick={submit} disabled={submitting}
-                      className="btn-primary flex-1 min-w-0 flex items-center justify-center gap-2">
-                      {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
-                      <span className="truncate">ثبت همه پاسخ‌ها</span>
-                    </button>
-                  )}
-                  <button onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0 || submitting}
-                    className="btn-secondary flex-1 min-w-0 disabled:opacity-40">قبلی</button>
-                </>
-              ) : (
-                <>
-                  <button onClick={submit} disabled={submitting}
-                    className="btn-primary flex-1 min-w-0 flex items-center justify-center gap-2">
-                    {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
-                    <span className="truncate">ثبت همه پاسخ‌ها</span>
-                  </button>
-                  <button onClick={handleCloseAttempt} className="btn-secondary flex-1 min-w-0" disabled={submitting}>انصراف</button>
-                </>
-              )}
             </div>
           </>
         )}

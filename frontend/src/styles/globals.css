@@ -421,6 +421,12 @@
     inset-block-end: max(0.5rem, var(--safe-bottom));
     margin-block-end: var(--safe-bottom);
   }
+
+  .modal-scroll-region {
+    scroll-padding-block: 1rem;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 @media (max-width: 639px) {

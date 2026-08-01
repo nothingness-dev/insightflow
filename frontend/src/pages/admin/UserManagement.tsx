@@ -1,7 +1,7 @@
-import { useState, FormEvent, useRef } from 'react';
+import { useState, FormEvent, useId, useRef } from 'react';
 import { adminUserApi } from '../../api/endpoints';
 import { BulkImportResult, User } from '../../types';
-import { PageHeader, SearchInput, Select, EmptyState, TableSkeleton, ConfirmModal, Modal, PasswordInput, ActionMenu } from '../../components/common/index';
+import { PageHeader, SearchInput, Select, EmptyState, TableSkeleton, ConfirmModal, Modal, ModalErrorSummary, PasswordInput, ActionMenu } from '../../components/common/index';
 import { formatDate, formatNumber, getErrorMessage } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -58,6 +58,9 @@ export default function UserManagement() {
   const [importResult, setImportResult] = useState<BulkImportResult | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
+  const userFormId = useId();
+  const userFieldPrefix = useId();
 
 
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
@@ -78,6 +81,9 @@ export default function UserManagement() {
     if (!editUser && !form.password) e.password = 'رمز عبور الزامی است';
     if (!editUser && form.password !== form.password_confirm) e.password_confirm = 'رمزها مطابقت ندارند';
     setErrors(e);
+    if (Object.keys(e).length > 0) {
+      window.requestAnimationFrame(() => errorSummaryRef.current?.focus());
+    }
     return Object.keys(e).length === 0;
   };
 
@@ -341,18 +347,36 @@ export default function UserManagement() {
           )}
         </div>
       )}
-<Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editUser ? 'ویرایش کاربر' : 'کاربر جدید'} size="md">
-        <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-4">
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editUser ? 'ویرایش کاربر' : 'کاربر جدید'}
+        size="md"
+        dismissible={!saving}
+        busy={saving}
+        bodyClassName="p-4 sm:p-6"
+        footer={(
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+            <button type="submit" form={userFormId} disabled={saving} className="btn-primary flex items-center justify-center gap-2">
+              {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              {editUser ? 'ذخیره تغییرات' : 'ایجاد کاربر'}
+            </button>
+            <button type="button" onClick={() => setModalOpen(false)} disabled={saving} className="btn-secondary">انصراف</button>
+          </div>
+        )}
+      >
+        <form id={userFormId} onSubmit={handleSave} className="space-y-4" noValidate>
+          <ModalErrorSummary ref={errorSummaryRef} errors={Object.values(errors).filter(Boolean)} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="label">نام و نام خانوادگی <span className="text-red-500">*</span></label>
-              <input value={form.full_name} onChange={set('full_name')} className={`input-field ${errors.full_name ? 'border-red-400' : ''}`} placeholder="نام کامل" />
-              {errors.full_name && <p className="text-xs text-red-500 mt-1">{errors.full_name}</p>}
+              <label htmlFor={`${userFieldPrefix}-full-name`} className="label">نام و نام خانوادگی <span className="text-red-500">*</span></label>
+              <input id={`${userFieldPrefix}-full-name`} value={form.full_name} onChange={set('full_name')} className={`input-field ${errors.full_name ? 'border-red-400' : ''}`} placeholder="نام کامل" aria-invalid={!!errors.full_name || undefined} aria-describedby={errors.full_name ? `${userFieldPrefix}-full-name-error` : undefined} />
+              {errors.full_name && <p id={`${userFieldPrefix}-full-name-error`} role="alert" className="text-xs text-red-500 mt-1">{errors.full_name}</p>}
             </div>
             <div>
-              <label className="label">نام کاربری {!editUser && <span className="text-red-500">*</span>}</label>
+              <label htmlFor={`${userFieldPrefix}-username`} className="label">نام کاربری {!editUser && <span className="text-red-500">*</span>}</label>
               {editUser ? (
-                <div className="input-field bg-gray-50 text-gray-500 cursor-default flex items-center gap-2">
+                <div id={`${userFieldPrefix}-username`} className="input-field bg-gray-50 text-gray-500 cursor-default flex items-center gap-2">
                   <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                   </svg>
@@ -361,8 +385,8 @@ export default function UserManagement() {
                 </div>
               ) : (
                 <>
-                  <input value={form.username} onChange={set('username')} className={`input-field ${errors.username ? 'border-red-400' : ''}`} placeholder="username" />
-                  {errors.username && <p className="text-xs text-red-500 mt-1">{errors.username}</p>}
+                  <input id={`${userFieldPrefix}-username`} value={form.username} onChange={set('username')} className={`input-field ${errors.username ? 'border-red-400' : ''}`} placeholder="username" aria-invalid={!!errors.username || undefined} aria-describedby={errors.username ? `${userFieldPrefix}-username-error` : undefined} />
+                  {errors.username && <p id={`${userFieldPrefix}-username-error`} role="alert" className="text-xs text-red-500 mt-1">{errors.username}</p>}
                 </>
               )}
             </div>
@@ -389,44 +413,45 @@ export default function UserManagement() {
           {!editUser && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="label">رمز عبور <span className="text-red-500">*</span></label>
-                <PasswordInput value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} placeholder="رمز عبور" error={!!errors.password} />
-                {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
+                <label htmlFor={`${userFieldPrefix}-password`} className="label">رمز عبور <span className="text-red-500">*</span></label>
+                <PasswordInput id={`${userFieldPrefix}-password`} value={form.password} onChange={v => setForm(f => ({ ...f, password: v }))} placeholder="رمز عبور" error={!!errors.password} ariaDescribedBy={errors.password ? `${userFieldPrefix}-password-error` : undefined} />
+                {errors.password && <p id={`${userFieldPrefix}-password-error`} role="alert" className="text-xs text-red-500 mt-1">{errors.password}</p>}
               </div>
               <div>
-                <label className="label">تکرار رمز عبور <span className="text-red-500">*</span></label>
-                <PasswordInput value={form.password_confirm} onChange={v => setForm(f => ({ ...f, password_confirm: v }))} placeholder="تکرار رمز عبور" error={!!errors.password_confirm} />
-                {errors.password_confirm && <p className="text-xs text-red-500 mt-1">{errors.password_confirm}</p>}
+                <label htmlFor={`${userFieldPrefix}-password-confirm`} className="label">تکرار رمز عبور <span className="text-red-500">*</span></label>
+                <PasswordInput id={`${userFieldPrefix}-password-confirm`} value={form.password_confirm} onChange={v => setForm(f => ({ ...f, password_confirm: v }))} placeholder="تکرار رمز عبور" error={!!errors.password_confirm} ariaDescribedBy={errors.password_confirm ? `${userFieldPrefix}-password-confirm-error` : undefined} />
+                {errors.password_confirm && <p id={`${userFieldPrefix}-password-confirm-error`} role="alert" className="text-xs text-red-500 mt-1">{errors.password_confirm}</p>}
               </div>
             </div>
           )}
-          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
-            <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto flex items-center gap-2">
-              {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              {editUser ? 'ذخیره تغییرات' : 'ایجاد کاربر'}
-            </button>
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary w-full sm:w-auto">انصراف</button>
-          </div>
         </form>
       </Modal>
-<Modal open={!!resetId} onClose={closeResetModal} title="تغییر رمز عبور" size="sm">
-        <div className="p-4 sm:p-6 space-y-4">
+      <Modal
+        open={!!resetId}
+        onClose={closeResetModal}
+        title="تغییر رمز عبور"
+        size="sm"
+        dismissible={!resetting}
+        busy={resetting}
+        bodyClassName="p-4 sm:p-6"
+        footer={(
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+            <button type="button" onClick={requestReset} disabled={resetting || !newPass || !newPassConfirm} className="btn-primary">تغییر رمز</button>
+            <button type="button" onClick={closeResetModal} disabled={resetting} className="btn-secondary">انصراف</button>
+          </div>
+        )}
+      >
+        <div className="space-y-4">
           <p className="text-xs text-gray-500">کاربر در اولین ورود بعدی ملزم به تغییر این رمز خواهد بود.</p>
           <div>
-            <label className="label">رمز عبور جدید</label>
-            <PasswordInput value={newPass} onChange={setNewPass} placeholder="رمز عبور جدید" autoFocus error={!!resetErr} />
+            <label htmlFor={`${userFieldPrefix}-reset-password`} className="label">رمز عبور جدید</label>
+            <PasswordInput id={`${userFieldPrefix}-reset-password`} value={newPass} onChange={setNewPass} placeholder="رمز عبور جدید" error={!!resetErr} ariaDescribedBy={resetErr ? `${userFieldPrefix}-reset-password-error` : undefined} />
           </div>
           <div>
-            <label className="label">تکرار رمز عبور</label>
-            <PasswordInput value={newPassConfirm} onChange={setNewPassConfirm} placeholder="رمز عبور جدید را دوباره وارد کنید" error={!!resetErr} />
+            <label htmlFor={`${userFieldPrefix}-reset-password-confirm`} className="label">تکرار رمز عبور</label>
+            <PasswordInput id={`${userFieldPrefix}-reset-password-confirm`} value={newPassConfirm} onChange={setNewPassConfirm} placeholder="رمز عبور جدید را دوباره وارد کنید" error={!!resetErr} ariaDescribedBy={resetErr ? `${userFieldPrefix}-reset-password-error` : undefined} />
           </div>
-          {resetErr && <p className="text-xs text-red-500">{resetErr}</p>}
-          <div className="flex flex-col-reverse sm:flex-row gap-3">
-            <button onClick={requestReset} disabled={resetting || !newPass || !newPassConfirm} className="btn-primary w-full sm:w-auto flex items-center gap-2">
-              تغییر رمز
-            </button>
-            <button onClick={closeResetModal} className="btn-secondary w-full sm:w-auto">انصراف</button>
-          </div>
+          {resetErr && <p id={`${userFieldPrefix}-reset-password-error`} role="alert" className="text-xs text-red-500">{resetErr}</p>}
         </div>
       </Modal>
 
@@ -440,9 +465,31 @@ export default function UserManagement() {
         confirmVariant="primary"
         loading={resetting}
       />
-<Modal open={importModalOpen} onClose={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }} title="آپلود کاربران از فایل" size="lg">
-        <div className="p-4 sm:p-6 space-y-5">
-<div className="bg-gray-50 rounded-xl p-4 text-xs font-mono text-gray-600 leading-relaxed border border-gray-100">
+      <Modal
+        open={importModalOpen}
+        onClose={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }}
+        title="آپلود کاربران از فایل"
+        size="lg"
+        dismissible={!importing}
+        busy={importing}
+        bodyClassName="p-4 sm:p-6"
+        footer={(
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={handleImport}
+              disabled={!importFile || importing}
+              className="btn-primary flex items-center justify-center gap-2"
+            >
+              {importing && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              {importing ? 'در حال ساخت حساب‌ها...' : 'آپلود و ایجاد کاربران'}
+            </button>
+            <button type="button" onClick={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }} disabled={importing} className="btn-secondary">بستن</button>
+          </div>
+        )}
+      >
+        <div className="space-y-5">
+          <div className="bg-gray-50 rounded-xl p-4 text-xs font-mono text-gray-600 leading-relaxed border border-gray-100">
             <p className="text-gray-400 mb-2 font-sans font-medium text-xs">فرمت فایل CSV یا TXT (هر خط یک کاربر):</p>
             <p>username,نام کامل,رمز عبور,نقش</p>
             <p className="text-gray-400 mt-1"># نقش اختیاری است: employee (پیش‌فرض) یا admin</p>
@@ -454,7 +501,7 @@ export default function UserManagement() {
               <p>manager1,مدیر اول,Admin@2024,admin</p>
             </div>
           </div>
-<div
+          <div
             className={`border-2 border-dashed rounded-xl p-5 sm:p-8 text-center cursor-pointer transition-colors
               ${isDragging ? 'border-[color:var(--c-400)] bg-[color:var(--c-50)] scale-[1.01]' :
                 importFile ? 'border-[color:var(--c-300)] bg-[color:var(--c-50)]' :
@@ -557,21 +604,27 @@ export default function UserManagement() {
             </div>
           )}
 
-          <div className="flex gap-3">
-            <button
-              onClick={handleImport}
-              disabled={!importFile || importing}
-              className="btn-primary flex items-center gap-2"
-            >
-              {importing && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              {importing ? 'در حال ساخت حساب‌ها...' : 'آپلود و ایجاد کاربران'}
-            </button>
-            <button onClick={() => { setImportModalOpen(false); setImportResult(null); setIsDragging(false); }} className="btn-secondary">بستن</button>
-          </div>
         </div>
       </Modal>
-<Modal open={!!deleteUserId} onClose={() => setDeleteUserId(null)} title="حذف کاربر" size="sm">
-        <div className="p-6 space-y-4">
+      <Modal
+        open={!!deleteUserId}
+        onClose={() => setDeleteUserId(null)}
+        title="حذف کاربر"
+        size="sm"
+        dismissible={!deletingUser}
+        busy={deletingUser}
+        bodyClassName="p-5 sm:p-6"
+        footer={(
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+            <button type="button" onClick={handleDeleteUser} disabled={deletingUser} className="btn-danger flex items-center justify-center gap-2">
+              {deletingUser && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}
+              بله، حذف شود
+            </button>
+            <button type="button" onClick={() => setDeleteUserId(null)} disabled={deletingUser} className="btn-secondary">انصراف</button>
+          </div>
+        )}
+      >
+        <div>
           <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
             <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5C2.962 18.333 3.924 20 5.464 20z"/>
@@ -582,17 +635,6 @@ export default function UserManagement() {
                 حساب کاربری <strong>{users.find(u => u.id === deleteUserId)?.full_name}</strong> برای همیشه حذف می‌شود.
               </p>
             </div>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={handleDeleteUser}
-              disabled={deletingUser}
-              className="btn-danger flex items-center gap-2"
-            >
-              {deletingUser && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>}
-              بله، حذف شود
-            </button>
-            <button onClick={() => setDeleteUserId(null)} className="btn-secondary">انصراف</button>
           </div>
         </div>
       </Modal>

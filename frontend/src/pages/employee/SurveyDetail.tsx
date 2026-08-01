@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { employeeApi } from '../../api/endpoints';
 import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../../types';
-import { PageLoader, Modal, PersonGridSkeleton, Skeleton } from '../../components/common/index';
+import { PageLoader, Modal, ModalErrorSummary, PersonGridSkeleton, Skeleton } from '../../components/common/index';
 import { formatNumber, getErrorMessage } from '../../utils/helpers';
 import { isCanceledRequest } from '../../utils/http';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -155,7 +155,9 @@ function PersonCard({ person, onRate, disabled }: {
             </div>
           ) : (
             <button
+              type="button"
               onClick={onRate}
+              data-testid={`employee-rating-trigger-${person.id}`}
               className="w-full min-h-11 rounded-lg bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-xs font-semibold transition-all duration-150 shadow-sm hover:shadow-md"
             >
               پاسخ به سوال‌ها
@@ -177,6 +179,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
 }) {
   const [answers, setAnswers] = useState<Record<number, DraftAnswer>>({});
   const [localErrors, setLocalErrors] = useState<Record<number, string>>({});
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -240,6 +243,9 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
       }
     }
     setLocalErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      window.requestAnimationFrame(() => errorSummaryRef.current?.focus());
+    }
     return Object.keys(nextErrors).length === 0;
   };
 
@@ -265,10 +271,38 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
   };
 
   return (
-    <Modal open={open} onClose={handleCloseAttempt} size="lg">
-      <div className="p-3 sm:p-6 max-h-[88dvh] overflow-y-auto">
+    <Modal
+      open={open}
+      onClose={handleCloseAttempt}
+      title={person ? `پاسخ به سوال‌ها · ${person.full_name}` : 'پاسخ به سوال‌ها'}
+      size="lg"
+      dismissible={!submitting}
+      busy={submitting}
+      bodyClassName="p-3 sm:p-6"
+      testId="employee-rating-modal"
+      footer={person ? (
+        <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={submit}
+            disabled={submitting}
+            className="btn-primary min-w-0 flex items-center justify-center gap-2"
+          >
+            {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
+            <span className="truncate">ثبت همه پاسخ‌ها</span>
+          </button>
+          <button type="button" onClick={handleCloseAttempt} className="btn-secondary min-w-0" disabled={submitting}>انصراف</button>
+        </div>
+      ) : null}
+    >
+      <div>
         {person && (
           <>
+            <ModalErrorSummary
+              ref={errorSummaryRef}
+              errors={Object.values(localErrors)}
+              className="mb-4"
+            />
             <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-3 sm:gap-4 mb-5 pb-5 border-b border-gray-100">
               <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[color:var(--c-100)] flex-shrink-0 shadow-sm">
                 {person.photo_url ? (
@@ -292,9 +326,15 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
               {questions.map((question, index) => {
                 const answer = answers[question.id] || { score: null, emoji_rating: null, comment: '' };
                 return (
-              <div key={question.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-3 sm:p-4">
+                  <section
+                    key={question.id}
+                    id={`employee-rating-question-${question.id}`}
+                    aria-labelledby={`employee-rating-question-${question.id}-label`}
+                    aria-describedby={localErrors[question.id] ? `employee-rating-question-${question.id}-error` : undefined}
+                    className="rounded-2xl border border-gray-100 bg-gray-50 p-3 sm:p-4"
+                  >
                     <div className="mb-3">
-                      <p className="text-sm font-bold text-slate-800 leading-relaxed">
+                      <p id={`employee-rating-question-${question.id}-label`} className="text-sm font-bold text-slate-800 leading-relaxed">
                         {formatNumber(index + 1)}. {question.text}
                       </p>
                       {question.help_text && <p className="text-xs text-gray-400 mt-1">{question.help_text}</p>}
@@ -337,16 +377,19 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
 
                     {question.has_comment && (
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                        <label htmlFor={`employee-rating-comment-${question.id}`} className="block text-xs font-medium text-gray-500 mb-1.5">
                           توضیحات {question.comment_required ? <span className="text-red-500">*</span> : <span className="text-gray-400 font-normal">(اختیاری)</span>}
                         </label>
                         <textarea
+                          id={`employee-rating-comment-${question.id}`}
                           value={answer.comment}
                           onChange={e => updateAnswer(question.id, { comment: e.target.value })}
                           rows={3}
                           maxLength={1000}
                           placeholder="نظر یا توضیح خود را بنویسید..."
-                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--c-400)] focus:border-transparent resize-none placeholder-gray-300 leading-relaxed bg-white"
+                          aria-invalid={!!localErrors[question.id] || undefined}
+                          aria-describedby={localErrors[question.id] ? `employee-rating-question-${question.id}-error` : undefined}
+                          className="input-field w-full resize-none rounded-xl leading-relaxed"
                         />
                         {answer.comment.length > 0 && (
                           <p className="text-xs text-gray-400 text-left mt-1">{formatNumber(answer.comment.length)}/{formatNumber(1000)}</p>
@@ -355,23 +398,11 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
                     )}
 
                     {localErrors[question.id] && (
-                      <p className="text-xs text-red-500 mt-2">{localErrors[question.id]}</p>
+                      <p id={`employee-rating-question-${question.id}-error`} role="alert" className="text-xs text-red-500 mt-2">{localErrors[question.id]}</p>
                     )}
-                  </div>
+                  </section>
                 );
               })}
-            </div>
-
-            <div className="flex gap-2 sm:gap-3 pt-3 pb-1 border-t border-gray-100">
-              <button
-                onClick={submit}
-                disabled={submitting}
-                className="btn-primary flex-1 min-w-0 flex items-center justify-center gap-2"
-              >
-                {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
-                <span className="truncate">ثبت همه پاسخ‌ها</span>
-              </button>
-              <button onClick={handleCloseAttempt} className="btn-secondary flex-1 min-w-0" disabled={submitting}>انصراف</button>
             </div>
           </>
         )}

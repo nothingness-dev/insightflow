@@ -94,7 +94,7 @@ export default function LoginPage() {
               </svg>
             </div>
             <h1 className="text-xl font-bold text-white">InsightFlow</h1>
-            <p className="text-white/70 text-sm mt-1">برای ادامه وارد شوید</p>
+            <p className="text-white text-sm mt-1">برای ادامه وارد شوید</p>
           </div>
           <div className="px-5 sm:px-8 py-6 sm:py-8">
             <form onSubmit={handleSubmit} className="space-y-5">

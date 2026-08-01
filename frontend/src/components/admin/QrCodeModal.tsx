@@ -60,8 +60,24 @@ export default function QrCodeModal({ open, onClose, url, label }: Props) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="کد QR لینک" size="sm">
-      <div className="p-5 sm:p-6">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="کد QR لینک"
+      size="sm"
+      bodyClassName="p-4 sm:p-6"
+      footer={(
+        <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:gap-3">
+          <button type="button" onClick={handleDownload} disabled={!ready} className="btn-primary text-sm">
+            دانلود PNG
+          </button>
+          <button type="button" onClick={onClose} className="btn-secondary text-sm">
+            بستن
+          </button>
+        </div>
+      )}
+    >
+      <div>
         <div className="mb-5 text-center">
           <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-gray-100 bg-[color:var(--c-50)] text-[color:var(--c-700)]">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -76,19 +92,16 @@ export default function QrCodeModal({ open, onClose, url, label }: Props) {
           </p>
         </div>
 
-        <div className="mx-auto w-fit rounded-2xl border border-gray-100 bg-gray-50 p-2 shadow-sm">
+        <div className="mx-auto w-full max-w-[19rem] rounded-2xl border border-gray-100 bg-gray-50 p-2 shadow-sm">
           <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-            <canvas ref={canvasRef} width={QR_SIZE} height={QR_SIZE} className={ready ? 'block' : 'hidden'} />
+            <canvas ref={canvasRef} width={QR_SIZE} height={QR_SIZE} className={`${ready ? 'block' : 'hidden'} h-auto w-full`} />
             {!ready && !error && (
-              <div
-                style={{ width: QR_SIZE, height: QR_SIZE }}
-                className="flex items-center justify-center text-xs text-gray-400"
-              >
+              <div className="flex aspect-square w-full items-center justify-center text-xs text-gray-400">
                 در حال ساخت کد QR...
               </div>
             )}
             {error && (
-              <div style={{ width: QR_SIZE, height: QR_SIZE }} className="flex items-center justify-center text-xs text-red-500">
+              <div className="flex aspect-square w-full items-center justify-center text-xs text-red-500">
                 {error}
               </div>
             )}
@@ -109,15 +122,6 @@ export default function QrCodeModal({ open, onClose, url, label }: Props) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 8h9.75A2.25 2.25 0 0 1 20 10.25V18a2.25 2.25 0 0 1-2.25 2.25H10A2.25 2.25 0 0 1 7.75 18V8.25A.25.25 0 0 1 8 8Z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 15.75h-.5A2.25 2.25 0 0 1 2.5 13.5V5A2.25 2.25 0 0 1 4.75 2.75h8.5A2.25 2.25 0 0 1 15.5 5v.5" />
             </svg>
-          </button>
-        </div>
-
-        <div className="mt-4 flex gap-2 w-full">
-          <button onClick={handleDownload} disabled={!ready} className="btn-primary flex-1 text-sm">
-            دانلود PNG
-          </button>
-          <button onClick={onClose} className="btn-secondary flex-1 text-sm">
-            بستن
           </button>
         </div>
 

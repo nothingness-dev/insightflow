@@ -1,4 +1,4 @@
-import { ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { ReactNode, RefObject, forwardRef, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -8,25 +8,31 @@ import {
 
 
 interface PasswordInputProps {
+  id?: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  autoComplete?: 'current-password' | 'new-password' | 'off';
   error?: boolean;
+  ariaDescribedBy?: string;
 }
 
-export function PasswordInput({ value, onChange, placeholder, autoFocus, error }: PasswordInputProps) {
+export function PasswordInput({ id, value, onChange, placeholder, autoFocus, autoComplete = 'new-password', error, ariaDescribedBy }: PasswordInputProps) {
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
       <input
+        id={id}
         type={show ? 'text' : 'password'}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         autoFocus={autoFocus}
-        autoComplete="new-password"
+        autoComplete={autoComplete}
         className={`input-field w-full pe-12 ${error ? 'border-red-400' : ''}`}
+        aria-invalid={error || undefined}
+        aria-describedby={ariaDescribedBy}
       />
       <button
         type="button"
@@ -56,20 +62,49 @@ interface ModalProps {
   title?: string;
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  footer?: ReactNode;
+  bodyClassName?: string;
+  footerClassName?: string;
+  ariaLabel?: string;
+  describedBy?: string;
+  dismissible?: boolean;
+  busy?: boolean;
+  showCloseButton?: boolean;
+  initialFocusRef?: RefObject<HTMLElement | null>;
+  testId?: string;
 }
 
-export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  size = 'md',
+  footer,
+  bodyClassName = '',
+  footerClassName = '',
+  ariaLabel = 'پنجره گفتگو',
+  describedBy,
+  dismissible = true,
+  busy = false,
+  showCloseButton = true,
+  initialFocusRef,
+  testId,
+}: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
+  const dismissibleRef = useRef(dismissible);
   const reduced = useMotionDisabled();
-
-  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  useEffect(() => {
+    dismissibleRef.current = dismissible;
+  }, [dismissible]);
 
   useEffect(() => {
     if (!open) return;
@@ -77,26 +112,37 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
     previouslyFocusedRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCloseRef.current();
+      if (event.key === 'Escape' && dismissibleRef.current) {
+        event.preventDefault();
+        onCloseRef.current();
+      }
     };
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleKeyDown);
-      previouslyFocusedRef.current?.focus();
+      if (previouslyFocusedRef.current?.isConnected) {
+        previouslyFocusedRef.current.focus();
+      }
     };
   }, [open]);
 
-  const sizeClass = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size];
+  useFocusTrap(dialogRef, open, initialFocusRef);
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+        <div
+          className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-4"
+          data-testid={testId ? `${testId}-layer` : 'modal-layer'}
+        >
           <motion.div
             variants={backdrop}
             initial="hidden"
@@ -104,21 +150,25 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
             exit="exit"
             transition={reduced ? T.instant : { duration: D.fast / 1000 }}
             className="absolute inset-0 bg-black/40 backdrop-blur-sm dark:bg-black/60"
-            onClick={onClose}
+            onClick={dismissible ? onClose : undefined}
+            aria-hidden="true"
           />
           <motion.div
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={title ? titleId : undefined}
-            aria-label={title ? undefined : 'پنجره گفتگو'}
+            aria-label={title ? undefined : ariaLabel}
+            aria-describedby={describedBy}
+            aria-busy={busy || undefined}
             tabIndex={-1}
+            data-testid={testId || 'modal-dialog'}
             variants={fadeScale}
             initial="hidden"
             animate="visible"
             exit="exit"
             transition={reduced ? T.instant : { duration: D.normal / 1000, ease: E.standard }}
-            className="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto border border-gray-100 dark:border-gray-700"
+            className="relative flex h-[100dvh] w-full flex-col overflow-hidden border border-gray-100 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800 sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl"
             style={
               size === 'sm' ? { maxWidth: '24rem' } :
               size === 'md' ? { maxWidth: '32rem' } :
@@ -126,27 +176,80 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
               { maxWidth: '56rem' }
             }
           >
-            {title && (
-              <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-gray-700">
-                <h2 id={titleId} className="text-base font-semibold text-slate-800 dark:text-slate-200">{title}</h2>
+            {(title || showCloseButton) && (
+              <div
+                className="flex flex-none items-center justify-between gap-3 border-b border-gray-100 px-4 pb-3 pt-[max(0.75rem,var(--safe-top))] dark:border-gray-700 sm:px-6 sm:py-4"
+                data-testid="modal-header"
+              >
+                {title ? (
+                  <h2 id={titleId} className="min-w-0 truncate text-base font-semibold text-slate-800 dark:text-slate-200">{title}</h2>
+                ) : (
+                  <span aria-hidden="true" />
+                )}
+                {showCloseButton && (
                 <button
+                  type="button"
                   onClick={onClose}
+                  disabled={!dismissible}
                   aria-label="بستن پنجره"
-                  className="icon-button rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  className="icon-button -m-1 shrink-0 rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
+                )}
               </div>
             )}
-            {children}
+            <div
+              className={`modal-scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain ${bodyClassName}`}
+              data-testid="modal-body"
+            >
+              {children}
+            </div>
+            {footer && (
+              <div
+                className={`flex-none border-t border-gray-100 bg-white px-4 pb-[max(0.75rem,var(--safe-bottom))] pt-3 dark:border-gray-700 dark:bg-gray-800 sm:px-6 sm:pb-4 ${footerClassName}`}
+                data-testid="modal-footer"
+              >
+                {footer}
+              </div>
+            )}
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
+
+interface ModalErrorSummaryProps {
+  errors: string[];
+  title?: string;
+  className?: string;
+}
+
+export const ModalErrorSummary = forwardRef<HTMLDivElement, ModalErrorSummaryProps>(function ModalErrorSummary(
+  { errors, title = 'لطفاً خطاهای زیر را اصلاح کنید', className = '' },
+  ref,
+) {
+  if (errors.length === 0) return null;
+
+  return (
+    <div
+      ref={ref}
+      role="alert"
+      tabIndex={-1}
+      data-testid="modal-error-summary"
+      className={`rounded-xl border border-red-200 bg-red-50 p-3 text-red-700 outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300 ${className}`}
+    >
+      <p className="text-sm font-semibold">{title}</p>
+      <ul className="mt-1.5 list-inside list-disc space-y-1 text-xs leading-relaxed">
+        {errors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}
+      </ul>
+    </div>
+  );
+});
 
 
 interface ConfirmModalProps {
@@ -161,9 +264,38 @@ interface ConfirmModalProps {
 }
 
 export function ConfirmModal({ open, onClose, onConfirm, title, message, confirmLabel = 'تایید', confirmVariant = 'danger', loading }: ConfirmModalProps) {
+  const descriptionId = useId();
+
   return (
-    <Modal open={open} onClose={onClose} size="sm">
-      <div className="p-6">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      size="sm"
+      describedBy={descriptionId}
+      dismissible={!loading}
+      busy={loading}
+      bodyClassName="p-5 sm:p-6"
+      footer={(
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className={`min-h-11 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              confirmVariant === 'danger'
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] text-white'
+            }`}
+          >
+            {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+            {confirmLabel}
+          </button>
+          <button type="button" onClick={onClose} className="btn-secondary" disabled={loading}>انصراف</button>
+        </div>
+      )}
+    >
+      <div>
         <div
           className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmVariant === 'danger' ? 'bg-red-50' : ''}`}
           style={confirmVariant === 'danger' ? undefined : { backgroundColor: 'var(--c-50)' }}
@@ -178,23 +310,7 @@ export function ConfirmModal({ open, onClose, onConfirm, title, message, confirm
             </svg>
           )}
         </div>
-        <h3 className="text-base font-semibold text-center text-slate-800 mb-2">{title}</h3>
-        <p className="text-sm text-gray-500 text-center mb-6 leading-relaxed">{message}</p>
-        <div className="flex flex-col-reverse sm:flex-row gap-3">
-          <button onClick={onClose} className="btn-secondary flex-1" disabled={loading}>انصراف</button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className={`min-h-11 flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              confirmVariant === 'danger'
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] text-white'
-            }`}
-          >
-            {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-            {confirmLabel}
-          </button>
-        </div>
+        <p id={descriptionId} className="text-sm text-gray-500 text-center leading-relaxed dark:text-gray-300">{message}</p>
       </div>
     </Modal>
   );

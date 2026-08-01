@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Modal, ConfirmModal } from './index';
+import { Modal, ConfirmModal, ModalErrorSummary } from './index';
 import { authApi } from '../../api/endpoints';
 import { useAuth } from '../../contexts/AuthContext';
 import { getErrorMessage } from '../../utils/helpers';
@@ -17,22 +17,26 @@ const EyeOffIcon = () => (
   </svg>
 );
 
-function PasswordField({ label, value, onChange, placeholder, autoFocus }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean;
+function PasswordField({ id, label, value, onChange, placeholder, autoFocus, autoComplete = 'new-password', errorId, invalid }: {
+  id: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean;
+  autoComplete?: 'current-password' | 'new-password'; errorId?: string; invalid?: boolean;
 }) {
   const [show, setShow] = useState(false);
   return (
     <div>
-      <label className="label">{label}</label>
+      <label htmlFor={id} className="label">{label}</label>
       <div className="relative">
         <input
+          id={id}
           type={show ? 'text' : 'password'}
           value={value}
           onChange={e => onChange(e.target.value)}
           autoFocus={autoFocus}
-          autoComplete="off"
+          autoComplete={autoComplete}
           className="input-field w-full pe-12"
           placeholder={placeholder}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? errorId : undefined}
         />
         <button
           type="button"
@@ -62,6 +66,11 @@ export default function ChangePasswordModal({ open, onClose, forced = false }: P
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const idPrefix = useId();
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
+  const currentId = `${idPrefix}-current`;
+  const nextId = `${idPrefix}-next`;
+  const confirmId = `${idPrefix}-confirm`;
 
   const reset = () => {
     setCurrent(''); setNext(''); setConfirmPass(''); setErrors({}); setConfirmOpen(false);
@@ -73,6 +82,9 @@ export default function ChangePasswordModal({ open, onClose, forced = false }: P
     if (!next) e.next = 'رمز عبور جدید را وارد کنید.';
     if (confirmPass !== next) e.confirm = 'تکرار رمز عبور مطابقت ندارد.';
     setErrors(e);
+    if (Object.keys(e).length > 0) {
+      window.requestAnimationFrame(() => errorSummaryRef.current?.focus());
+    }
     return Object.keys(e).length === 0;
   };
 
@@ -109,8 +121,28 @@ export default function ChangePasswordModal({ open, onClose, forced = false }: P
 
   return (
     <>
-      <Modal open={open} onClose={handleClose} title={forced ? undefined : 'تغییر رمز عبور'} size="sm">
-        <div className="p-4 sm:p-6 space-y-4">
+      <Modal
+        open={open}
+        onClose={handleClose}
+        title={forced ? 'تغییر رمز عبور الزامی' : 'تغییر رمز عبور'}
+        size="sm"
+        dismissible={!forced && !submitting}
+        busy={submitting}
+        showCloseButton={!forced}
+        bodyClassName="p-4 sm:p-6"
+        footer={(
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+            <button type="button" onClick={handleSubmit} className="btn-primary" disabled={submitting}>
+              تغییر رمز عبور
+            </button>
+            {!forced && (
+              <button type="button" onClick={handleClose} className="btn-secondary" disabled={submitting}>انصراف</button>
+            )}
+          </div>
+        )}
+      >
+        <div className="space-y-4">
+          <ModalErrorSummary ref={errorSummaryRef} errors={Object.values(errors).filter(Boolean)} />
           {forced && (
             <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
               <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -125,26 +157,17 @@ export default function ChangePasswordModal({ open, onClose, forced = false }: P
             </div>
           )}
 
-          <PasswordField label="رمز عبور فعلی" value={current} onChange={setCurrent}
-            placeholder="رمز عبور فعلی" autoFocus />
-          {errors.current && <p className="text-xs text-red-500 -mt-2">{errors.current}</p>}
+          <PasswordField id={currentId} label="رمز عبور فعلی" value={current} onChange={setCurrent}
+            placeholder="رمز عبور فعلی" autoComplete="current-password" invalid={!!errors.current} errorId={`${currentId}-error`} />
+          {errors.current && <p id={`${currentId}-error`} className="text-xs text-red-500 -mt-2">{errors.current}</p>}
 
-          <PasswordField label="رمز عبور جدید" value={next} onChange={setNext}
-            placeholder="رمز عبور جدید" />
-          {errors.next && <p className="text-xs text-red-500 -mt-2">{errors.next}</p>}
+          <PasswordField id={nextId} label="رمز عبور جدید" value={next} onChange={setNext}
+            placeholder="رمز عبور جدید" invalid={!!errors.next} errorId={`${nextId}-error`} />
+          {errors.next && <p id={`${nextId}-error`} className="text-xs text-red-500 -mt-2">{errors.next}</p>}
 
-          <PasswordField label="تکرار رمز عبور" value={confirmPass} onChange={setConfirmPass}
-            placeholder="رمز عبور جدید را دوباره وارد کنید" />
-          {errors.confirm && <p className="text-xs text-red-500 -mt-2">{errors.confirm}</p>}
-
-          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
-            {!forced && (
-              <button onClick={handleClose} className="btn-secondary w-full sm:flex-1" disabled={submitting}>انصراف</button>
-            )}
-            <button onClick={handleSubmit} className="btn-primary w-full sm:flex-1" disabled={submitting}>
-              تغییر رمز عبور
-            </button>
-          </div>
+          <PasswordField id={confirmId} label="تکرار رمز عبور" value={confirmPass} onChange={setConfirmPass}
+            placeholder="رمز عبور جدید را دوباره وارد کنید" invalid={!!errors.confirm} errorId={`${confirmId}-error`} />
+          {errors.confirm && <p id={`${confirmId}-error`} className="text-xs text-red-500 -mt-2">{errors.confirm}</p>}
         </div>
       </Modal>
 

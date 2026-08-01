@@ -346,6 +346,23 @@ async function prepareRoutes() {
       state: 'dialog-open',
       setup: 'open-rating-dialog',
     },
+    {
+      id: 'anonymous-rating-errors',
+      role: 'anonymous',
+      path: anonymousToken ? `/s/${anonymousToken}` : null,
+      state: 'validation-errors',
+      setup: 'open-rating-errors',
+      mobileOnly: true,
+    },
+    {
+      id: 'anonymous-rating-text-200',
+      role: 'anonymous',
+      path: anonymousToken ? `/s/${anonymousToken}` : null,
+      state: 'dialog-open-text-200',
+      setup: 'open-rating-dialog',
+      textScale: 2,
+      mobileOnly: true,
+    },
   ];
 
   report.routes = routes.map(({ setup, ...route }) => ({
@@ -563,37 +580,138 @@ async function openAndVerifyOverlay(page, route, viewport, theme) {
   return evidence;
 }
 
+async function openAndVerifyRatingModal(page, route, viewport, theme) {
+  const trigger = page.locator('[data-testid^="anonymous-rating-trigger-"]:not([disabled])').first();
+  const dialog = page.getByTestId('anonymous-rating-modal');
+
+  if (!(await trigger.isVisible().catch(() => false))) {
+    report.findings.push({
+      severity: 'high',
+      route: route.id,
+      viewport: viewport.key,
+      theme,
+      rule: 'dialog-state',
+      detail: 'No enabled participant action was available to open the rating dialog.',
+    });
+    return null;
+  }
+
+  await trigger.focus();
+  await trigger.click();
+  await dialog.waitFor({ state: 'visible', timeout: 3_000 });
+  await page.waitForTimeout(150);
+
+  const header = dialog.getByTestId('modal-header');
+  const body = dialog.getByTestId('modal-body');
+  const footer = dialog.getByTestId('modal-footer');
+  const initialFocusContained = await dialog.evaluate(element => element.contains(document.activeElement));
+  const beforeScroll = await Promise.all([header.boundingBox(), footer.boundingBox()]);
+  const bodyScroll = await body.evaluate(element => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    overflowY: getComputedStyle(element).overflowY,
+  }));
+  await body.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await page.waitForTimeout(100);
+  const afterScroll = await Promise.all([header.boundingBox(), footer.boundingBox()]);
+  const persistentChrome = Boolean(
+    beforeScroll[0] && beforeScroll[1] && afterScroll[0] && afterScroll[1] &&
+    Math.abs(beforeScroll[0].y - afterScroll[0].y) < 1 &&
+    Math.abs(beforeScroll[1].y - afterScroll[1].y) < 1,
+  );
+  const chromeVisible = await header.isVisible() && await footer.isVisible();
+  const independentlyScrollable = ['auto', 'scroll'].includes(bodyScroll.overflowY);
+
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden', timeout: 3_000 });
+  const escapeClosed = !(await dialog.isVisible().catch(() => false));
+  const focusRestored = await trigger.evaluate(element => document.activeElement === element);
+
+  // Let the intentional incomplete-close warning leave before the visual state
+  // so it does not obscure the dialog header in screenshots.
+  const statusMessages = page.locator('[role="status"]');
+  if (await statusMessages.count()) {
+    await statusMessages.first().waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+  }
+  await trigger.click();
+  await dialog.waitFor({ state: 'visible', timeout: 3_000 });
+  await page.waitForTimeout(100);
+  const reopenedFocusContained = await dialog.evaluate(element => element.contains(document.activeElement));
+
+  let validationSummary = null;
+  if (route.setup === 'open-rating-errors') {
+    await page.getByTestId('anonymous-rating-submit').click();
+    const summary = page.getByTestId('modal-error-summary');
+    await summary.waitFor({ state: 'visible', timeout: 3_000 });
+    await page.waitForTimeout(100);
+    validationSummary = {
+      visible: await summary.isVisible(),
+      focused: await summary.evaluate(element => document.activeElement === element),
+      footerVisible: await footer.isVisible(),
+    };
+  }
+
+  const evidence = {
+    initialFocusContained,
+    escapeClosed,
+    focusRestored,
+    reopenedFocusContained,
+    chromeVisible,
+    persistentChrome,
+    independentlyScrollable,
+    bodyScroll,
+    validationSummary,
+  };
+  const coreChecks = {
+    initialFocusContained,
+    escapeClosed,
+    focusRestored,
+    reopenedFocusContained,
+    chromeVisible,
+    persistentChrome,
+    independentlyScrollable,
+    validationSummaryValid: validationSummary
+      ? Object.values(validationSummary).every(Boolean)
+      : true,
+  };
+
+  if (Object.values(coreChecks).some(value => !value)) {
+    report.findings.push({
+      severity: 'high',
+      route: route.id,
+      viewport: viewport.key,
+      theme,
+      rule: 'rating-modal-accessibility',
+      detail: JSON.stringify({ ...coreChecks, bodyScroll }),
+    });
+  }
+
+  return evidence;
+}
+
 async function captureRoute(page, route, viewport, theme) {
   await navigate(page, route.path);
   await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
   await page.waitForTimeout(350);
+  await page.evaluate(scale => {
+    document.documentElement.style.fontSize = scale ? `${scale * 100}%` : '';
+  }, route.textScale || null);
+  await page.waitForTimeout(100);
 
   let overlayEvidence = null;
+  let modalEvidence = null;
   if (route.setup === 'open-overlay') {
     overlayEvidence = await openAndVerifyOverlay(page, route, viewport, theme);
   }
 
-  if (route.setup === 'open-rating-dialog') {
-    const trigger = page.locator('.person-card button:not([disabled])').first();
-    if (await trigger.count()) {
-      await trigger.click();
-      await page.waitForTimeout(250);
-    } else {
-      report.findings.push({
-        severity: 'high',
-        route: route.id,
-        viewport: viewport.key,
-        theme,
-        rule: 'dialog-state',
-        detail: 'No enabled participant action was available to open the rating dialog.',
-      });
-    }
+  if (['open-rating-dialog', 'open-rating-errors'].includes(route.setup)) {
+    modalEvidence = await openAndVerifyRatingModal(page, route, viewport, theme);
   }
 
   const relativeFile = path.join(theme, viewport.key, `${route.id}.png`);
   const screenshotPath = path.join(outputDir, relativeFile);
   await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
-  await page.screenshot({ path: screenshotPath, fullPage: true });
+  await page.screenshot({ path: screenshotPath, fullPage: !modalEvidence });
 
   const metrics = await collectMetrics(page);
   const focus = await collectFocusEvidence(page);
@@ -676,6 +794,7 @@ async function captureRoute(page, route, viewport, theme) {
     focus,
     axe,
     overlayEvidence,
+    modalEvidence,
   });
 }
 
@@ -767,7 +886,7 @@ async function writeReports() {
         )
       : ['- None']),
     '',
-    'This report is a baseline, not a WCAG conformance claim. Screen-reader, zoom/reflow, and real-device checks remain manual.',
+    'This report is a baseline, not a WCAG conformance claim. A 200% text-scale reflow state is automated; screen-reader, browser-zoom, and real-device checks remain manual.',
     '',
   ];
   await fs.writeFile(path.join(outputDir, 'summary.md'), lines.join('\n'), 'utf8');
