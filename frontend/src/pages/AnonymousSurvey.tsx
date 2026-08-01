@@ -4,9 +4,8 @@ import { useParams } from 'react-router-dom';
 import { anonymousApi } from '../api/endpoints';
 import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../types';
 import { Modal, AnonymousSurveySkeleton } from '../components/common/index';
-import ThemeSwitcher from '../components/common/ThemeSwitcher';
+import ShellOverflowMenu from '../components/common/ShellOverflowMenu';
 import CopyrightNotice from '../components/common/CopyrightNotice';
-import VersionBadge from '../components/common/VersionBadge';
 import { formatNumber, getErrorMessage } from '../utils/helpers';
 import { useTheme } from '../contexts/ThemeContext';
 import { motion } from 'framer-motion';
@@ -543,7 +542,7 @@ export default function AnonymousSurvey() {
 
   return (
     <div className="min-h-[100dvh]" style={{ backgroundColor: 'var(--c-bg)' }} dir="rtl">
-<header className="bg-white border-b border-gray-100 sticky top-0 z-10">
+      <header className="shell-header sticky top-0 z-30 border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800">
         <div className="app-container max-w-4xl py-3 flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--c-600)' }}>
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -551,14 +550,13 @@ export default function AnonymousSurvey() {
             </svg>
           </div>
           <span className="font-bold text-slate-700 text-sm">نظرسنجی ناشناس</span>
-          <div className="ms-auto flex items-center gap-2">
-            <VersionBadge />
-            <ThemeSwitcher />
+          <div className="ms-auto">
+            <ShellOverflowMenu />
           </div>
         </div>
       </header>
 
-      <main className={`app-container max-w-4xl py-6 ${nextUnanswered && !allDone ? 'pb-28' : ''}`}>
+      <main className={`shell-main app-container max-w-4xl py-6 pb-[max(1.5rem,var(--safe-bottom))] ${nextUnanswered && !allDone ? 'has-fixed-bottom-action' : ''}`}>
         {closed && (
           <div className="mb-5 flex items-center gap-3 rounded-xl px-5 py-3 border" style={{ backgroundColor: 'var(--c-50)', borderColor: 'var(--c-200)' }}>
             <p className="text-sm font-medium" style={{ color: 'var(--c-700)' }}>این نظرسنجی بسته شده است</p>
@@ -635,8 +633,8 @@ export default function AnonymousSurvey() {
       </main>
 
       {nextUnanswered && !allDone && (
-        <div className="fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
-          <div className="app-container max-w-4xl py-3">
+        <div className="safe-bottom-action fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
+          <div className="app-container max-w-4xl pt-3">
             <button onClick={() => setRatingPerson(nextUnanswered)}
               className="w-full rounded-xl bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-sm font-semibold transition-colors shadow-sm flex items-center justify-center gap-2"
               style={{ minHeight: 44 }}>

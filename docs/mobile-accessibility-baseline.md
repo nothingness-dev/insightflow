@@ -1,6 +1,6 @@
 # Mobile accessibility baseline
 
-This document is the tracked source of truth for milestone 1 of the mobile accessibility plan. The generated screenshots and reports live under `ux-audit/mobile-baseline/generated/` and are intentionally ignored by Git.
+This document is the tracked source of truth for the mobile accessibility plan. The generated screenshots and reports live under `ux-audit/mobile-baseline/generated/` and are intentionally ignored by Git.
 
 ## Test matrix
 
@@ -22,6 +22,7 @@ This document is the tracked source of truth for milestone 1 of the mobile acces
 | Admin | `/admin/activity` | 320, 390, desktop; light and dark | filters, dense logs, pagination, export, empty, loading, error |
 | Admin | `/admin/settings/data` | 320, 390, desktop; light and dark | counts, destructive confirmation, loading, error |
 | Shared | navigation and dialogs | covered through routes above | drawer open, account menu, theme menu, password modal, Escape and focus restoration |
+| Shared | mobile shell overlays | 320 and 390; light and dark | admin drawer plus admin, employee, and anonymous overflow menus; initial focus, Escape, reopen, and focus restoration |
 
 The baseline runner captures stable default/data states. The additional states are required fixtures for the page-specific milestones and must receive before/after evidence when those components are changed.
 
@@ -118,3 +119,29 @@ Milestone 2 introduced:
 - selected-state semantics for numeric and emoji ratings;
 - stronger reduced-motion fallbacks;
 - correct effective-target measurement for checkboxes and radio controls wrapped by labels.
+
+## Milestone 3 verification
+
+The shared mobile-shell rebuild was verified on 2026-07-31 with an expanded 106-capture matrix. The additional 16 captures exercise four open overlay states at 320 and 390 CSS px in both themes.
+
+| Check | Result |
+| --- | ---: |
+| Captures | 106 |
+| Mobile overlay interaction captures | 16 |
+| Overlay focus-management failures | 0 |
+| Document-level horizontal overflow failures | 0 |
+| Hidden keyboard targets | 0 |
+| Serious/high findings | 0 |
+| Browser console errors | 0 |
+| Blocked routes | 0 |
+| Remaining advisories | 20 desktop-only target-size findings |
+
+Milestone 3 introduced:
+
+- one compact, shared shell overflow menu for version, display mode, color theme, and account actions;
+- a navigation-only admin mobile drawer, with settings and account actions moved into the shell overflow menu;
+- focus trapping, Escape dismissal, background scroll locking, and trigger-focus restoration for both overlay types;
+- compact 320 px headers for admin, employee, and anonymous participation views;
+- dynamic-viewport drawer sizing and safe-area padding for headers, drawers, page bottoms, fixed actions, and sticky form actions;
+- protected page padding so fixed anonymous actions cannot cover the final participant card, disclosure text, or copyright notice;
+- automated open-state evidence for initial focus containment, Escape handling, focus restoration, and successful reopen behavior.

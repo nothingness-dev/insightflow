@@ -1,13 +1,12 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
-import ThemeSwitcher from "../components/common/ThemeSwitcher";
 import ChangePasswordModal from "../components/common/ChangePasswordModal";
 import PageTransition from "../components/common/PageTransition";
 import CopyrightNotice from "../components/common/CopyrightNotice";
-import VersionBadge from "../components/common/VersionBadge";
-import { D, E, T, backdrop, drawerRight, listItem, useMotionDisabled } from "../motion";
+import ShellOverflowMenu from "../components/common/ShellOverflowMenu";
+import { D, E, T, backdrop, drawerRight, listItem, useFocusTrap, useMotionDisabled } from "../motion";
 import toast from "react-hot-toast";
 
 interface NavItem {
@@ -168,7 +167,32 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
+  const sidebarTriggerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
   const reduced = useMotionDisabled();
+
+  useFocusTrap(drawerRef, sidebarOpen);
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSidebarOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      sidebarTriggerRef.current?.focus();
+    };
+  }, [sidebarOpen]);
 
   const handleLogout = async () => {
     await logout();
@@ -178,7 +202,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const Sidebar = ({ mobile = false }) => (
     <aside
-      className={`flex flex-col h-full bg-white dark:bg-gray-800 border-l border-gray-100 dark:border-gray-700 shadow-sm ${mobile ? "w-full" : "w-64"}`}
+      className={`flex h-full flex-col border-l border-gray-100 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 ${mobile ? "mobile-drawer w-full" : "w-64"}`}
     >
       <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-3">
@@ -203,7 +227,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <VersionBadge />
           {mobile && (
             <button
               onClick={() => setSidebarOpen(false)}
@@ -215,8 +238,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           )}
         </div>
       </div>
-      <nav className="flex-1 px-4 py-4 space-y-1">
-        {navItems.map((item, i) => (
+      <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1" aria-label={mobile ? "ناوبری مدیریت" : undefined}>
+        {(mobile ? navItems.filter((item) => item.path !== "/admin/settings/data") : navItems).map((item, i) => (
           <motion.div
             key={item.path}
             variants={reduced ? undefined : listItem}
@@ -238,7 +261,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </motion.div>
         ))}
       </nav>
-      <div className="px-4 py-4 border-t border-gray-100 dark:border-gray-700">
+      {!mobile && <div className="px-4 py-4 border-t border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-3 px-2 py-2 mb-2">
           <div className="w-8 h-8 theme-bg-100 rounded-full flex items-center justify-center theme-text-700 text-sm font-bold">
             {user?.full_name?.[0] || "م"}
@@ -279,7 +302,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <LogoutIcon />
           <span>خروج</span>
         </button>
-      </div>
+      </div>}
     </aside>
   );
 
@@ -307,12 +330,18 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               onClick={() => setSidebarOpen(false)}
             />
             <motion.div
+              ref={drawerRef}
+              data-testid="admin-drawer-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label="منوی مدیریت"
+              tabIndex={-1}
               variants={drawerRight}
               initial="hidden"
               animate="visible"
               exit="exit"
               transition={reduced ? T.instant : E.spring}
-              className="absolute start-0 top-0 h-full w-[min(20rem,calc(100vw-2rem))] max-w-full"
+              className="absolute start-0 top-0 h-full w-[min(20rem,calc(100vw-1rem))] max-w-full"
             >
               <Sidebar mobile />
             </motion.div>
@@ -321,10 +350,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </AnimatePresence>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="app-container bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 py-3 sm:py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-4">
+        <header className="shell-header border-b border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800">
+          <div className="app-container flex items-center justify-between gap-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-4">
             <button
+              ref={sidebarTriggerRef}
+              data-testid="admin-drawer-trigger"
               aria-label="باز کردن منوی مدیریت"
+              aria-haspopup="dialog"
+              aria-expanded={sidebarOpen}
               className="lg:hidden touch-target text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               onClick={() => setSidebarOpen(true)}
             >
@@ -333,11 +367,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <p className="text-sm text-gray-400 dark:text-gray-500 hidden sm:block">
               سامانه نظرسنجی سازمانی
             </p>
+            <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100 sm:hidden">
+              InsightFlow
+            </p>
+            </div>
+            <ShellOverflowMenu
+              userName={user?.full_name}
+              username={user?.username}
+              roleLabel="مدیر سیستم"
+              settingsPath="/admin/settings/data"
+              onChangePassword={() => setPwOpen(true)}
+              onLogout={handleLogout}
+            />
           </div>
-          <ThemeSwitcher />
         </header>
 
-        <main className="app-page flex-1 min-w-0 overflow-y-auto lg:[--page-gutter:1.75rem]">
+        <main className="shell-main app-page flex-1 min-w-0 overflow-y-auto lg:[--page-gutter:1.75rem]">
           <PageTransition>{children}</PageTransition>
           <CopyrightNotice className="mt-8 border-t border-gray-100 pt-5" />
         </main>

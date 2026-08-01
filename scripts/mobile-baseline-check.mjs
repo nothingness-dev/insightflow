@@ -255,6 +255,26 @@ async function prepareRoutes() {
   const routes = [
     { id: 'login', role: 'public', path: '/login', state: 'default', axe: true },
     { id: 'admin-dashboard', role: 'admin', path: '/admin', state: 'data', axe: true },
+    {
+      id: 'admin-mobile-drawer',
+      role: 'admin',
+      path: '/admin',
+      state: 'drawer-open',
+      setup: 'open-overlay',
+      mobileOnly: true,
+      triggerTestId: 'admin-drawer-trigger',
+      dialogTestId: 'admin-drawer-dialog',
+    },
+    {
+      id: 'admin-shell-overflow',
+      role: 'admin',
+      path: '/admin',
+      state: 'overflow-open',
+      setup: 'open-overlay',
+      mobileOnly: true,
+      triggerTestId: 'shell-overflow-trigger',
+      dialogTestId: 'shell-overflow-dialog',
+    },
     { id: 'admin-survey-list', role: 'admin', path: '/admin/surveys', state: 'data' },
     { id: 'admin-survey-progress', role: 'admin', path: '/admin/survey-progress', state: 'data' },
     { id: 'admin-survey-new', role: 'admin', path: '/admin/surveys/new', state: 'empty-form' },
@@ -287,6 +307,16 @@ async function prepareRoutes() {
       axe: true,
     },
     {
+      id: 'employee-shell-overflow',
+      role: 'employee',
+      path: employeeCredentials ? '/surveys' : null,
+      state: 'overflow-open',
+      setup: 'open-overlay',
+      mobileOnly: true,
+      triggerTestId: 'shell-overflow-trigger',
+      dialogTestId: 'shell-overflow-dialog',
+    },
+    {
       id: 'employee-survey-detail',
       role: 'employee',
       path: employeeCredentials && publishedSurveyId ? `/surveys/${publishedSurveyId}` : null,
@@ -298,6 +328,16 @@ async function prepareRoutes() {
       path: anonymousToken ? `/s/${anonymousToken}` : null,
       state: 'available',
       axe: true,
+    },
+    {
+      id: 'anonymous-shell-overflow',
+      role: 'anonymous',
+      path: anonymousToken ? `/s/${anonymousToken}` : null,
+      state: 'overflow-open',
+      setup: 'open-overlay',
+      mobileOnly: true,
+      triggerTestId: 'shell-overflow-trigger',
+      dialogTestId: 'shell-overflow-dialog',
     },
     {
       id: 'anonymous-rating-dialog',
@@ -462,10 +502,76 @@ async function collectFocusEvidence(page) {
   });
 }
 
+async function openAndVerifyOverlay(page, route, viewport, theme) {
+  const trigger = page.getByTestId(route.triggerTestId);
+  const dialog = page.getByTestId(route.dialogTestId);
+
+  if (!(await trigger.isVisible().catch(() => false))) {
+    report.findings.push({
+      severity: 'high',
+      route: route.id,
+      viewport: viewport.key,
+      theme,
+      rule: 'overlay-trigger',
+      detail: `The ${route.triggerTestId} trigger was not visible.`,
+    });
+    return null;
+  }
+
+  await trigger.focus();
+  await trigger.click();
+  await dialog.waitFor({ state: 'visible', timeout: 3_000 });
+  await page.waitForTimeout(100);
+
+  const initialFocusContained = await dialog.evaluate(
+    element => element.contains(document.activeElement),
+  );
+
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden', timeout: 3_000 });
+  const escapeClosed = !(await dialog.isVisible().catch(() => false));
+  const focusRestored = await trigger.evaluate(
+    element => document.activeElement === element,
+  );
+
+  await trigger.click();
+  await dialog.waitFor({ state: 'visible', timeout: 3_000 });
+  await page.waitForTimeout(100);
+
+  const reopenedFocusContained = await dialog.evaluate(
+    element => element.contains(document.activeElement),
+  );
+
+  const evidence = {
+    initialFocusContained,
+    escapeClosed,
+    focusRestored,
+    reopenedFocusContained,
+  };
+
+  if (Object.values(evidence).some(value => !value)) {
+    report.findings.push({
+      severity: 'high',
+      route: route.id,
+      viewport: viewport.key,
+      theme,
+      rule: 'overlay-focus-management',
+      detail: JSON.stringify(evidence),
+    });
+  }
+
+  return evidence;
+}
+
 async function captureRoute(page, route, viewport, theme) {
   await navigate(page, route.path);
   await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
   await page.waitForTimeout(350);
+
+  let overlayEvidence = null;
+  if (route.setup === 'open-overlay') {
+    overlayEvidence = await openAndVerifyOverlay(page, route, viewport, theme);
+  }
 
   if (route.setup === 'open-rating-dialog') {
     const trigger = page.locator('.person-card button:not([disabled])').first();
@@ -569,6 +675,7 @@ async function captureRoute(page, route, viewport, theme) {
     metrics,
     focus,
     axe,
+    overlayEvidence,
   });
 }
 
@@ -604,7 +711,12 @@ async function getRoleSession(role) {
 }
 
 async function runRole(routes, role, viewport, theme) {
-  const matchingRoutes = routes.filter(route => route.role === role && route.path);
+  const matchingRoutes = routes.filter(
+    route =>
+      route.role === role &&
+      route.path &&
+      (!route.mobileOnly || viewport.width <= 430),
+  );
   if (!matchingRoutes.length) return;
   const { page } = await getRoleSession(role);
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
