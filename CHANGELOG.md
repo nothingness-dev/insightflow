@@ -1,5 +1,31 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.9] — 2026-08-02
+
+### Added
+
+- Added focused validation summaries and programmatic label, help, and error
+  associations across long dialog forms.
+- Expanded the mobile regression suite with anonymous-rating dialog checks for
+  focus management, persistent actions, validation, 320 px reflow, and 200%
+  text scaling.
+
+### Improved
+
+- Rebuilt shared dialogs as full-height mobile sheets with persistent headers,
+  independently scrollable bodies, sticky footers, and centered desktop layouts.
+- Improved focus trapping, initial focus, Escape and backdrop behavior, focus
+  restoration, safe-area spacing, and busy-state dismissal protection.
+- Moved rating, account, survey, QR, and destructive admin actions into reachable
+  responsive footers and improved mobile password-field semantics.
+
+### Fixed
+
+- Made the IP-audit survey-requirement migration compatible with databases that
+  previously applied the equivalent main-branch constraints, preventing duplicate
+  PostgreSQL constraint failures without changing existing data.
+- Increased the login subtitle contrast to meet the automated accessibility gate.
+
 ## [2.10.0-ip-audit.8] — 2026-08-01
 
 ### Added
