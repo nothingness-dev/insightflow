@@ -6,6 +6,7 @@ import { EmojiRatingValue, SurveyPerson, SurveyQuestion } from '../types';
 import { Modal, ModalErrorSummary, AnonymousSurveySkeleton } from '../components/common/index';
 import ShellOverflowMenu from '../components/common/ShellOverflowMenu';
 import CopyrightNotice from '../components/common/CopyrightNotice';
+import ParticipationProgress from '../components/common/ParticipationProgress';
 import { formatNumber, getErrorMessage } from '../utils/helpers';
 import { useTheme } from '../contexts/ThemeContext';
 import { motion } from 'framer-motion';
@@ -75,28 +76,38 @@ const ExcellentFaceIcon = () => (
   </svg>
 );
 const EMOJI_OPTIONS = [
-  { value: 'bad' as EmojiRatingValue, label: 'ضعیف', Icon: BadFaceIcon, selectedClass: 'bg-red-500 border-red-500 text-white shadow-lg scale-105', idleClass: 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' },
-  { value: 'average' as EmojiRatingValue, label: 'متوسط', Icon: AverageFaceIcon, selectedClass: 'bg-amber-500 border-amber-500 text-white shadow-lg scale-105', idleClass: 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' },
-  { value: 'good' as EmojiRatingValue, label: 'خوب', Icon: GoodFaceIcon, selectedClass: 'bg-lime-500 border-lime-500 text-white shadow-lg scale-105', idleClass: 'bg-lime-50 border-lime-200 text-lime-700 hover:bg-lime-100' },
-  { value: 'excellent' as EmojiRatingValue, label: 'عالی', Icon: ExcellentFaceIcon, selectedClass: 'bg-emerald-500 border-emerald-500 text-white shadow-lg scale-105', idleClass: 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' },
+  { value: 'bad' as EmojiRatingValue, label: 'ضعیف', Icon: BadFaceIcon, selectedClass: 'bg-red-500 border-red-500 text-white ring-2 ring-red-200 ring-offset-1', idleClass: 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' },
+  { value: 'average' as EmojiRatingValue, label: 'متوسط', Icon: AverageFaceIcon, selectedClass: 'bg-amber-500 border-amber-500 text-white ring-2 ring-amber-200 ring-offset-1', idleClass: 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-amber-100' },
+  { value: 'good' as EmojiRatingValue, label: 'خوب', Icon: GoodFaceIcon, selectedClass: 'bg-lime-500 border-lime-500 text-white ring-2 ring-lime-200 ring-offset-1', idleClass: 'bg-lime-50 border-lime-200 text-lime-700 hover:bg-lime-100' },
+  { value: 'excellent' as EmojiRatingValue, label: 'عالی', Icon: ExcellentFaceIcon, selectedClass: 'bg-emerald-500 border-emerald-500 text-white ring-2 ring-emerald-200 ring-offset-1', idleClass: 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100' },
 ];
 
 function EmojiPicker({ value, onChange }: { value: EmojiRatingValue | null; onChange: (v: EmojiRatingValue) => void }) {
   return (
-    <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-      {EMOJI_OPTIONS.map(opt => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          aria-pressed={value === opt.value}
-          aria-label={`امتیاز کیفی: ${opt.label}`}
-          className={`flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border-2 text-xs font-bold transition-all duration-150 ${value === opt.value ? opt.selectedClass : opt.idleClass}`}
-        >
-          <opt.Icon/>
-          {opt.label}
-        </button>
-      ))}
+    <div className="rating-emoji-grid grid gap-1.5 sm:gap-2">
+      {EMOJI_OPTIONS.map(opt => {
+        const selected = value === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            aria-pressed={selected}
+            aria-label={`امتیاز کیفی: ${opt.label}`}
+            className={`relative flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-xl border-2 px-1 py-2.5 text-xs font-bold transition-[background-color,border-color,color,box-shadow] duration-150 ${selected ? opt.selectedClass : opt.idleClass}`}
+          >
+            {selected && (
+              <span className="absolute end-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-white/90 text-slate-700" aria-hidden="true">
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+            )}
+            <opt.Icon/>
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -130,6 +141,7 @@ const AnonymousPersonCard = ({ person, onRate, disabled, rowRef, highlight }: {
   return (
     <motion.div
       ref={rowRef}
+      data-testid={`anonymous-participant-card-${person.id}`}
       variants={fadeUp}
       initial={reduced ? undefined : 'hidden'}
       animate={reduced ? undefined : 'visible'}
@@ -140,32 +152,47 @@ const AnonymousPersonCard = ({ person, onRate, disabled, rowRef, highlight }: {
           : ''
       } ${done || disabled ? '!cursor-default' : ''}`}
     >
-      <div className="relative">
-        <div className="w-full aspect-[16/9] bg-[color:var(--c-50)] dark:bg-gray-700 overflow-hidden">
-          {person.photo_url
-            ? <img src={person.photo_url} alt={person.full_name} className="w-full h-full object-cover"/>
-            : <div className="w-full h-full flex items-center justify-center text-[color:var(--c-300)] text-4xl font-bold">{person.full_name[0]}</div>
-          }
-        </div>
-        {done && (
-          <div className="absolute top-2 end-2 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shadow-md ring-2 ring-white">
-            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-            </svg>
+      {person.photo_url && (
+        <div className="relative" data-testid={`anonymous-participant-media-${person.id}`}>
+          <div className="aspect-[16/9] w-full overflow-hidden bg-[color:var(--c-50)] dark:bg-gray-700">
+            <img src={person.photo_url} alt="" className="h-full w-full object-cover"/>
           </div>
-        )}
-      </div>
+          {done && (
+            <div className="absolute end-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 shadow-md ring-2 ring-white" aria-label="تکمیل شده">
+              <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+          )}
+        </div>
+      )}
 
-      <div className="p-3 sm:p-3.5">
-        <h3 className="font-semibold text-slate-800 text-sm leading-snug truncate">{person.full_name}</h3>
-        {(person.role_title || person.department) && (
-          <p className="text-xs text-gray-400 mt-0.5 truncate">{[person.role_title, person.department].filter(Boolean).join(' — ')}</p>
-        )}
+      <div className="flex flex-1 flex-col p-3 sm:p-3.5">
+        <div className="flex min-w-0 items-center gap-2.5" data-testid={`anonymous-participant-identity-${person.id}`}>
+          {!person.photo_url && (
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[color:var(--c-50)] text-lg font-bold text-[color:var(--c-500)] ring-1 ring-[color:var(--c-100)]" aria-hidden="true">
+              {person.full_name[0]}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-sm font-semibold leading-snug text-slate-800">{person.full_name}</h3>
+            {(person.role_title || person.department) && (
+              <p className="mt-0.5 truncate text-xs text-gray-500">{[person.role_title, person.department].filter(Boolean).join(' — ')}</p>
+            )}
+          </div>
+          {done && !person.photo_url && (
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700" aria-label="تکمیل شده">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+            </span>
+          )}
+        </div>
         {person.description && (
-          <p className="text-xs text-gray-500 mt-2 leading-relaxed line-clamp-2">{person.description}</p>
+          <p className="mt-2 line-clamp-2 min-h-0 text-xs leading-relaxed text-gray-500">{person.description}</p>
         )}
 
-        <div className="mt-3">
+        <div className="mt-auto pt-3">
           {done ? (
             <div className="w-full min-h-11 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold text-center border border-emerald-200 flex items-center justify-center gap-1">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -193,12 +220,13 @@ const AnonymousPersonCard = ({ person, onRate, disabled, rowRef, highlight }: {
   );
 };
 
-function RatingModal({ open, onClose, person, questions, onSubmit, submitting }: {
+function RatingModal({ open, onClose, person, questions, onSubmit, submitting, submitError }: {
   open: boolean; onClose: (hasIncompleteAnswers: boolean) => void;
   person: (SurveyPerson & { has_rated?: boolean }) | null;
   questions: SurveyQuestion[];
   onSubmit: (answers: { question_id: number; score?: number | null; emoji_rating?: EmojiRatingValue | null; comment?: string | null }[]) => void;
   submitting: boolean;
+  submitError: string | null;
 }) {
   const [answers, setAnswers] = useState<Record<number, DraftAnswer>>({});
   const [localErrors, setLocalErrors] = useState<Record<number, string>>({});
@@ -223,9 +251,9 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
 
   const getColor = (s: number, selected: boolean) => {
     if (selected) {
-      if (s <= 3) return 'bg-red-500 border-red-500 text-white shadow-lg scale-105';
-      if (s <= 6) return 'bg-amber-500 border-amber-500 text-white shadow-lg scale-105';
-      return 'bg-emerald-500 border-emerald-500 text-white shadow-lg scale-105';
+      if (s <= 3) return 'bg-red-500 border-red-500 text-white ring-2 ring-red-200 ring-offset-1';
+      if (s <= 6) return 'bg-amber-500 border-amber-500 text-white ring-2 ring-amber-200 ring-offset-1';
+      return 'bg-emerald-500 border-emerald-500 text-white ring-2 ring-emerald-200 ring-offset-1';
     }
     if (s <= 3) return 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100';
     if (s <= 6) return 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100';
@@ -303,8 +331,8 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
           ) : (
             <button type="button" onClick={submit} disabled={submitting} data-testid="anonymous-rating-submit"
               className="btn-primary min-w-0 flex items-center justify-center gap-2">
-              {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
-              <span className="truncate">ثبت همه پاسخ‌ها</span>
+              {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0" aria-hidden="true"/>}
+              <span className="truncate" aria-live="polite">{submitting ? 'در حال ثبت پاسخ‌ها…' : 'ثبت همه پاسخ‌ها'}</span>
             </button>
           )}
           <button type="button" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0 || submitting}
@@ -314,8 +342,8 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
         <>
           <button type="button" onClick={submit} disabled={submitting} data-testid="anonymous-rating-submit"
             className="btn-primary min-w-0 flex items-center justify-center gap-2">
-            {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0"/>}
-            <span className="truncate">ثبت همه پاسخ‌ها</span>
+            {submitting && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin flex-shrink-0" aria-hidden="true"/>}
+            <span className="truncate" aria-live="polite">{submitting ? 'در حال ثبت پاسخ‌ها…' : 'ثبت همه پاسخ‌ها'}</span>
           </button>
           <button type="button" onClick={handleCloseAttempt} className="btn-secondary min-w-0" disabled={submitting}>انصراف</button>
         </>
@@ -343,6 +371,13 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
               errors={Object.values(localErrors)}
               className="mb-4"
             />
+            {submitError && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert" data-testid="anonymous-submit-error">
+                <p className="font-semibold">پاسخ‌ها ثبت نشد</p>
+                <p className="mt-1 text-xs leading-relaxed">پاسخ‌های واردشده حفظ شده‌اند. اتصال را بررسی کنید و دوباره تلاش کنید.</p>
+                <p className="mt-1 text-xs text-red-600">{submitError}</p>
+              </div>
+            )}
             <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-3 sm:gap-4 mb-5 pb-5 border-b border-gray-100">
               <div className="w-16 h-16 rounded-2xl overflow-hidden bg-[color:var(--c-100)] flex-shrink-0 shadow-sm">
                 {person.photo_url
@@ -376,25 +411,41 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
                     key={q.id}
                     id={`anonymous-rating-question-${q.id}`}
                     aria-labelledby={`anonymous-rating-question-${q.id}-label`}
-                    aria-describedby={localErrors[q.id] ? `anonymous-rating-question-${q.id}-error` : undefined}
-                    className="rounded-2xl border border-gray-100 bg-gray-50 p-4"
+                    aria-describedby={[
+                      q.help_text ? `anonymous-rating-question-${q.id}-help` : '',
+                      localErrors[q.id] ? `anonymous-rating-question-${q.id}-error` : '',
+                    ].filter(Boolean).join(' ') || undefined}
+                    className="rounded-xl border border-gray-200 border-s-[3px] bg-gray-50/70 p-3 sm:p-4"
+                    style={{ borderInlineStartColor: 'var(--c-300)' }}
                   >
-                    <div className="mb-3">
-                      <p id={`anonymous-rating-question-${q.id}-label`} className="text-sm font-bold text-slate-800 leading-relaxed">{formatNumber(idx + 1)}. {q.text}</p>
-                      {q.help_text && <p className="text-xs text-gray-400 mt-1">{q.help_text}</p>}
-                      <p className="text-[11px] text-gray-400 mt-1">{getQuestionTypeLabel(q)}</p>
+                    <div className="mb-3 flex items-start gap-2.5">
+                      <span className="flex h-6 min-w-6 flex-shrink-0 items-center justify-center rounded-md bg-[color:var(--c-100)] px-1 text-xs font-bold text-[color:var(--c-700)]" aria-hidden="true">
+                        {formatNumber(idx + 1)}
+                      </span>
+                      <div className="min-w-0">
+                        <p id={`anonymous-rating-question-${q.id}-label`} className="text-sm font-bold leading-relaxed text-slate-800">{q.text}</p>
+                        {q.help_text && <p id={`anonymous-rating-question-${q.id}-help`} className="mt-1 text-xs text-gray-500">{q.help_text}</p>}
+                        <p className="mt-1 text-[11px] text-gray-500">{getQuestionTypeLabel(q)}</p>
+                      </div>
                     </div>
 
                     {q.has_score && (
                       <div className="mb-4">
                         <p className="text-xs text-gray-500 mb-2">امتیاز ۱ تا ۱۰ {q.score_required ? <span className="text-red-500">*</span> : <span className="text-gray-400">(اختیاری)</span>}</p>
-                        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                        <div className="rating-score-grid grid gap-1.5 sm:gap-2">
                           {[1,2,3,4,5,6,7,8,9,10].map(s => (
                             <button key={s} type="button" onClick={() => updateAnswer(q.id, { score: s })}
                               aria-pressed={a.score === s}
                               aria-label={`امتیاز ${formatNumber(s)} از ۱۰`}
-                              className={`py-2.5 rounded-xl border-2 text-sm font-bold transition-all duration-150 ${getColor(s, a.score === s)}`}>
-                              {formatNumber(s)}
+                              className={`relative min-h-11 rounded-xl border-2 px-1 py-2.5 text-sm font-bold transition-[background-color,border-color,color,box-shadow] duration-150 ${getColor(s, a.score === s)}`}>
+                              <span className="flex items-center justify-center gap-1">
+                                {formatNumber(s)}
+                                {a.score === s && (
+                                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </span>
                             </button>
                           ))}
                         </div>
@@ -416,7 +467,10 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting }:
                         <textarea id={`anonymous-rating-comment-${q.id}`} value={a.comment} onChange={e => updateAnswer(q.id, { comment: e.target.value })}
                           rows={3} maxLength={1000} placeholder="نظر یا توضیح خود را بنویسید..."
                           aria-invalid={!!localErrors[q.id] || undefined}
-                          aria-describedby={localErrors[q.id] ? `anonymous-rating-question-${q.id}-error` : undefined}
+                          aria-describedby={[
+                            q.help_text ? `anonymous-rating-question-${q.id}-help` : '',
+                            localErrors[q.id] ? `anonymous-rating-question-${q.id}-error` : '',
+                          ].filter(Boolean).join(' ') || undefined}
                           className="input-field w-full resize-none rounded-xl leading-relaxed"/>
                         {a.comment.length > 0 && <p className="text-xs text-gray-400 text-left mt-1">{formatNumber(a.comment.length)}/{formatNumber(1000)}</p>}
                       </div>
@@ -442,6 +496,7 @@ export default function AnonymousSurvey() {
   const [error, setError] = useState<string | null>(null);
   const [ratingPerson, setRatingPerson] = useState<(SurveyPerson & { has_rated?: boolean }) | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [closeNotice, setCloseNotice] = useState<{ incomplete: boolean; remaining: number } | null>(null);
   const [ratedPersonIds, setRatedPersonIds] = useState<Set<number>>(new Set());
   const [ipLocked, setIpLocked] = useState(false);
@@ -499,12 +554,19 @@ export default function AnonymousSurvey() {
       person => person.is_active !== false && !ratedPersonIds.has(person.id),
     ).length ?? 0;
     setRatingPerson(null);
+    setSubmitError(null);
     setCloseNotice({ incomplete, remaining });
+  };
+
+  const openRatingModal = (person: SurveyPerson & { has_rated?: boolean }) => {
+    setSubmitError(null);
+    setRatingPerson(person);
   };
 
   const handleSubmitRating = async (answers: { question_id: number; score?: number | null; emoji_rating?: EmojiRatingValue | null; comment?: string | null }[]) => {
     if (!ratingPerson || !token) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       await anonymousApi.rate(token, ratingPerson.id, answers, anonToken);
       toast.success('پاسخ‌ها با موفقیت ثبت شد');
@@ -530,6 +592,7 @@ export default function AnonymousSurvey() {
       if (errMsg.includes('IP') || errMsg.includes('قبلا') || errMsg.includes('قبلاً')) {
         setIpLocked(true);
       }
+      setSubmitError(errMsg);
       toast.error(errMsg);
     } finally {
       setSubmitting(false);
@@ -542,6 +605,9 @@ export default function AnonymousSurvey() {
     const el = rowRefs.current.get(focusPersonId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.setTimeout(() => {
+        el.querySelector<HTMLButtonElement>('[data-testid^="anonymous-rating-trigger-"]')?.focus({ preventScroll: true });
+      }, 350);
     }
     const t = setTimeout(() => setFocusPersonId(null), 2000);
     return () => clearTimeout(t);
@@ -590,7 +656,7 @@ export default function AnonymousSurvey() {
         </div>
       </header>
 
-      <main className={`shell-main app-container max-w-4xl py-6 pb-[max(1.5rem,var(--safe-bottom))] ${nextUnanswered && !allDone ? 'has-fixed-bottom-action' : ''}`}>
+      <main className={`shell-main app-container max-w-4xl py-5 sm:py-6 ${nextUnanswered && !allDone ? 'has-sticky-bottom-action' : ''}`}>
         {closed && (
           <div className="mb-5 flex items-center gap-3 rounded-xl px-5 py-3 border" style={{ backgroundColor: 'var(--c-50)', borderColor: 'var(--c-200)' }}>
             <p className="text-sm font-medium" style={{ color: 'var(--c-700)' }}>این نظرسنجی بسته شده است</p>
@@ -638,25 +704,32 @@ export default function AnonymousSurvey() {
           <div className="card p-12 text-center"><p className="text-gray-400 text-sm">این نظرسنجی سوال فعالی ندارد</p></div>
         ) : (
           <>
-            <div className="card p-4 mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-slate-700">{formatNumber(ratedCount)} از {formatNumber(totalCount)} نفر تکمیل شد</p>
-                <p className="text-xs text-gray-400">{formatNumber(Math.round((ratedCount / totalCount) * 100))}٪</p>
-              </div>
-              <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-                <div className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                  style={{ width: `${(ratedCount / totalCount) * 100}%` }}/>
-              </div>
+            <div className="mb-4">
+              <ParticipationProgress completed={ratedCount} total={totalCount} testId="anonymous-participation-progress" />
             </div>
             <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               {people.map(p => (
                 <AnonymousPersonCard key={p.id} person={p}
                   rowRef={el => { if (el) rowRefs.current.set(p.id, el); else rowRefs.current.delete(p.id); }}
                   highlight={focusPersonId === p.id}
-                  onRate={() => !closed && !ipLocked && setRatingPerson(p)}
+                  onRate={() => !closed && !ipLocked && openRatingModal(p)}
                   disabled={closed || ipLocked}/>
               ))}
             </div>
+            {nextUnanswered && !allDone && (
+              <div className="participation-sticky-action safe-bottom-action sticky z-20 mt-4" data-testid="anonymous-sticky-next">
+                <div className="rounded-2xl border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <button
+                    type="button"
+                    onClick={() => openRatingModal(nextUnanswered)}
+                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--c-600)] px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[color:var(--c-700)] active:bg-purple-800"
+                  >
+                    <span>ادامه با نفر بعدی</span>
+                    <span className="max-w-[42%] truncate text-xs text-white/90">({nextUnanswered.full_name})</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -666,19 +739,6 @@ export default function AnonymousSurvey() {
         </div>
       </main>
 
-      {nextUnanswered && !allDone && (
-        <div className="safe-bottom-action fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.05)]">
-          <div className="app-container max-w-4xl pt-3">
-            <button onClick={() => setRatingPerson(nextUnanswered)}
-              className="w-full rounded-xl bg-[color:var(--c-600)] hover:bg-[color:var(--c-700)] active:bg-purple-800 text-white text-sm font-semibold transition-colors shadow-sm flex items-center justify-center gap-2"
-              style={{ minHeight: 44 }}>
-              ادامه با نفر بعدی
-              <span className="text-xs text-white truncate max-w-[40%]">({nextUnanswered.full_name})</span>
-            </button>
-          </div>
-        </div>
-      )}
-
       <RatingModal
         open={!!ratingPerson}
         onClose={handleCloseRatingModal}
@@ -686,6 +746,7 @@ export default function AnonymousSurvey() {
         questions={ratingPerson?.questions ?? survey.questions.filter(q => !ratingPerson?.question_ids || ratingPerson.question_ids.includes(q.id))}
         onSubmit={handleSubmitRating}
         submitting={submitting}
+        submitError={submitError}
       />
     </div>
   );
