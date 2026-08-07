@@ -1,5 +1,30 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.12] — 2026-08-08
+
+### Added
+
+- Expanded the responsive regression matrix with deterministic long-content,
+  error, offline, permission, keyboard, landscape, 200% text, and IP-audit
+  states.
+- Added isolated regression coverage for CSV, Excel, and PDF exports.
+
+### Improved
+
+- Made long survey names, identities, IPv6 values, counts, and comments wrap or
+  scroll cleanly without obscuring administrative content.
+- Kept compact Persian status, role, pagination, breadcrumb, and response
+  controls readable at narrow widths and under text enlargement.
+- Improved recoverable loading and error states without discarding the current
+  results context.
+
+### Fixed
+
+- Prevented result and comment pagination controls from collapsing at 200% text
+  scaling.
+- Removed excess spacing from RTL breadcrumbs while preserving usable touch
+  targets.
+
 ## [2.10.0-ip-audit.11] — 2026-08-07
 
 ### Added
