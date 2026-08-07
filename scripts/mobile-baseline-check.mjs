@@ -276,6 +276,10 @@ async function prepareRoutes() {
       dialogTestId: 'shell-overflow-dialog',
     },
     { id: 'admin-survey-list', role: 'admin', path: '/admin/surveys', state: 'data' },
+    {
+      id: 'admin-survey-list-filtered', role: 'admin', path: '/admin/surveys', state: 'filtered',
+      setup: 'apply-admin-search-filter', mobileOnly: true, filterSummaryTestId: 'survey-filter-summary',
+    },
     { id: 'admin-survey-progress', role: 'admin', path: '/admin/survey-progress', state: 'data' },
     { id: 'admin-survey-new', role: 'admin', path: '/admin/surveys/new', state: 'empty-form' },
     {
@@ -297,7 +301,15 @@ async function prepareRoutes() {
       state: 'data',
     },
     { id: 'admin-users', role: 'admin', path: '/admin/users', state: 'data' },
+    {
+      id: 'admin-users-filtered', role: 'admin', path: '/admin/users', state: 'filtered',
+      setup: 'apply-admin-search-filter', mobileOnly: true, filterSummaryTestId: 'user-filter-summary',
+    },
     { id: 'admin-activity', role: 'admin', path: '/admin/activity', state: 'data' },
+    {
+      id: 'admin-activity-filtered', role: 'admin', path: '/admin/activity', state: 'filtered',
+      setup: 'apply-admin-search-filter', mobileOnly: true, filterSummaryTestId: 'activity-filter-summary',
+    },
     { id: 'admin-settings', role: 'admin', path: '/admin/settings/data', state: 'data' },
     {
       id: 'employee-survey-list',
@@ -517,6 +529,81 @@ async function collectFocusEvidence(page) {
       boxShadow: style.boxShadow,
     };
   });
+}
+
+async function applyAdminSearchFilter(page, route, viewport, theme) {
+  const input = page.locator('main input').filter({ visible: true }).first();
+  if (await input.count() === 0) {
+    report.findings.push({
+      severity: 'high', route: route.id, viewport: viewport.key, theme,
+      rule: 'admin-filter-controls', detail: 'No visible search field was available for the filtered-state check.',
+    });
+    return null;
+  }
+
+  await input.fill('milestone-6-mobile-filter');
+  await page.waitForTimeout(650);
+  await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {});
+  const summary = page.getByTestId(route.filterSummaryTestId);
+  const summaryVisible = await summary.isVisible().catch(() => false);
+  const clearActionVisible = summaryVisible
+    ? await summary.getByRole('button', { name: /پاک کردن فیلترها/ }).isVisible().catch(() => false)
+    : false;
+
+  if (!summaryVisible || !clearActionVisible) {
+    report.findings.push({
+      severity: 'high', route: route.id, viewport: viewport.key, theme,
+      rule: 'admin-filter-summary', detail: JSON.stringify({ summaryVisible, clearActionVisible }),
+    });
+  }
+  return { summaryVisible, clearActionVisible };
+}
+
+async function collectAdminDensityEvidence(page, route, viewport, theme) {
+  const responsiveLists = {
+    'admin-survey-list': ['survey-mobile-list', 'survey-desktop-table'],
+    'admin-users': ['user-mobile-list', 'user-desktop-table'],
+    'admin-activity': ['activity-mobile-log-list', 'activity-desktop-log-table'],
+  };
+  const selectors = responsiveLists[route.id];
+  const evidence = {};
+
+  if (selectors) {
+    evidence.mobileListVisible = await page.getByTestId(selectors[0]).isVisible().catch(() => false);
+    evidence.desktopTableVisible = await page.getByTestId(selectors[1]).isVisible().catch(() => false);
+    const expected = viewport.width <= 430
+      ? evidence.mobileListVisible && !evidence.desktopTableVisible
+      : !evidence.mobileListVisible && evidence.desktopTableVisible;
+    if (!expected) {
+      report.findings.push({
+        severity: 'high', route: route.id, viewport: viewport.key, theme,
+        rule: 'responsive-admin-data-view', detail: JSON.stringify(evidence),
+      });
+    }
+  }
+
+  if (['admin-survey-new', 'admin-survey-edit'].includes(route.id) && viewport.width <= 430) {
+    const detailsVisible = await page.getByTestId('survey-form-details-section').isVisible().catch(() => false);
+    const questionsVisible = route.id === 'admin-survey-new'
+      ? await page.getByTestId('survey-form-questions-section').isVisible().catch(() => false)
+      : null;
+    const saveBar = page.getByTestId('survey-form-save-bar');
+    const saveBarVisible = await saveBar.isVisible().catch(() => false);
+    const saveBarRect = saveBarVisible ? await saveBar.boundingBox() : null;
+    const saveBarContained = Boolean(
+      saveBarRect && saveBarRect.x >= 0 && saveBarRect.x + saveBarRect.width <= viewport.width + 1 &&
+      saveBarRect.y >= 0 && saveBarRect.y + saveBarRect.height <= viewport.height + 1,
+    );
+    Object.assign(evidence, { detailsVisible, questionsVisible, saveBarVisible, saveBarContained, saveBarRect });
+    if (!detailsVisible || questionsVisible === false || !saveBarVisible || !saveBarContained) {
+      report.findings.push({
+        severity: 'high', route: route.id, viewport: viewport.key, theme,
+        rule: 'mobile-survey-editor-structure', detail: JSON.stringify(evidence),
+      });
+    }
+  }
+
+  return Object.keys(evidence).length ? evidence : null;
 }
 
 async function collectParticipationEvidence(page, route, viewport, theme) {
@@ -793,6 +880,10 @@ async function captureRoute(page, route, viewport, theme) {
   if (['open-rating-dialog', 'open-rating-errors'].includes(route.setup)) {
     modalEvidence = await openAndVerifyRatingModal(page, route, viewport, theme);
   }
+  let filterEvidence = null;
+  if (route.setup === 'apply-admin-search-filter') {
+    filterEvidence = await applyAdminSearchFilter(page, route, viewport, theme);
+  }
 
   const relativeFile = path.join(theme, viewport.key, `${route.id}.png`);
   const screenshotPath = path.join(outputDir, relativeFile);
@@ -802,6 +893,7 @@ async function captureRoute(page, route, viewport, theme) {
   const metrics = await collectMetrics(page);
   const focus = await collectFocusEvidence(page);
   const participationEvidence = await collectParticipationEvidence(page, route, viewport, theme);
+  const adminDensityEvidence = await collectAdminDensityEvidence(page, route, viewport, theme);
   let axe = null;
   if (route.axe && viewport.key === 'mobile-390' && theme === 'light') {
     const result = await new AxeBuilder({ page })
@@ -883,6 +975,8 @@ async function captureRoute(page, route, viewport, theme) {
     overlayEvidence,
     modalEvidence,
     participationEvidence,
+    filterEvidence,
+    adminDensityEvidence,
   });
 }
 

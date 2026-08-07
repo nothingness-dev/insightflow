@@ -229,14 +229,14 @@ export default function AdminSurveyList() {
       </div>
 
       {hasActiveFilters && (
-        <div className="flex flex-wrap items-center gap-2 mb-5" aria-label="فیلترهای فعال">
+        <div data-testid="survey-filter-summary" className="flex flex-wrap items-center gap-2 mb-5" aria-label="فیلترهای فعال">
           <span className="text-xs font-medium text-gray-500">فیلترهای فعال:</span>
           {search.trim() && (
             <button
               type="button"
               onClick={() => setSearch('')}
               aria-label={`حذف فیلتر جستجو: ${search.trim()}`}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[color:var(--c-200)] bg-[color:var(--c-50)] px-3 py-1 text-xs font-medium text-[color:var(--c-700)] hover:bg-[color:var(--c-100)]"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[color:var(--c-200)] bg-[color:var(--c-50)] px-3 py-1 text-xs font-medium text-[color:var(--c-700)] hover:bg-[color:var(--c-100)] sm:min-h-9"
             >
               جستجو: «<span className="max-w-48 truncate">{search.trim()}</span>»
               <span aria-hidden="true" className="text-base leading-none">×</span>
@@ -247,15 +247,15 @@ export default function AdminSurveyList() {
               type="button"
               onClick={() => setStatusFilter('')}
               aria-label={`حذف فیلتر وضعیت: ${STATUS_LABELS[statusFilter as Survey['status']]}`}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[color:var(--c-200)] bg-[color:var(--c-50)] px-3 py-1 text-xs font-medium text-[color:var(--c-700)] hover:bg-[color:var(--c-100)]"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[color:var(--c-200)] bg-[color:var(--c-50)] px-3 py-1 text-xs font-medium text-[color:var(--c-700)] hover:bg-[color:var(--c-100)] sm:min-h-9"
             >
               وضعیت: {STATUS_LABELS[statusFilter as Survey['status']]}
               <span aria-hidden="true" className="text-base leading-none">×</span>
             </button>
           )}
-          {search.trim() && statusFilter && (
-            <button type="button" onClick={clearFilters} className="min-h-9 px-2 text-xs font-medium text-gray-500 hover:text-gray-800">
-              پاک کردن همه
+          {hasActiveFilters && (
+            <button type="button" onClick={clearFilters} className="min-h-11 px-2 text-xs font-medium text-gray-500 hover:text-gray-800 sm:min-h-9">
+              پاک کردن فیلترها
             </button>
           )}
         </div>
@@ -276,7 +276,7 @@ export default function AdminSurveyList() {
           />
         </div>      ) : (
         <div className="card overflow-visible">
-          <div className="divide-y divide-gray-100 sm:hidden">
+          <div data-testid="survey-mobile-list" className="divide-y divide-gray-100 sm:hidden">
             {visibleSurveys.map((survey) => (
               <article key={survey.id} className="p-4">
                 <div className="flex items-start gap-3">
@@ -309,7 +309,7 @@ export default function AdminSurveyList() {
               </article>
             ))}
           </div>
-          <div className="hidden overflow-x-auto rounded-t-xl sm:block">
+          <div data-testid="survey-desktop-table" className="hidden overflow-x-auto rounded-t-xl sm:block">
             <table className="responsive-table w-full min-w-[680px] text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">

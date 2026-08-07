@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { PersonResult, QuestionResult } from '../../../types';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { Select } from '../../../components/common';
+import { SearchInput, Select } from '../../../components/common';
 import {
   Avatar,
   Bar,
@@ -421,8 +421,8 @@ export function TabPeople({ results, surveyId, showControls = true }: { results:
   const [expanded, setExpanded] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'rank' | 'name'>('rank');
-  const PAGE = 50;
-  const [visible, setVisible] = useState(PAGE);
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {
     let list = [...results];
@@ -439,23 +439,24 @@ export function TabPeople({ results, surveyId, showControls = true }: { results:
   }, [results, search, sort]);
 
 
-  useEffect(() => { setVisible(PAGE); }, [search, sort]);
+  useEffect(() => {
+    setPage(1);
+    setExpanded(null);
+  }, [search, sort]);
 
   const toggle = (id: number) => setExpanded(e => e === id ? null : id);
-  const shown = filtered.slice(0, visible);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const firstVisible = filtered.length === 0 ? 0 : ((safePage - 1) * PAGE_SIZE) + 1;
+  const lastVisible = Math.min(safePage * PAGE_SIZE, filtered.length);
+  const shown = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <div>
 {showControls && (
       <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center gap-2 mb-3">
-        <div className="flex-1 relative">
-          <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-          </svg>
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="جستجو بر اساس نام، واحد یا سمت…"
-            style={{ paddingRight: '2.25rem' }}
-            className="input-field py-2 text-sm" />
+        <div className="flex-1">
+          <SearchInput value={search} onChange={setSearch} placeholder="جستجو بر اساس نام، واحد یا سمت…" ariaLabel="جستجو در نتایج فردی" />
         </div>
         <Select
           value={sort}
@@ -467,6 +468,16 @@ export function TabPeople({ results, surveyId, showControls = true }: { results:
           ]}
         />
       </div>
+      )}
+
+      {showControls && search.trim() && (
+        <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="خلاصه فیلترهای فعال">
+          <span className="text-xs font-medium text-slate-500">فیلتر فعال:</span>
+          <button type="button" onClick={() => setSearch('')} className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-[color:var(--c-200)] bg-[color:var(--c-50)] px-3 text-xs font-medium text-[color:var(--c-700)] sm:min-h-9">
+            <span className="max-w-48 truncate">جستجو: «{search.trim()}»</span><span aria-hidden="true">×</span>
+          </button>
+          <button type="button" onClick={() => setSearch('')} className="min-h-11 rounded-lg px-2 text-xs font-medium text-slate-500 hover:bg-slate-50 sm:min-h-9">پاک کردن فیلترها</button>
+        </div>
       )}
 
       <div className="card overflow-hidden">
@@ -483,20 +494,18 @@ export function TabPeople({ results, surveyId, showControls = true }: { results:
         )}
       </div>
 
-      {filtered.length > visible && (
-        <div className="flex justify-center mt-4">
-          <button type="button" onClick={() => setVisible(v => v + PAGE)}
-            className="btn-secondary text-sm px-4 py-2">
-            نمایش بیشتر ({fa(filtered.length - visible)} مورد دیگر)
-          </button>
-        </div>
-      )}
-
       {showControls && filtered.length > 0 && (
-        <p className="text-xs text-slate-400 text-center mt-4">
-          نمایش {fa(Math.min(visible, filtered.length))} از {fa(filtered.length)} نفر
-          {search && ` (فیلتر شده از ${fa(results.length)} نفر)`}
-        </p>
+        <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-3 min-[420px]:flex-row">
+          <p className="text-center text-xs text-slate-500" aria-live="polite">
+            نمایش {fa(firstVisible)} تا {fa(lastVisible)} از {fa(filtered.length)} نفر
+            {search && ` (از ${fa(results.length)} نفر)`}
+          </p>
+          <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 min-[420px]:w-auto">
+            <button type="button" onClick={() => setPage(value => Math.max(1, value - 1))} disabled={safePage === 1} className="btn-secondary w-full !px-3 !py-1.5 disabled:opacity-40">قبلی</button>
+            <span className="min-w-16 text-center text-xs font-semibold text-slate-600">{fa(safePage)} از {fa(totalPages)}</span>
+            <button type="button" onClick={() => setPage(value => Math.min(totalPages, value + 1))} disabled={safePage === totalPages} className="btn-secondary w-full !px-3 !py-1.5 disabled:opacity-40">بعدی</button>
+          </div>
+        </div>
       )}
     </div>
   );
