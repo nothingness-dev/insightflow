@@ -96,39 +96,44 @@ function PaginationControls({
     .sort((a, b) => a - b);
 
   return (
-    <nav aria-label={label} className="flex items-center justify-between gap-3">
+    <nav aria-label={label} className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
       <button
         type="button"
         disabled={!pagination.has_previous || busy}
         onClick={() => onPageChange(pagination.page - 1)}
-        className="btn-secondary min-h-9 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+        className="btn-secondary min-h-11 w-full px-3 text-xs disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-9"
       >
         قبلی
       </button>
       {showPageNumbers ? (
-        <div className="flex min-w-0 items-center justify-center gap-1" aria-live="polite">
-          {nearbyPages.map((page, index) => (
-            <span key={page} className="contents">
-              {index > 0 && page - nearbyPages[index - 1] > 1 && (
-                <span className="px-0.5 text-xs text-slate-400" aria-hidden="true">…</span>
-              )}
-              <button
-                type="button"
-                disabled={busy}
-                aria-current={page === pagination.page ? 'page' : undefined}
-                aria-label={`صفحه ${fa(page)}`}
-                onClick={() => onPageChange(page)}
-                className={`flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-xs font-medium transition-colors disabled:opacity-40 ${
-                  page === pagination.page
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-                }`}
-              >
-                {fa(page)}
-              </button>
-            </span>
-          ))}
-        </div>
+        <>
+          <span className="text-center text-xs text-slate-500 dark:text-slate-400 min-[520px]:hidden" aria-live="polite">
+            {fa(pagination.page)} از {fa(pagination.total_pages)}
+          </span>
+          <div className="hidden min-w-0 items-center justify-center gap-1 min-[520px]:flex" aria-live="polite">
+            {nearbyPages.map((page, index) => (
+              <span key={page} className="contents">
+                {index > 0 && page - nearbyPages[index - 1] > 1 && (
+                  <span className="px-0.5 text-xs text-slate-400" aria-hidden="true">…</span>
+                )}
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-current={page === pagination.page ? 'page' : undefined}
+                  aria-label={`صفحه ${fa(page)}`}
+                  onClick={() => onPageChange(page)}
+                  className={`flex h-11 min-w-11 items-center justify-center rounded-lg px-2 text-xs font-medium transition-colors disabled:opacity-40 sm:h-8 sm:min-w-8 ${
+                    page === pagination.page
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {fa(page)}
+                </button>
+              </span>
+            ))}
+          </div>
+        </>
       ) : (
         <span className="text-xs text-slate-500 dark:text-slate-400" aria-live="polite">
           صفحه {fa(pagination.page)} از {fa(pagination.total_pages)}
@@ -138,7 +143,7 @@ function PaginationControls({
         type="button"
         disabled={!pagination.has_next || busy}
         onClick={() => onPageChange(pagination.page + 1)}
-        className="btn-secondary min-h-9 px-3 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+        className="btn-secondary min-h-11 w-full px-3 text-xs disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-9"
       >
         بعدی
       </button>
@@ -188,7 +193,7 @@ function PeoplePaginationToolbar({
                 disabled={busy}
                 onClick={() => onPageSizeChange(option)}
                 aria-pressed={pageSize === option}
-                className={`flex h-7 min-w-8 items-center justify-center rounded-md px-2 text-[11px] font-medium transition-colors disabled:opacity-40 ${
+                className={`flex h-11 min-w-11 items-center justify-center rounded-md px-2 text-[11px] font-medium transition-colors disabled:opacity-40 sm:h-7 sm:min-w-8 ${
                   pageSize === option
                     ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-indigo-300'
                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
@@ -465,7 +470,7 @@ export function IPResponseAudit({ surveyId }: { surveyId: number }) {
   };
 
   return (
-    <section aria-labelledby="ip-audit-title" className="space-y-5">
+    <section data-testid="ip-response-audit" aria-labelledby="ip-audit-title" className="space-y-5">
       <div className="card overflow-hidden">
         <div className="border-b border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-700 dark:bg-slate-900 sm:px-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -481,7 +486,7 @@ export function IPResponseAudit({ surveyId }: { surveyId: number }) {
               type="button"
               onClick={exportExcel}
               disabled={!selectedIP || exporting}
-              className="btn-primary inline-flex min-h-10 items-center justify-center gap-2 px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 px-4 text-sm disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {exporting ? (
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
@@ -515,7 +520,7 @@ export function IPResponseAudit({ surveyId }: { surveyId: number }) {
                 <button
                   type="button"
                   onClick={clearSelectedIP}
-                  className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-200 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:focus:ring-rose-900"
+                  className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-200 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:focus:ring-rose-900 sm:min-h-8"
                   aria-label={`لغو انتخاب IP ${selectedIP}`}
                 >
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
@@ -525,7 +530,7 @@ export function IPResponseAudit({ surveyId }: { surveyId: number }) {
                 </button>
               )}
             </div>
-            <SearchInput
+              <SearchInput
                 id="ip-audit-search"
                 value={search}
                 onChange={value => {
@@ -535,6 +540,25 @@ export function IPResponseAudit({ surveyId }: { surveyId: number }) {
                 placeholder="جستجو بر اساس آدرس IP..."
                 ariaLabel="جستجو در آدرس‌های IP"
               />
+              {search.trim() && (
+                <div data-testid="ip-audit-filter-summary" className="mt-2 flex flex-wrap items-center gap-2" aria-label="خلاصه فیلترهای فعال">
+                  <button
+                    type="button"
+                    onClick={() => { setSearch(''); setIPPage(1); }}
+                    className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 text-xs font-medium text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 sm:min-h-9"
+                  >
+                    <span className="max-w-40 truncate">جستجو: «{search.trim()}»</span>
+                    <span aria-hidden="true">×</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setSearch(''); setIPPage(1); }}
+                    className="min-h-11 rounded-lg px-2 text-xs font-medium text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800 sm:min-h-9"
+                  >
+                    پاک کردن فیلترها
+                  </button>
+                </div>
+              )}
           </div>
 
           <div className="max-h-80 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:max-h-96 min-[900px]:max-h-[31rem]">
@@ -655,7 +679,7 @@ export function IPResponseAudit({ surveyId }: { surveyId: number }) {
                     <button
                       type="button"
                       onClick={clearSelectedIP}
-                      className="btn-secondary min-h-8 px-2.5 text-xs"
+                      className="btn-secondary min-h-11 px-2.5 text-xs sm:min-h-8"
                     >
                       لغو انتخاب IP
                     </button>

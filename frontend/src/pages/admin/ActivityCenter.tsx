@@ -175,6 +175,30 @@ function ActivityLogTableSkeleton() {
   );
 }
 
+function ActivityLogCardSkeleton() {
+  return (
+    <div className="divide-y divide-gray-100 sm:hidden" aria-busy="true" aria-label="در حال بارگذاری گزارش فعالیت‌ها">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+            <Skeleton className="h-6 w-14 rounded-full" />
+          </div>
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-3/4" />
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-9 w-9 rounded-lg" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
@@ -196,7 +220,12 @@ function DetailField({ label, value, icon, mono, dir, span }: {
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] text-gray-400 mb-0.5">{label}</p>
-        <p className={`text-slate-700 font-medium truncate ${mono ? 'font-mono' : ''}`} dir={dir}>{value}</p>
+        <div
+          className={`max-h-28 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-all text-slate-700 font-medium leading-relaxed ${mono ? 'font-mono' : ''}`}
+          dir={dir}
+        >
+          {value}
+        </div>
       </div>
     </div>
   );
@@ -323,6 +352,19 @@ export default function ActivityCenter() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+  const hasActiveFilters = Boolean(action || actor || statusFilter || criticalOnly || search.trim());
+
+  const clearFilters = () => onFilterChange(() => {
+    setAction('');
+    setActor('');
+    setStatusFilter('');
+    setCriticalOnly(false);
+    handleSearch('');
+  });
+
+  const actionLabel = options?.actions.find(item => item.value === action)?.label;
+  const actorLabel = options?.actors.find(item => String(item.id) === actor);
+  const statusLabel = options?.statuses.find(item => item.value === statusFilter)?.label;
 
   const loadTop = useCallback(async (signal?: AbortSignal) => {
     setLoadingTop(true);
@@ -521,27 +563,98 @@ export default function ActivityCenter() {
             placeholder="همه وضعیت‌ها"
             options={[{ value: '', label: 'همه وضعیت‌ها' }, ...(options?.statuses.map(s => ({ value: s.value, label: s.label })) || [])]}
           />
-          <div className="flex items-center justify-between gap-3 lg:col-span-4">
+          <div className="lg:col-span-4">
             <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none px-1">
               <input type="checkbox" checked={criticalOnly} onChange={e => onFilterChange(() => setCriticalOnly(e.target.checked))} className="w-4 h-4 rounded accent-red-500" />
               فقط اقدامات حساس
             </label>
-            {(action || actor || statusFilter || criticalOnly || search) && (
-              <button
-                type="button"
-                onClick={() => onFilterChange(() => { setAction(''); setActor(''); setStatusFilter(''); setCriticalOnly(false); handleSearch(''); })}
-                className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-[color:var(--c-600)] dark:hover:text-[color:var(--c-300)] transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
-                بازنشانی
-              </button>
-            )}
           </div>
         </div>
 
-        <div className="table-wrapper overflow-x-auto rounded-lg border border-gray-100">
+        {hasActiveFilters && (
+          <div data-testid="activity-filter-summary" className="mb-4 flex flex-wrap items-center gap-2" aria-label="خلاصه فیلترهای فعال">
+            <span className="text-xs font-medium text-gray-500">فیلترهای فعال:</span>
+            {search.trim() && (
+              <button type="button" onClick={() => handleSearch('')} className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-[color:var(--c-200)] bg-[color:var(--c-50)] px-3 text-xs font-medium text-[color:var(--c-700)] sm:min-h-9">
+                <span className="max-w-40 truncate">جستجو: «{search.trim()}»</span><span aria-hidden="true">×</span>
+              </button>
+            )}
+            {action && (
+              <button type="button" onClick={() => onFilterChange(() => setAction(''))} className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-[color:var(--c-200)] bg-[color:var(--c-50)] px-3 text-xs font-medium text-[color:var(--c-700)] sm:min-h-9">
+                <span className="max-w-40 truncate">فعالیت: {actionLabel || action}</span><span aria-hidden="true">×</span>
+              </button>
+            )}
+            {actor && (
+              <button type="button" onClick={() => onFilterChange(() => setActor(''))} className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-[color:var(--c-200)] bg-[color:var(--c-50)] px-3 text-xs font-medium text-[color:var(--c-700)] sm:min-h-9">
+                <span className="max-w-40 truncate">کاربر: {actorLabel?.full_name || actorLabel?.username || actor}</span><span aria-hidden="true">×</span>
+              </button>
+            )}
+            {statusFilter && (
+              <button type="button" onClick={() => onFilterChange(() => setStatusFilter(''))} className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-[color:var(--c-200)] bg-[color:var(--c-50)] px-3 text-xs font-medium text-[color:var(--c-700)] sm:min-h-9">
+                <span className="max-w-40 truncate">وضعیت: {statusLabel || statusFilter}</span><span aria-hidden="true">×</span>
+              </button>
+            )}
+            {criticalOnly && (
+              <button type="button" onClick={() => onFilterChange(() => setCriticalOnly(false))} className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 text-xs font-medium text-red-700 sm:min-h-9">
+                فقط حساس‌ها <span aria-hidden="true">×</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-[color:var(--c-600)] dark:hover:text-[color:var(--c-300)] sm:min-h-9"
+            >
+              پاک کردن فیلترها
+            </button>
+          </div>
+        )}
+
+        <div className="overflow-hidden rounded-xl border border-gray-100">
+          {loadingTable ? (
+            <ActivityLogCardSkeleton />
+          ) : logs.length === 0 ? (
+            <div className="sm:hidden py-8">
+              <EmptyState title="فعالیتی یافت نشد" description="با فیلترهای انتخابی هیچ گزارشی موجود نیست." />
+            </div>
+          ) : (
+            <div data-testid="activity-mobile-log-list" className="divide-y divide-gray-100 sm:hidden">
+              {logs.map(log => {
+                const isOpen = expandedId === log.id;
+                const hasDetails = Boolean(log.target_repr || log.user_agent || Object.keys(log.metadata || {}).length > 0);
+                return (
+                  <article key={log.id} className={log.is_critical ? 'bg-red-50/40' : 'bg-white'}>
+                    <button
+                      type="button"
+                      onClick={() => hasDetails && setExpandedId(isOpen ? null : log.id)}
+                      className={`w-full p-4 text-right ${hasDetails ? 'cursor-pointer' : 'cursor-default'}`}
+                      aria-expanded={hasDetails ? isOpen : undefined}
+                    >
+                      <span className="flex items-start justify-between gap-3">
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2">
+                            <span className={`h-2 w-2 flex-shrink-0 rounded-full ${actionDotColor(log.action, log.is_critical)}`} />
+                            <span className="break-words text-sm font-semibold leading-6 text-slate-700">{log.action_label}</span>
+                          </span>
+                          <span className="mt-1 block break-words text-xs text-gray-500">{log.actor_display}</span>
+                        </span>
+                        <StatusPill status={log.status} />
+                      </span>
+                      <span className="mt-3 block whitespace-pre-wrap break-words text-xs leading-6 text-gray-600">{log.description || 'بدون شرح'}</span>
+                      <span className="mt-3 flex items-end justify-between gap-3 border-t border-gray-100 pt-3">
+                        <span className="min-w-0 text-[11px] text-gray-400">
+                          <span className="block">{formatDateTime(log.created_at)}</span>
+                          <span className="mt-1 block break-all font-mono" dir="ltr">{log.ip_address || 'بدون IP'}</span>
+                        </span>
+                        {hasDetails && <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-gray-100 bg-white text-gray-400"><ChevronIcon open={isOpen} /></span>}
+                      </span>
+                    </button>
+                    {isOpen && <ActivityLogDetails log={log} />}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+          <div data-testid="activity-desktop-log-table" className="hidden overflow-x-auto sm:block">
           <table className="responsive-table w-full min-w-[720px] text-sm">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs">
@@ -597,21 +710,22 @@ export default function ActivityCenter() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
 <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 mt-4 text-sm">
           <p className="text-xs text-gray-400">
             {count.toLocaleString('fa-IR')} رکورد · صفحه {page.toLocaleString('fa-IR')} از {totalPages.toLocaleString('fa-IR')}
           </p>
-          <div className="flex items-center gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 min-[420px]:flex min-[420px]:w-auto min-[420px]:items-center">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page <= 1 || loadingTable}
-              className="btn-secondary px-3 py-1.5 disabled:opacity-40"
+              className="btn-secondary w-full px-3 py-1.5 disabled:opacity-40"
             >قبلی</button>
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loadingTable}
-              className="btn-secondary px-3 py-1.5 disabled:opacity-40"
+              className="btn-secondary w-full px-3 py-1.5 disabled:opacity-40"
             >بعدی</button>
           </div>
         </div>

@@ -137,9 +137,9 @@ export default function SurveyResultsPage() {
               {fa(votersCount)} پاسخ‌دهنده
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 flex-shrink-0">
+          <div className="grid w-full grid-cols-2 gap-2 min-[420px]:flex min-[420px]:w-auto min-[420px]:flex-shrink-0">
             <button onClick={() => handleExport('pdf')} disabled={!!exporting}
-              className="btn-primary text-sm flex items-center gap-1.5 px-3 py-1.5">
+              className="btn-primary col-span-2 min-h-11 justify-center text-sm min-[420px]:col-span-1 flex items-center gap-1.5 px-3 py-1.5">
               {exporting === 'pdf'
                 ? <div className="w-3 h-3 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
                 : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -149,7 +149,7 @@ export default function SurveyResultsPage() {
             </button>
             {(['csv', 'excel'] as const).map(type => (
               <button key={type} onClick={() => handleExport(type)} disabled={!!exporting}
-                className="btn-secondary text-sm flex items-center gap-1.5 px-3 py-1.5">
+                className="btn-secondary min-h-11 justify-center text-sm flex items-center gap-1.5 px-3 py-1.5">
                 {exporting === type
                   ? <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
                   : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -162,10 +162,11 @@ export default function SurveyResultsPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1 border-b border-slate-200 mb-5 overflow-hidden dark:border-slate-700">
+      <div className="mb-5 grid grid-cols-2 gap-1 border-b border-slate-200 dark:border-slate-700 sm:flex" role="tablist" aria-label="بخش‌های نتایج">
         {TABS.map(t => (
           <button key={t.id} type="button" onClick={() => setTab(t.id)}
-            className={`px-3 sm:px-5 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            role="tab" aria-selected={tab === t.id}
+            className={`min-h-11 min-w-0 px-2 py-2.5 text-xs font-medium border-b-2 transition-colors sm:flex-none sm:px-5 sm:text-sm ${
               tab === t.id
                 ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                 : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300 dark:hover:text-slate-200'

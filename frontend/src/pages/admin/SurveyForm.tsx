@@ -309,7 +309,7 @@ export default function SurveyForm() {
         }
       />
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="pb-32 lg:pb-0">
         {errorSummary.length > 0 && (
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
             <p className="text-sm font-semibold text-red-700 mb-1.5">
@@ -333,8 +333,20 @@ export default function SurveyForm() {
           </div>
         )}
 
-        <div className="card p-4 sm:p-6 space-y-6">
-          {isDraft && showAutosaveIntro && (
+        <div className="space-y-4">
+          <section data-testid="survey-form-details-section" className="card p-4 sm:p-6" aria-labelledby="survey-details-heading">
+            <div className="mb-5 border-b border-gray-100 pb-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[color:var(--c-50)] text-sm font-bold text-[color:var(--c-700)]">۱</span>
+                <div>
+                  <h2 id="survey-details-heading" className="text-sm font-bold text-slate-800">اطلاعات نظرسنجی</h2>
+                  <p className="mt-0.5 text-xs text-gray-500">عنوان و راهنمایی که شرکت‌کنندگان می‌بینند.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-5">
+            {isDraft && showAutosaveIntro && (
             <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
               <div>
                 <p className="text-sm font-semibold text-emerald-800">
@@ -357,7 +369,7 @@ export default function SurveyForm() {
               )}
             </div>
           )}
-          {isDraft && !showAutosaveIntro && (
+            {isDraft && !showAutosaveIntro && (
             <div className="flex items-center justify-between gap-3 text-xs text-gray-400">
               <p>
                 ذخیره خودکار
@@ -376,7 +388,7 @@ export default function SurveyForm() {
               )}
             </div>
           )}
-          {!isDraft && (
+            {!isDraft && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
               <p className="text-sm font-semibold text-amber-800">
                 ساختار این نظرسنجی قفل است
@@ -387,7 +399,7 @@ export default function SurveyForm() {
               </p>
             </div>
           )}
-          <div>
+            <div>
             <label htmlFor="survey-title" className="label">
               عنوان نظرسنجی <span className="text-red-500">*</span>
             </label>
@@ -411,8 +423,8 @@ export default function SurveyForm() {
                 {errors.title}
               </p>
             )}
-          </div>
-          <div>
+            </div>
+            <div>
             <label htmlFor="survey-description" className="label">
               توضیحات / راهنمای شرکت‌کنندگان
             </label>
@@ -424,12 +436,19 @@ export default function SurveyForm() {
               className="input-field resize-none"
               placeholder="توضیحات یا راهنمایی برای شرکت‌کنندگان..."
             />
-          </div>
+            </div>
+            </div>
+          </section>
+
           {isDraft && (
-            <div className="border-t border-gray-100 pt-5">
-              <p className="text-xs text-gray-400 mb-4">
-                کاربر برای هر فرد باید به همه سوال‌های فعال پاسخ بدهد.
-              </p>
+            <section data-testid="survey-form-questions-section" className="card p-4 sm:p-6" aria-labelledby="survey-questions-heading">
+              <div className="mb-5 flex items-start gap-3 border-b border-gray-100 pb-4">
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[color:var(--c-50)] text-sm font-bold text-[color:var(--c-700)]">۲</span>
+                <div>
+                  <h2 id="survey-questions-heading" className="text-sm font-bold text-slate-800">سوال‌های نظرسنجی</h2>
+                  <p className="mt-0.5 text-xs leading-5 text-gray-500">سوال‌ها را به ترتیب نمایش تنظیم کنید. شرکت‌کننده باید برای هر فرد به همه سوال‌های فعال پاسخ دهد.</p>
+                </div>
+              </div>
               <QuestionsEditor
                 questions={form.questions}
                 onChange={setQuestions}
@@ -437,31 +456,36 @@ export default function SurveyForm() {
                 onClearError={clearErrorKey}
                 focusRequest={focusRequest}
               />
-            </div>
+            </section>
           )}
         </div>
 
-        <div className="safe-sticky-action card sticky z-20 mt-4 px-3 py-2.5 sm:px-4 flex items-center gap-2 sm:gap-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+        <div data-testid="survey-form-save-bar" className="safe-sticky-action card fixed inset-x-3 z-20 mx-auto mt-4 w-auto max-w-3xl px-3 py-2.5 sm:px-4 lg:sticky lg:inset-x-auto shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+          <p className="mb-2 min-w-0 text-center text-[11px] text-gray-400 sm:hidden" aria-live="polite">
+            {saving ? "در حال ذخیره…" : isDraft && (autosavedAt ? `ذخیره محلی · ${formatSavedTime(autosavedAt)}` : "ذخیره خودکار فعال")}
+          </p>
+          <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-2 sm:flex sm:items-center sm:gap-3">
           <button
             type="submit"
             disabled={saving}
-            className="btn-primary flex-shrink-0 flex items-center gap-2"
+            className="btn-primary w-full justify-center whitespace-nowrap px-2 text-xs sm:w-auto sm:px-4 sm:text-sm flex-shrink-0 flex items-center gap-2"
           >
             {saving && (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             )}
-            {isEdit ? "ذخیره تغییرات" : "ایجاد نظرسنجی"}
+            <span className="sm:hidden">{isEdit ? "ذخیره" : "ایجاد"}</span>
+            <span className="hidden sm:inline">{isEdit ? "ذخیره تغییرات" : "ایجاد نظرسنجی"}</span>
           </button>
           {isDraft && (
             <button
               type="button"
               onClick={openPreview}
-              className="btn-secondary flex-shrink-0"
+              className="btn-secondary w-full justify-center whitespace-nowrap px-2 text-xs sm:w-auto sm:px-4 sm:text-sm flex-shrink-0"
             >
               پیش‌نمایش
             </button>
           )}
-          <p className="flex-1 min-w-0 truncate text-[11px] sm:text-xs text-gray-400 text-center">
+          <p className="hidden flex-1 min-w-0 truncate text-center text-xs text-gray-400 sm:block" aria-live="polite">
             {isDraft &&
               (autosavedAt
                 ? `ذخیره شد · ${formatSavedTime(autosavedAt)}`
@@ -470,10 +494,11 @@ export default function SurveyForm() {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="btn-secondary flex-shrink-0"
+            className={`btn-secondary w-full justify-center whitespace-nowrap px-2 text-xs sm:w-auto sm:px-4 sm:text-sm flex-shrink-0 ${isDraft ? '' : 'col-span-2'}`}
           >
             انصراف
           </button>
+          </div>
         </div>
       </form>
       <Modal

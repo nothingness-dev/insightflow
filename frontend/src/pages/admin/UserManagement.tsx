@@ -65,6 +65,12 @@ export default function UserManagement() {
 
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
   const [deletingUser, setDeletingUser] = useState(false);
+  const hasActiveFilters = Boolean(search.trim() || roleFilter);
+
+  const clearFilters = () => {
+    handleSearchChange('');
+    handleRoleChange('');
+  };
 
   const openCreate = () => { setEditUser(null); setForm(emptyUserForm); setErrors({}); setModalOpen(true); };
   const openEdit = (u: User) => {
@@ -220,7 +226,7 @@ export default function UserManagement() {
         }
       />
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row gap-3 mb-3">
         <div className="flex-1"><SearchInput value={search} onChange={handleSearchChange} placeholder="جستجو بر اساس نام یا نام کاربری..." /></div>
         <Select
           value={roleFilter}
@@ -235,6 +241,39 @@ export default function UserManagement() {
         />
       </div>
 
+      {hasActiveFilters && (
+        <div data-testid="user-filter-summary" className="mb-5 flex flex-wrap items-center gap-2" aria-label="خلاصه فیلترهای فعال">
+          <span className="text-xs font-medium text-gray-500">فیلترهای فعال:</span>
+          {search.trim() && (
+            <button
+              type="button"
+              onClick={() => handleSearchChange('')}
+              className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-[color:var(--c-200)] bg-[color:var(--c-50)] px-3 text-xs font-medium text-[color:var(--c-700)] sm:min-h-9"
+            >
+              <span className="max-w-48 truncate">جستجو: «{search.trim()}»</span>
+              <span aria-hidden="true">×</span>
+            </button>
+          )}
+          {roleFilter && (
+            <button
+              type="button"
+              onClick={() => handleRoleChange('')}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[color:var(--c-200)] bg-[color:var(--c-50)] px-3 text-xs font-medium text-[color:var(--c-700)] sm:min-h-9"
+            >
+              نقش: {roleFilter === 'admin' ? 'مدیر' : 'کارمند'}
+              <span aria-hidden="true">×</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="min-h-11 rounded-lg px-2 text-xs font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 sm:min-h-9"
+          >
+            پاک کردن فیلترها
+          </button>
+        </div>
+      )}
+
       {loading ? <TableSkeleton rows={6} /> : loadError ? (
         <div className="card">
           <EmptyState
@@ -244,10 +283,10 @@ export default function UserManagement() {
           />
         </div>
       ) : users.length === 0 ? (
-        <div className="card"><EmptyState title="کاربری یافت نشد" description="اولین کاربر را ایجاد کنید" action={<button onClick={openCreate} className="btn-primary">ایجاد کاربر</button>} /></div>
+        <div className="card"><EmptyState title={hasActiveFilters ? 'کاربری با این فیلترها یافت نشد' : 'کاربری یافت نشد'} description={hasActiveFilters ? 'عبارت جستجو یا نقش انتخابی را تغییر دهید.' : 'اولین کاربر را ایجاد کنید'} action={hasActiveFilters ? <button onClick={clearFilters} className="btn-secondary">پاک کردن فیلترها</button> : <button onClick={openCreate} className="btn-primary">ایجاد کاربر</button>} /></div>
       ) : (
         <div className="card overflow-visible">
-          <div className="divide-y divide-gray-100 sm:hidden">
+          <div data-testid="user-mobile-list" className="divide-y divide-gray-100 sm:hidden">
             {users.map((user) => (
               <article key={user.id} className="p-4">
                 <div className="flex items-start gap-3">
@@ -276,7 +315,7 @@ export default function UserManagement() {
             ))}
           </div>
 
-          <div className="hidden overflow-x-auto rounded-t-xl sm:block">
+          <div data-testid="user-desktop-table" className="hidden overflow-x-auto rounded-t-xl sm:block">
             <table className="responsive-table w-full min-w-[680px] text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
