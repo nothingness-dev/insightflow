@@ -189,9 +189,9 @@ export default function SurveyDetail() {
 
   return (
     <div className="responsive-page max-w-4xl">
-<div className="flex flex-wrap items-center gap-2 text-sm text-gray-400 mb-5">
-        <Link to="/admin/surveys" className="compact-link hover:text-gray-700">نظرسنجی‌ها</Link>
-        <span>/</span>
+<div className="flex flex-wrap items-center gap-1 text-sm text-gray-400 mb-5">
+        <Link to="/admin/surveys" className="breadcrumb-link hover:text-gray-700">نظرسنجی‌ها</Link>
+        <span aria-hidden="true">/</span>
         <span className="text-gray-700">{survey.title}</span>
       </div>
       {survey.status !== 'draft' && (

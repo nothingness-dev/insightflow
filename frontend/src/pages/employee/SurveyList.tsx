@@ -143,12 +143,14 @@ export default function EmployeeSurveyList() {
 
   if (loadError) {
     return (
-      <div className="card p-8 text-center">
+      <div className="responsive-page">
+        <div className="card p-8 text-center" data-testid="employee-survey-list-load-error" role="alert">
         <h1 className="page-title mb-2">دریافت نظرسنجی‌ها ناموفق بود</h1>
-        <p className="text-sm text-gray-500 mb-5">{loadError}</p>
+        <p className="mb-5 break-words text-sm text-gray-500">{loadError}</p>
         <button type="button" onClick={() => void loadSurveys()} className="btn-primary">
           تلاش دوباره
         </button>
+        </div>
       </div>
     );
   }

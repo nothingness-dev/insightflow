@@ -29,6 +29,8 @@ export default function SurveyResultsPage() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<SurveyResults | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
   const [exporting, setExporting] = useState<'csv' | 'excel' | 'pdf' | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const surveyId = Number(id);
@@ -43,11 +45,13 @@ export default function SurveyResultsPage() {
     const controller = new AbortController();
     setLoading(true);
     setData(null);
+    setLoadError('');
 
     adminSurveyApi.results(surveyId, controller.signal)
       .then(r => setData(normalizeResultsPayload(r.data)))
       .catch(error => {
         if (isCanceledRequest(error, controller.signal)) return;
+        setLoadError('بارگذاری نتایج ناموفق بود. اتصال خود را بررسی کنید و دوباره تلاش کنید.');
         toast.error('خطا در بارگذاری نتایج');
       })
       .finally(() => {
@@ -57,7 +61,7 @@ export default function SurveyResultsPage() {
       });
 
     return () => controller.abort();
-  }, [surveyId]);
+  }, [surveyId, retryKey]);
 
   const handleExport = async (type: 'csv' | 'excel' | 'pdf') => {
     setExporting(type);
@@ -102,7 +106,19 @@ export default function SurveyResultsPage() {
       </div>
     );
   }
-  if (!data)  return null;
+  if (loadError || !data) {
+    return (
+      <div className="responsive-page max-w-4xl">
+        <div className="card p-8 text-center" data-testid="survey-results-load-error" role="alert">
+          <h1 className="page-title mb-2">بارگذاری نتایج ناموفق بود</h1>
+          <p className="mb-5 break-words text-sm text-gray-500">{loadError || 'داده‌ای برای نمایش دریافت نشد.'}</p>
+          <button type="button" onClick={() => setRetryKey(value => value + 1)} className="btn-primary">
+            تلاش دوباره
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const survey = data.survey;
   const results = Array.isArray(data.results) ? data.results : [];
@@ -118,17 +134,17 @@ export default function SurveyResultsPage() {
 
   return (
     <div className="responsive-page max-w-4xl">
-<div className="flex flex-wrap items-center gap-1.5 text-sm text-slate-400 mb-5">
-        <Link to="/admin/surveys" className="compact-link hover:text-slate-700 transition-colors">نظرسنجی‌ها</Link>
-        <span>/</span>
-        <Link to={`/admin/surveys/${id}`} className="compact-link hover:text-slate-700 transition-colors truncate max-w-[160px]">{survey.title}</Link>
-        <span>/</span>
+<div className="flex flex-wrap items-center gap-1 text-sm text-slate-400 mb-5">
+        <Link to="/admin/surveys" className="breadcrumb-link hover:text-slate-700 transition-colors">نظرسنجی‌ها</Link>
+        <span aria-hidden="true">/</span>
+        <Link to={`/admin/surveys/${id}`} title={survey.title} className="breadcrumb-link max-w-full break-words hover:text-slate-700 transition-colors sm:max-w-xs">{survey.title}</Link>
+        <span aria-hidden="true">/</span>
         <span className="text-slate-700">نتایج</span>
       </div>
 <div className="card p-4 sm:p-5 mb-5">
         <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between gap-3 sm:gap-4">
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-slate-800 truncate">{survey.title}</h1>
+            <h1 className="break-words text-xl font-bold leading-8 text-slate-800">{survey.title}</h1>
             <p className="text-sm text-slate-400 mt-1">
               {fa(sharedResults.length)} فرد موجود در نظرسنجی
               &nbsp;·&nbsp;

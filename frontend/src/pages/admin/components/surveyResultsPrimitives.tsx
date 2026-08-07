@@ -172,15 +172,16 @@ export function LazyComments({ surveyId, personId, questionId, total }: {
   return (
     <div>
       <button type="button" onClick={() => { if (!open && !resp) load(1); setOpen(o => !o); }}
-        className="inline-flex items-center gap-1.5 text-xs text-indigo-500 hover:text-indigo-700 font-medium transition-colors mt-2">
+        data-testid="lazy-comments-trigger"
+        className="mt-2 inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap text-xs font-medium text-indigo-500 transition-colors hover:text-indigo-700">
         <svg className={`w-3 h-3 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
-        {fa(total)} نظر متنی
+        <span data-testid="lazy-comments-label" className="whitespace-nowrap">{fa(total)} نظر متنی</span>
       </button>
 
       {open && (
-        <div className="mt-2 space-y-1.5">
+        <div className="mt-2 space-y-1.5" data-testid="lazy-comments-panel">
           {busy && !resp && <div className="py-3 flex justify-center"><div className="w-4 h-4 border-2 border-indigo-300 border-t-transparent rounded-full animate-spin" /></div>}
           {resp && <>
             {resp.comments.map((c, i) => (
@@ -189,12 +190,12 @@ export function LazyComments({ surveyId, personId, questionId, total }: {
             {resp.total_pages > 1 && (
               <div className="flex flex-col gap-2 pt-1 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                 <span className="text-xs text-slate-400">{fa((page - 1) * 20 + 1)}–{fa(Math.min(page * 20, resp.total))} از {fa(resp.total)}</span>
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
+                <div className="grid min-w-0 grid-cols-2 items-center gap-1">
+                  <span className="col-span-2 text-center text-xs text-slate-400">{fa(page)}/{fa(resp.total_pages)}</span>
                   <button type="button" disabled={page === 1 || busy} onClick={() => load(page - 1)}
-                    className="min-h-11 px-2 py-0.5 text-xs rounded border border-slate-200 bg-white text-slate-600 disabled:opacity-40 hover:bg-slate-50 sm:min-h-9">قبلی</button>
-                  <span className="px-1.5 py-0.5 text-xs text-slate-400">{fa(page)}/{fa(resp.total_pages)}</span>
+                    className="min-h-11 min-w-16 whitespace-nowrap px-2 py-0.5 text-xs rounded border border-slate-200 bg-white text-slate-600 disabled:opacity-40 hover:bg-slate-50">قبلی</button>
                   <button type="button" disabled={page === resp.total_pages || busy} onClick={() => load(page + 1)}
-                    className="min-h-11 px-2 py-0.5 text-xs rounded border border-slate-200 bg-white text-slate-600 disabled:opacity-40 hover:bg-slate-50 sm:min-h-9">بعدی</button>
+                    className="min-h-11 min-w-16 whitespace-nowrap px-2 py-0.5 text-xs rounded border border-slate-200 bg-white text-slate-600 disabled:opacity-40 hover:bg-slate-50">بعدی</button>
                 </div>
               </div>
             )}

@@ -27,6 +27,7 @@ export default function AdminSurveyList() {
   const navigate = useNavigate();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -44,6 +45,7 @@ export default function AdminSurveyList() {
 
   const load = useCallback((signal?: AbortSignal) => {
     setLoading(true);
+    setLoadError('');
     const params: Record<string, string> = {};
     if (debouncedSearch) params.search = debouncedSearch;
     if (statusFilter) params.status = statusFilter;
@@ -52,7 +54,9 @@ export default function AdminSurveyList() {
 
       .catch(err => {
         if (isCanceledRequest(err, signal)) return;
-        toast.error(getErrorMessage(err));
+        const message = getErrorMessage(err);
+        toast.error(message);
+        setLoadError(message);
         setSurveys([]);
       })
       .finally(() => {
@@ -182,7 +186,7 @@ export default function AdminSurveyList() {
         title="نظرسنجی‌ها"
         subtitle="مدیریت و پیگیری تمام نظرسنجی‌های سازمان"
         action={
-          <button onClick={() => navigate('/admin/surveys/new')} className="btn-primary w-full sm:w-auto flex items-center gap-2">
+          <button data-testid="create-survey-button" onClick={() => navigate('/admin/surveys/new')} className="btn-primary w-full sm:w-auto flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
@@ -261,8 +265,16 @@ export default function AdminSurveyList() {
         </div>
       )}
 
-      {loading ? <TableSkeleton rows={6} /> : surveys.length === 0 ? (
-        <div className="card">
+      {loading ? <TableSkeleton rows={6} /> : loadError ? (
+        <div className="card" data-testid="survey-list-load-error" role="alert">
+          <EmptyState
+            title="دریافت نظرسنجی‌ها ناموفق بود"
+            description={loadError}
+            action={<button type="button" onClick={() => load()} className="btn-primary">تلاش دوباره</button>}
+          />
+        </div>
+      ) : surveys.length === 0 ? (
+        <div className="card" data-testid="survey-list-empty-state">
           <EmptyState
             title={hasActiveFilters ? 'نتیجه‌ای پیدا نشد' : 'هنوز نظرسنجی ساخته نشده است'}
             description={hasActiveFilters ? 'عبارت جستجو یا فیلتر وضعیت را تغییر دهید.' : 'اولین نظرسنجی را بسازید و قبل از انتشار پیش‌نمایش آن را بررسی کنید.'}
@@ -286,7 +298,7 @@ export default function AdminSurveyList() {
                       title={survey.title}
                       className="inline-flex min-h-11 min-w-11 max-w-full items-center text-sm font-semibold leading-6 text-slate-800 hover:text-[color:var(--c-700)]"
                     >
-                      <span className="line-clamp-2 break-words">{survey.title}</span>
+                      <span className="break-words">{survey.title}</span>
                     </Link>
                     <p className="mt-0.5 text-xs text-gray-400">
                       {formatNumber(survey.questions_count || survey.questions?.length || 0)} سوال
@@ -330,7 +342,7 @@ export default function AdminSurveyList() {
                           title={survey.title}
                           className="inline-flex min-h-11 min-w-11 max-w-full items-center text-sm font-semibold leading-6 text-slate-800 hover:text-[color:var(--c-700)] focus-visible:text-[color:var(--c-700)]"
                         >
-                          <span className="line-clamp-2 break-words">{survey.title}</span>
+                          <span className="break-words">{survey.title}</span>
                         </Link>
                         <p className="text-xs text-gray-400 mt-0.5">
                           {formatNumber(survey.questions_count || survey.questions?.length || 0)} سوال
@@ -365,18 +377,18 @@ export default function AdminSurveyList() {
                 type="button"
                 onClick={() => setPage(current => Math.max(1, current - 1))}
                 disabled={currentPage === 1}
-                className="btn-secondary !px-3 !py-1.5 disabled:opacity-40"
+                className="btn-secondary min-w-16 whitespace-nowrap !px-3 !py-1.5 disabled:opacity-40"
               >
                 قبلی
               </button>
-              <span className="min-w-20 text-center text-xs font-semibold text-gray-600">
+              <span className="min-w-20 whitespace-nowrap text-center text-xs font-semibold text-gray-600">
                 صفحه {formatNumber(currentPage)} از {formatNumber(totalPages)}
               </span>
               <button
                 type="button"
                 onClick={() => setPage(current => Math.min(totalPages, current + 1))}
                 disabled={currentPage === totalPages}
-                className="btn-secondary !px-3 !py-1.5 disabled:opacity-40"
+                className="btn-secondary min-w-16 whitespace-nowrap !px-3 !py-1.5 disabled:opacity-40"
               >
                 بعدی
               </button>

@@ -125,7 +125,7 @@
 
   
   .input-field {
-    @apply w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm
+    @apply min-h-11 w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm
            focus:border-transparent
            transition-all duration-200 ease-out placeholder-gray-400;
     background-color: var(--surface);
@@ -377,6 +377,24 @@
     align-items: center;
   }
 
+  .breadcrumb-link {
+    position: relative;
+    display: inline-flex;
+    min-block-size: 2.75rem;
+    min-inline-size: 0;
+    align-items: center;
+  }
+
+  .breadcrumb-link::before {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 2.75rem);
+    height: 2.75rem;
+    transform: translate(-50%, -50%);
+    content: '';
+  }
+
   .icon-button {
     display: inline-flex;
     min-block-size: 2.75rem;
@@ -436,6 +454,13 @@
   .safe-sticky-action {
     inset-block-end: max(0.5rem, var(--safe-bottom));
     margin-block-end: var(--safe-bottom);
+  }
+
+  /* Leave focused fields clear of fixed mobile action bars when the visual
+     viewport shrinks for an on-screen keyboard. */
+  :where(input, textarea, select, [contenteditable="true"]) {
+    scroll-margin-block-start: calc(4.5rem + var(--safe-top));
+    scroll-margin-block-end: calc(7rem + var(--safe-bottom));
   }
 
   .modal-scroll-region {

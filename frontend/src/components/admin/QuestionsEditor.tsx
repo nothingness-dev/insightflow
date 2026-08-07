@@ -223,7 +223,7 @@ export default function QuestionsEditor({
                   type="button"
                   onClick={() => toggleCollapsed(index)}
                   aria-expanded={!isCollapsed}
-                  className="flex flex-1 items-center gap-2 min-w-0 text-right"
+                  className="flex min-w-[2.75rem] flex-1 items-center gap-2 text-right"
                 >
                   <svg
                     className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-150 ${isCollapsed ? "" : "rotate-180"}`}

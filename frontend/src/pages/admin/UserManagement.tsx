@@ -11,11 +11,11 @@ import { emptyUserForm, type UserFormData } from './types/userManagement';
 
 function UserStatus({ isActive }: { isActive: boolean }) {
   return isActive ? (
-    <span className="inline-flex min-h-7 items-center rounded-full border border-emerald-100 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-700">
+    <span className="inline-flex min-h-7 shrink-0 items-center whitespace-nowrap rounded-full border border-emerald-100 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-700">
       فعال
     </span>
   ) : (
-    <span className="inline-flex min-h-7 items-center rounded-full border border-red-100 bg-red-50 px-2.5 text-xs font-semibold text-red-700">
+    <span className="inline-flex min-h-7 shrink-0 items-center whitespace-nowrap rounded-full border border-red-100 bg-red-50 px-2.5 text-xs font-semibold text-red-700">
       غیرفعال
     </span>
   );
@@ -275,7 +275,7 @@ export default function UserManagement() {
       )}
 
       {loading ? <TableSkeleton rows={6} /> : loadError ? (
-        <div className="card">
+        <div className="card" data-testid="user-list-load-error" role="alert">
           <EmptyState
             title="دریافت کارکنان ناموفق بود"
             description={loadError}
@@ -295,8 +295,8 @@ export default function UserManagement() {
                       {user.full_name[0]}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold leading-6 text-slate-800" title={user.full_name}>{user.full_name}</p>
-                      <p className="truncate text-xs text-gray-400" dir="ltr">@{user.username}</p>
+                      <p className="break-words text-sm font-semibold leading-6 text-slate-800">{user.full_name}</p>
+                      <p className="break-all text-xs text-gray-400" dir="ltr">@{user.username}</p>
                     </div>
                   </div>
                   <ActionMenu
@@ -366,18 +366,18 @@ export default function UserManagement() {
                   type="button"
                   onClick={() => setPage(current => Math.max(1, current - 1))}
                   disabled={page === 1}
-                  className="btn-secondary !px-3 !py-1.5 disabled:opacity-40"
+                  className="btn-secondary min-w-16 whitespace-nowrap !px-3 !py-1.5 disabled:opacity-40"
                 >
                   قبلی
                 </button>
-                <span className="min-w-20 text-center text-xs font-semibold text-gray-600">
+                <span className="min-w-20 whitespace-nowrap text-center text-xs font-semibold text-gray-600">
                   صفحه {formatNumber(page)} از {formatNumber(Math.max(1, Math.ceil(totalUsers / USERS_PER_PAGE)))}
                 </span>
                 <button
                   type="button"
                   onClick={() => setPage(current => Math.min(Math.max(1, Math.ceil(totalUsers / USERS_PER_PAGE)), current + 1))}
                   disabled={page >= Math.ceil(totalUsers / USERS_PER_PAGE)}
-                  className="btn-secondary !px-3 !py-1.5 disabled:opacity-40"
+                  className="btn-secondary min-w-16 whitespace-nowrap !px-3 !py-1.5 disabled:opacity-40"
                 >
                   بعدی
                 </button>

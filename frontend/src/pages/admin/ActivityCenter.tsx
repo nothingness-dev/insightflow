@@ -30,8 +30,8 @@ function StatCard({ label, value, accent, icon }: { label: string; value: string
 
 function StatusPill({ status }: { status: 'success' | 'failed' }) {
   return status === 'failed'
-    ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">ناموفق</span>
-    : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">موفق</span>;
+    ? <span className="inline-flex shrink-0 items-center whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">ناموفق</span>
+    : <span className="inline-flex shrink-0 items-center whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">موفق</span>;
 }
 
 function actionDotColor(action: string, isCritical: boolean) {
@@ -564,7 +564,7 @@ export default function ActivityCenter() {
             options={[{ value: '', label: 'همه وضعیت‌ها' }, ...(options?.statuses.map(s => ({ value: s.value, label: s.label })) || [])]}
           />
           <div className="lg:col-span-4">
-            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none px-1">
+            <label className="flex min-h-11 items-center gap-2 px-1 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none">
               <input type="checkbox" checked={criticalOnly} onChange={e => onFilterChange(() => setCriticalOnly(e.target.checked))} className="w-4 h-4 rounded accent-red-500" />
               فقط اقدامات حساس
             </label>
@@ -684,16 +684,16 @@ export default function ActivityCenter() {
                       className={`${log.is_critical ? 'bg-red-50/40' : 'hover:bg-slate-50/60'} ${hasDetails ? 'cursor-pointer' : ''}`}
                     >
                       <td className="px-3 py-2.5 text-xs text-gray-500 whitespace-nowrap">{formatDateTime(log.created_at)}</td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">
+                      <td className="min-w-40 px-3 py-2.5">
                         <span className="inline-flex items-center gap-2">
                           <span className={`w-2 h-2 rounded-full ${actionDotColor(log.action, log.is_critical)}`} />
                           <span className="text-xs font-medium text-slate-700">{log.action_label}</span>
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-xs text-slate-600 whitespace-nowrap">{log.actor_display}</td>
-                      <td className="px-3 py-2.5 text-xs text-gray-500 max-w-[280px]"><span className="line-clamp-2">{log.description || '—'}</span></td>
+                      <td className="min-w-40 px-3 py-2.5 text-xs text-slate-600"><span className="block break-words">{log.actor_display}</span></td>
+                      <td className="w-[280px] min-w-60 px-3 py-2.5 text-xs text-gray-500"><span className="block max-h-24 overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words leading-5">{log.description || '—'}</span></td>
                       <td className="px-3 py-2.5"><StatusPill status={log.status} /></td>
-                      <td className="px-3 py-2.5 text-xs text-gray-400 whitespace-nowrap" dir="ltr">{log.ip_address || '—'}</td>
+                      <td className="min-w-52 px-3 py-2.5 text-xs text-gray-400" dir="ltr"><span className="block break-all">{log.ip_address || '—'}</span></td>
                       <td className="px-3 py-2.5 text-gray-300">
                         {hasDetails && <ChevronIcon open={isOpen} />}
                       </td>
@@ -720,12 +720,12 @@ export default function ActivityCenter() {
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page <= 1 || loadingTable}
-              className="btn-secondary w-full px-3 py-1.5 disabled:opacity-40"
+              className="btn-secondary min-w-16 w-full whitespace-nowrap px-3 py-1.5 disabled:opacity-40"
             >قبلی</button>
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loadingTable}
-              className="btn-secondary w-full px-3 py-1.5 disabled:opacity-40"
+              className="btn-secondary min-w-16 w-full whitespace-nowrap px-3 py-1.5 disabled:opacity-40"
             >بعدی</button>
           </div>
         </div>
