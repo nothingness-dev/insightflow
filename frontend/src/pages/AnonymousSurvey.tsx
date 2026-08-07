@@ -327,7 +327,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting, s
       {paged ? (
         <>
           {step < questions.length - 1 ? (
-            <button type="button" onClick={goNext} className="btn-primary min-w-0">بعدی</button>
+            <button type="button" onClick={goNext} className="btn-primary min-w-0 whitespace-nowrap">بعدی</button>
           ) : (
             <button type="button" onClick={submit} disabled={submitting} data-testid="anonymous-rating-submit"
               className="btn-primary min-w-0 flex items-center justify-center gap-2">
@@ -336,7 +336,7 @@ function RatingModal({ open, onClose, person, questions, onSubmit, submitting, s
             </button>
           )}
           <button type="button" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0 || submitting}
-            className="btn-secondary min-w-0 disabled:opacity-40">قبلی</button>
+            className="btn-secondary min-w-0 whitespace-nowrap disabled:opacity-40">قبلی</button>
         </>
       ) : (
         <>

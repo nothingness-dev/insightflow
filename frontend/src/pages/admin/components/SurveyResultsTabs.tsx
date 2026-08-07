@@ -126,8 +126,8 @@ export function TabOverview({ results, survey }: { results: PersonResult[]; surv
                   <RankMedal rank={r.rank} />
                   <Avatar name={r.full_name} photo={r.photo_url} size={8} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-700 truncate">{r.full_name}</p>
-                    <p className="text-xs text-slate-400 truncate">{[r.role_title, r.department].filter(Boolean).join(' · ')}</p>
+                    <p className="break-words text-sm font-medium leading-6 text-slate-700">{r.full_name}</p>
+                    <p className="break-words text-xs leading-5 text-slate-400">{[r.role_title, r.department].filter(Boolean).join(' · ')}</p>
                     <Bar value={r.average_score} h={4} />
                   </div>
                   <ScorePill value={r.average_score} size="sm" />
@@ -228,12 +228,12 @@ function QuestionStatsList({ stats, surveyId }: { stats: QStat[]; surveyId: numb
       <div className="divide-y divide-slate-50">
         {stats.map((q, i) => (
           <div key={q.question_id} className="p-5">
-            <div className="flex items-start gap-3">
+            <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
 <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-bold text-slate-400 flex-shrink-0 mt-0.5">
                 {(i + 1).toLocaleString('fa-IR')}
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div data-testid="question-stat-content" className="min-w-0 basis-[calc(100%_-_2.25rem)] flex-1 sm:basis-auto">
                 <p className="text-sm font-medium text-slate-700 leading-relaxed mb-3">{q.question_text}</p>
 
                 {q.has_score && (
@@ -277,7 +277,7 @@ function QuestionStatsList({ stats, surveyId }: { stats: QStat[]; surveyId: numb
                 <LazyComments surveyId={surveyId} questionId={q.question_id} total={q.comments_count} />
               </div>
 {q.has_score && (
-                <div className="flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center"
+                <div className="mr-9 flex h-14 w-14 flex-shrink-0 flex-col items-center justify-center rounded-xl sm:mr-0"
                   style={{ background: scoreBg(q.avg, dark) }}>
                   <span className="text-lg font-bold leading-none" style={{ color: scoreColor(q.avg) }}>
                     {q.avg != null ? fa(q.avg, 1) : '—'}
@@ -288,7 +288,7 @@ function QuestionStatsList({ stats, surveyId }: { stats: QStat[]; surveyId: numb
                 </div>
               )}
               {!q.has_score && q.has_emoji && (
-                <div className="flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center"
+                <div className="mr-9 flex h-14 w-14 flex-shrink-0 flex-col items-center justify-center rounded-xl sm:mr-0"
                   style={{ background: emojiVisual(q.emoji_avg_label, dark).bg }}>
                   <span className="text-sm font-bold leading-none text-center" style={{ color: emojiVisual(q.emoji_avg_label, dark).color }}>
                     {q.emoji_avg_label || '—'}
@@ -326,8 +326,8 @@ function QuestionRow({ q, surveyId, personId }: { q: QuestionResult; surveyId: n
   const { mode } = useTheme();
   const dark = mode === 'dark';
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
-      <div className="flex-1 min-w-0">
+    <div className="flex flex-wrap items-start gap-3 border-b border-slate-50 py-3 last:border-0 sm:flex-nowrap">
+      <div className="min-w-0 basis-full flex-1 sm:basis-auto">
         <p className="text-xs text-slate-500 leading-relaxed mb-1.5">{q.question_text}</p>
         {q.has_score && <Bar value={q.average_score} h={4} showLabel />}
         {q.has_emoji && (
@@ -365,20 +365,20 @@ function PersonRow({ r, surveyId, expanded, onToggle }: {
 <button
         type="button"
         onClick={hasDetail ? onToggle : undefined}
-        className={`w-full flex items-center gap-3 px-5 py-4 text-right ${hasDetail ? 'cursor-pointer' : 'cursor-default'}`}
+        className={`flex w-full flex-wrap items-center gap-3 px-5 py-4 text-right sm:flex-nowrap ${hasDetail ? 'cursor-pointer' : 'cursor-default'}`}
       >
         <RankMedal rank={r.rank} />
         <Avatar name={r.full_name} photo={r.photo_url} size={9} />
 
-        <div className="flex-1 min-w-0 text-right">
-          <p className="text-sm font-semibold text-slate-800 truncate">{r.full_name}</p>
-          <p className="text-xs text-slate-400 truncate">{[r.role_title, r.department].filter(Boolean).join(' · ')}</p>
+        <div className="min-w-[10rem] flex-[1_1_10rem] text-right">
+          <p className="break-words text-sm font-semibold leading-6 text-slate-800">{r.full_name}</p>
+          <p className="break-words text-xs leading-5 text-slate-400">{[r.role_title, r.department].filter(Boolean).join(' · ')}</p>
           <div className="mt-1.5 max-w-xs">
             <Bar value={r.average_score} h={4} />
           </div>
         </div>
 
-        <div className="flex items-center gap-4 flex-shrink-0">
+        <div className="flex w-full flex-shrink-0 items-center justify-end gap-4 sm:w-auto">
           <div className="hidden sm:block text-center">
             <p className="text-[10px] text-slate-400 mb-0.5">رأی‌دهنده</p>
             <p className="text-sm font-bold text-slate-600">{fa(r.votes_count)}</p>
@@ -501,9 +501,9 @@ export function TabPeople({ results, surveyId, showControls = true }: { results:
             {search && ` (از ${fa(results.length)} نفر)`}
           </p>
           <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 min-[420px]:w-auto">
-            <button type="button" onClick={() => setPage(value => Math.max(1, value - 1))} disabled={safePage === 1} className="btn-secondary w-full !px-3 !py-1.5 disabled:opacity-40">قبلی</button>
-            <span className="min-w-16 text-center text-xs font-semibold text-slate-600">{fa(safePage)} از {fa(totalPages)}</span>
-            <button type="button" onClick={() => setPage(value => Math.min(totalPages, value + 1))} disabled={safePage === totalPages} className="btn-secondary w-full !px-3 !py-1.5 disabled:opacity-40">بعدی</button>
+            <button type="button" onClick={() => setPage(value => Math.max(1, value - 1))} disabled={safePage === 1} className="btn-secondary min-h-11 min-w-16 w-full whitespace-nowrap !px-3 !py-1.5 disabled:opacity-40">قبلی</button>
+            <span className="min-w-16 whitespace-nowrap text-center text-xs font-semibold text-slate-600">{fa(safePage)} از {fa(totalPages)}</span>
+            <button type="button" onClick={() => setPage(value => Math.min(totalPages, value + 1))} disabled={safePage === totalPages} className="btn-secondary min-h-11 min-w-16 w-full whitespace-nowrap !px-3 !py-1.5 disabled:opacity-40">بعدی</button>
           </div>
         </div>
       )}

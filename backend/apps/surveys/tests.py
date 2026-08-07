@@ -80,6 +80,22 @@ class PerPersonQuestionAssignmentTests(APITestCase):
         self.assertIn(f'بخش اختصاصی: {self.custom_person.full_name}', body)
         self.assertNotIn(f'بخش اختصاصی: {self.all_person.full_name}', body)
 
+    def test_excel_and_pdf_exports_remain_available(self):
+        self.client.force_authenticate(self.admin)
+
+        cases = (
+            ('excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+            ('pdf', 'application/pdf'),
+        )
+        for export_format, content_type in cases:
+            with self.subTest(export_format=export_format):
+                response = self.client.get(
+                    f'/api/admin/surveys/{self.survey.id}/export/{export_format}/'
+                )
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertEqual(response['Content-Type'], content_type)
+                self.assertGreater(len(response.content), 100)
+
     def test_person_can_be_reset_to_default_questions(self):
         self.client.force_authenticate(self.admin)
         self.client.put(

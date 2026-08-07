@@ -40,6 +40,12 @@ const outputDir = path.resolve(
 );
 const fixtureMode = process.env.MOBILE_ALLOW_LOCAL_FIXTURES === '1';
 const strictMode = process.argv.includes('--strict');
+const routeFilter = new Set(
+  (process.env.MOBILE_ROUTE_FILTER || '')
+    .split(',')
+    .map(value => value.trim())
+    .filter(Boolean),
+);
 const adminCredentials = {
   username:
     process.env.MOBILE_ADMIN_USERNAME ||
@@ -63,8 +69,19 @@ const viewports = [
   { key: 'mobile-320', width: 320, height: 800 },
   { key: 'mobile-390', width: 390, height: 844 },
   { key: 'desktop', width: 1440, height: 900 },
+  { key: 'phone-landscape', width: 844, height: 390, special: true },
+  { key: 'software-keyboard', width: 390, height: 430, special: true },
 ];
 const themes = ['light', 'dark'];
+
+const extremeFixtures = {
+  surveyTitle: 'ارزیابی تجربه همکاری تیم بین‌المللی — InsightFlow Performance & Accessibility Review 2026 '.repeat(3).trim(),
+  personName: 'نام بسیار طولانی همکار نمونه — Alexandra-Mohammadi International Operations',
+  username: 'extreme.mobile.accessibility.user.with.a.very.long.identifier',
+  ipv6: '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+  longComment: `${'این نظر طولانی برای بررسی شکست خطوط، خوانایی و اسکرول داخلی نوشته شده است. '.repeat(12)}\n${'Mixed-Latin-content-without-natural-breakpoints_'.repeat(10)}`,
+  largeCount: 987654321,
+};
 
 const report = {
   generatedAt: new Date().toISOString(),
@@ -375,6 +392,89 @@ async function prepareRoutes() {
       textScale: 2,
       mobileOnly: true,
     },
+    {
+      id: 'admin-survey-list-long-content', role: 'admin', path: '/admin/surveys',
+      state: 'long-mixed-content', setup: 'mock-survey-extremes',
+      viewportKeys: ['mobile-320', 'phone-landscape'],
+    },
+    {
+      id: 'admin-survey-list-empty', role: 'admin', path: '/admin/surveys',
+      state: 'empty', setup: 'mock-survey-empty', viewportKeys: ['mobile-320'],
+      expectedStateTestId: 'survey-list-empty-state',
+    },
+    {
+      id: 'admin-survey-list-error', role: 'admin', path: '/admin/surveys',
+      state: 'server-error', setup: 'mock-survey-error', viewportKeys: ['mobile-320'],
+      expectedStateTestId: 'survey-list-load-error',
+    },
+    {
+      id: 'admin-survey-list-loading', role: 'admin', path: '/admin/surveys',
+      state: 'slow-loading', setup: 'mock-survey-loading', viewportKeys: ['mobile-320'],
+      captureWhileLoading: true,
+    },
+    {
+      id: 'admin-activity-extremes', role: 'admin', path: '/admin/activity',
+      state: 'ipv6-large-counts-long-content', setup: 'mock-activity-extremes',
+      viewportKeys: ['mobile-320', 'phone-landscape'],
+    },
+    {
+      id: 'admin-activity-text-200', role: 'admin', path: '/admin/activity',
+      state: 'pagination-and-status-text-200', setup: 'mock-activity-extremes',
+      textScale: 2, viewportKeys: ['mobile-390'],
+    },
+    {
+      id: 'admin-survey-progress-extremes', role: 'admin', path: '/admin/survey-progress',
+      state: 'large-counts-long-content', setup: 'mock-progress-extremes',
+      viewportKeys: ['mobile-320'],
+    },
+    {
+      id: 'admin-users-permission-denied', role: 'admin', path: '/admin/users',
+      state: 'permission-denied', setup: 'mock-users-permission-denied',
+      viewportKeys: ['mobile-320'], expectedStateTestId: 'user-list-load-error',
+    },
+    {
+      id: 'employee-survey-list-offline', role: 'employee',
+      path: employeeCredentials ? '/surveys' : null, state: 'offline',
+      setup: 'mock-employee-offline', viewportKeys: ['mobile-320'],
+      expectedStateTestId: 'employee-survey-list-load-error',
+    },
+    {
+      id: 'admin-survey-results-extremes', role: 'admin',
+      path: surveyId ? `/admin/surveys/${surveyId}/results` : null,
+      state: 'long-comments-large-counts', setup: 'mock-results-extremes',
+      viewportKeys: ['mobile-320', 'phone-landscape'],
+    },
+    {
+      id: 'admin-survey-results-text-200', role: 'admin',
+      path: surveyId ? `/admin/surveys/${surveyId}/results` : null,
+      state: 'comment-pagination-text-200', setup: 'mock-results-extremes',
+      textScale: 2, viewportKeys: ['mobile-390'],
+    },
+    {
+      id: 'admin-survey-results-error', role: 'admin',
+      path: surveyId ? `/admin/surveys/${surveyId}/results` : null,
+      state: 'server-error', setup: 'mock-results-error', viewportKeys: ['mobile-320'],
+      expectedStateTestId: 'survey-results-load-error',
+    },
+    {
+      id: 'admin-survey-new-text-200', role: 'admin', path: '/admin/surveys/new',
+      state: 'text-enlargement-200', textScale: 2, viewportKeys: ['mobile-320'],
+    },
+    {
+      id: 'admin-survey-new-keyboard', role: 'admin', path: '/admin/surveys/new',
+      state: 'software-keyboard', setup: 'verify-software-keyboard',
+      viewportKeys: ['software-keyboard'],
+    },
+    {
+      id: 'admin-back-navigation', role: 'admin', path: '/admin/surveys/new',
+      state: 'back-navigation', setup: 'verify-back-navigation', viewportKeys: ['mobile-320'],
+    },
+    {
+      id: 'anonymous-rating-landscape', role: 'anonymous',
+      path: anonymousToken ? `/s/${anonymousToken}` : null,
+      state: 'dialog-open-landscape', setup: 'open-rating-dialog',
+      viewportKeys: ['phone-landscape'],
+    },
   ];
 
   report.routes = routes.map(({ setup, ...route }) => ({
@@ -421,6 +521,451 @@ async function navigate(page, route) {
   throw lastError;
 }
 
+async function installNetworkScenario(page, entry) {
+  const handlers = [];
+  let releaseLoading = null;
+  const add = async (pattern, handler) => {
+    handlers.push({ pattern, handler });
+    await page.route(pattern, handler);
+  };
+  const transformJson = async (requestRoute, transform) => {
+    const response = await requestRoute.fetch();
+    const payload = await response.json();
+    await requestRoute.fulfill({ response, json: transform(payload) });
+  };
+  const updateListPayload = (payload, update) => {
+    if (Array.isArray(payload)) return update(payload);
+    return { ...payload, results: update(Array.isArray(payload?.results) ? payload.results : []) };
+  };
+
+  if (entry.setup === 'mock-survey-extremes') {
+    await add(/\/api\/admin\/surveys\/(?:\?.*)?$/, requestRoute => transformJson(requestRoute, payload => (
+      updateListPayload(payload, surveys => {
+        const fallback = {
+          id: surveyId || 999999,
+          title: extremeFixtures.surveyTitle,
+          description: extremeFixtures.longComment,
+          question: extremeFixtures.longComment,
+          status: 'published',
+          questions: [],
+          questions_count: 98765,
+          people_count: 87654321,
+          total_responses: extremeFixtures.largeCount,
+          created_at: new Date().toISOString(),
+        };
+        const first = surveys[0] || fallback;
+        return [{
+          ...first,
+          title: extremeFixtures.surveyTitle,
+          description: extremeFixtures.longComment,
+          questions_count: 98765,
+          people_count: 87654321,
+          total_responses: extremeFixtures.largeCount,
+        }, ...surveys.slice(1)];
+      })
+    )));
+  }
+
+  if (entry.setup === 'mock-survey-empty') {
+    await add(/\/api\/admin\/surveys\/(?:\?.*)?$/, async requestRoute => {
+      await requestRoute.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+  }
+
+  if (entry.setup === 'mock-survey-error') {
+    await add(/\/api\/admin\/surveys\/(?:\?.*)?$/, async requestRoute => {
+      await requestRoute.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'سرویس موقتاً در دسترس نیست — Service temporarily unavailable' }),
+      });
+    });
+  }
+
+  if (entry.setup === 'mock-survey-loading') {
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    releaseLoading = release;
+    await add(/\/api\/admin\/surveys\/(?:\?.*)?$/, async requestRoute => {
+      await gate;
+      await requestRoute.continue().catch(() => {});
+    });
+  }
+
+  if (entry.setup === 'mock-activity-extremes') {
+    await add(/\/api\/admin\/activity\/logs\/(?:\?.*)?$/, requestRoute => transformJson(requestRoute, payload => {
+      const log = {
+        id: 999999,
+        action: 'extreme_mobile_state',
+        action_label: 'بررسی محتوای بسیار طولانی و Mixed-Latin audit event',
+        actor: null,
+        actor_username: extremeFixtures.username,
+        actor_full_name: extremeFixtures.personName,
+        actor_role: 'admin',
+        actor_display: extremeFixtures.personName,
+        description: extremeFixtures.longComment,
+        target_type: 'survey',
+        target_id: String(extremeFixtures.largeCount),
+        target_repr: extremeFixtures.surveyTitle,
+        status: 'failed',
+        is_critical: true,
+        ip_address: extremeFixtures.ipv6,
+        user_agent: `MobileExtreme/${'x'.repeat(180)}`,
+        metadata: { count: extremeFixtures.largeCount, ipv6: extremeFixtures.ipv6 },
+        created_at: new Date().toISOString(),
+      };
+      if (Array.isArray(payload)) return [log, ...payload];
+      return {
+        ...payload,
+        count: Math.max(Number(payload?.count) || 0, extremeFixtures.largeCount),
+        results: [log, ...(Array.isArray(payload?.results) ? payload.results : [])],
+      };
+    }));
+    await add(/\/api\/admin\/activity\/stats\/(?:\?.*)?$/, requestRoute => transformJson(requestRoute, payload => ({
+      ...payload,
+      total_activities: extremeFixtures.largeCount,
+      today_activities: 876543210,
+      week_activities: 765432109,
+      critical_activities: 654321098,
+      failed_activities: 543210987,
+    })));
+  }
+
+  if (entry.setup === 'mock-progress-extremes') {
+    await add(/\/api\/admin\/surveys\/progress\/(?:\?.*)?$/, async requestRoute => {
+      const pendingUsers = Array.from({ length: 13 }, (_, index) => ({
+        id: 900000 + index,
+        username: `${extremeFixtures.username}.${index}`,
+        full_name: `${extremeFixtures.personName} ${index + 1}`,
+      }));
+      const payload = {
+        summary: {
+          total_surveys: extremeFixtures.largeCount,
+          total_assigned_responses: 876543210,
+          total_completed_responses: 765432109,
+          total_anonymous_participants: 654321098,
+          total_pending_responses: 543210987,
+          overall_completion_percentage: 87.6,
+        },
+        surveys: [{
+          survey_id: surveyId || 999999,
+          title: extremeFixtures.surveyTitle,
+          status: 'published',
+          active_people_count: 876543210,
+          active_questions_count: 765432109,
+          tracking_enabled: true,
+          assigned_employees: extremeFixtures.largeCount,
+          completed_employees: 876543210,
+          anonymous_participants: 654321098,
+          pending_employees: pendingUsers.length,
+          completion_percentage: 88.7,
+          last_employee_response_at: new Date().toISOString(),
+          last_anonymous_response_at: new Date().toISOString(),
+          last_response_at: new Date().toISOString(),
+          pending_users: pendingUsers,
+        }],
+      };
+      await requestRoute.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
+    });
+  }
+
+  if (entry.setup === 'mock-users-permission-denied') {
+    await add(/\/api\/admin\/users\/(?:\?.*)?$/, async requestRoute => {
+      await requestRoute.fulfill({
+        status: 403,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'شما اجازه مشاهده این بخش را ندارید — Permission denied' }),
+      });
+    });
+  }
+
+  if (entry.setup === 'mock-employee-offline') {
+    await add(/\/api\/surveys\/(?:\?.*)?$/, requestRoute => requestRoute.abort('internetdisconnected'));
+  }
+
+  if (entry.setup === 'mock-results-error') {
+    await add(/\/api\/admin\/surveys\/\d+\/results\/(?:\?.*)?$/, async requestRoute => {
+      await requestRoute.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'نتایج موقتاً در دسترس نیست' }),
+      });
+    });
+  }
+
+  if (entry.setup === 'mock-results-extremes') {
+    await add(/\/api\/admin\/surveys\/\d+\/results\/(?:\?.*)?$/, async requestRoute => {
+      const question = {
+        question_id: 990001,
+        question_text: extremeFixtures.surveyTitle,
+        has_score: true,
+        score_required: true,
+        has_comment: true,
+        comment_required: false,
+        has_emoji: true,
+        emoji_required: false,
+        average_score: 9.8,
+        total_score: extremeFixtures.largeCount,
+        responses_count: 876543210,
+        votes_count: 876543210,
+        comments: [],
+        comments_count: 41,
+        average_emoji_numeric: 3.8,
+        average_emoji_label: 'عالی',
+        emoji_responses_count: 765432109,
+        emoji_votes_count: 765432109,
+        emoji_breakdown: { bad: 12345678, average: 23456789, good: 34567890, excellent: 654321098 },
+      };
+      const payload = {
+        survey: {
+          id: surveyId || 999999,
+          title: extremeFixtures.surveyTitle,
+          description: extremeFixtures.longComment,
+          status: 'closed',
+          questions: [question],
+          questions_count: 1,
+          people_count: extremeFixtures.largeCount,
+          total_responses: extremeFixtures.largeCount,
+        },
+        results: [{
+          rank: 1,
+          person_id: 990001,
+          full_name: extremeFixtures.personName,
+          photo_url: null,
+          department: 'International Operations / واحد بسیار طولانی تجربه مشتری',
+          role_title: 'Senior Accessibility & Reliability Specialist',
+          average_score: 9.8,
+          total_score: extremeFixtures.largeCount,
+          votes_count: 876543210,
+          comments: [{ question_id: question.question_id, question_text: question.question_text, comment: extremeFixtures.longComment }],
+          comments_count: 41,
+          question_results: [question],
+          result_section: 'all',
+        }],
+      };
+      await requestRoute.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
+    });
+    await add(/\/api\/admin\/surveys\/\d+\/comments\/(?:\?.*)?$/, async requestRoute => {
+      await requestRoute.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          total: 41,
+          page: 1,
+          page_size: 20,
+          total_pages: 3,
+          comments: [
+            { comment: extremeFixtures.longComment, question_text: extremeFixtures.surveyTitle },
+            { comment: `${extremeFixtures.longComment}\n${extremeFixtures.ipv6}`, question_text: 'Mixed content' },
+          ],
+        }),
+      });
+    });
+  }
+
+  return {
+    releaseLoading: () => releaseLoading?.(),
+    cleanup: async () => {
+      releaseLoading?.();
+      await page.waitForTimeout(25);
+      for (const { pattern, handler } of handlers.reverse()) {
+        await page.unroute(pattern, handler).catch(() => {});
+      }
+    },
+  };
+}
+
+async function applyExtremeSetup(page, entry, viewport, theme) {
+  let evidence = null;
+
+  if (entry.captureWhileLoading) {
+    const loadingVisible = await page.locator('[aria-busy="true"]').first().isVisible().catch(() => false);
+    evidence = { ...(evidence || {}), loadingVisible };
+    if (!loadingVisible) {
+      report.findings.push({
+        severity: 'high', route: entry.id, viewport: viewport.key, theme,
+        rule: 'loading-state', detail: 'The slow response did not expose a visible busy skeleton.',
+      });
+    }
+  }
+
+  if (entry.textScale) {
+    const textEvidence = await page.evaluate(() => {
+      const saveBar = document.querySelector('[data-testid="survey-form-save-bar"]');
+      const saveBarRect = saveBar?.getBoundingClientRect() || null;
+      return {
+        rootFontSize: Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+        saveBarPresent: Boolean(saveBar),
+        saveBarVisible: saveBar
+          ? Boolean(saveBarRect && saveBarRect.top >= 0 && saveBarRect.bottom <= innerHeight + 1)
+          : null,
+      };
+    });
+    evidence = { ...(evidence || {}), textEnlargement: textEvidence };
+    if (textEvidence.rootFontSize < 31 || (textEvidence.saveBarPresent && !textEvidence.saveBarVisible)) {
+      report.findings.push({
+        severity: 'high', route: entry.id, viewport: viewport.key, theme,
+        rule: 'text-enlargement', detail: JSON.stringify(textEvidence),
+      });
+    }
+  }
+
+  if (entry.expectedStateTestId) {
+    const state = page.getByTestId(entry.expectedStateTestId);
+    await state.waitFor({ state: 'visible', timeout: 5_000 });
+    evidence = { ...(evidence || {}), expectedStateVisible: true };
+  }
+
+  if (entry.setup === 'mock-results-extremes') {
+    const questionsTab = page.getByRole('tab').nth(1);
+    await questionsTab.click();
+    const commentsTrigger = page.getByTestId('lazy-comments-trigger').first();
+    await commentsTrigger.click();
+    await page.getByTestId('lazy-comments-panel').first().waitFor({ state: 'visible', timeout: 5_000 });
+    evidence = { ...(evidence || {}), commentsPanelVisible: true };
+
+    if (entry.textScale) {
+      const resultsReflow = await page.evaluate(() => {
+        const visible = element => {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+        };
+        const lineCount = element => {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const lineTops = [];
+          for (const rect of range.getClientRects()) {
+            if (rect.width <= 0 || rect.height <= 0) continue;
+            if (!lineTops.some(top => Math.abs(top - rect.top) <= 2)) lineTops.push(rect.top);
+          }
+          return lineTops.length;
+        };
+        const contentWidthsEm = [...document.querySelectorAll('[data-testid="question-stat-content"]')]
+          .filter(visible)
+          .map(element => {
+            const width = element.getBoundingClientRect().width;
+            const fontSize = Number.parseFloat(getComputedStyle(element).fontSize) || 1;
+            return Math.round((width / fontSize) * 10) / 10;
+          });
+        const compactLineCounts = [
+          ...document.querySelectorAll('[data-testid="lazy-comments-label"], button'),
+        ]
+          .filter(element => visible(element) && (
+            ['قبلی', 'بعدی'].includes(element.textContent?.trim()) ||
+            element.matches('[data-testid="lazy-comments-label"]')
+          ))
+          .map(element => ({ label: element.textContent?.trim() || '', lines: lineCount(element) }));
+        return {
+          minimumContentWidthEm: contentWidthsEm.length ? Math.min(...contentWidthsEm) : 0,
+          compactLineCounts,
+        };
+      });
+      evidence = { ...(evidence || {}), resultsReflow };
+      if (
+        resultsReflow.minimumContentWidthEm < 6 ||
+        resultsReflow.compactLineCounts.some(item => item.lines > 1)
+      ) {
+        report.findings.push({
+          severity: 'high', route: entry.id, viewport: viewport.key, theme,
+          rule: 'results-text-reflow', detail: JSON.stringify(resultsReflow),
+        });
+      }
+    }
+  }
+
+  if (entry.setup === 'verify-software-keyboard') {
+    const field = page.locator('#survey-description');
+    const saveBar = page.getByTestId('survey-form-save-bar');
+    await field.focus();
+    await field.fill('Keyboard viewport resilience check');
+    await field.evaluate(element => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
+    await page.waitForTimeout(100);
+    const [fieldRect, saveBarRect] = await Promise.all([field.boundingBox(), saveBar.boundingBox()]);
+    const keyboardEvidence = {
+      activeIsField: await field.evaluate(element => document.activeElement === element),
+      fieldVisible: Boolean(fieldRect && fieldRect.y >= 0 && fieldRect.y + fieldRect.height <= viewport.height + 1),
+      saveBarVisible: Boolean(saveBarRect && saveBarRect.y >= 0 && saveBarRect.y + saveBarRect.height <= viewport.height + 1),
+      fieldClearOfSaveBar: Boolean(fieldRect && saveBarRect && fieldRect.y + fieldRect.height <= saveBarRect.y - 4),
+      fieldRect,
+      saveBarRect,
+    };
+    evidence = { ...(evidence || {}), softwareKeyboard: keyboardEvidence };
+    if (Object.values(keyboardEvidence).slice(0, 4).some(value => !value)) {
+      report.findings.push({
+        severity: 'high', route: entry.id, viewport: viewport.key, theme,
+        rule: 'software-keyboard-overlap', detail: JSON.stringify(keyboardEvidence),
+      });
+    }
+  }
+
+  if (entry.setup === 'verify-back-navigation') {
+    await navigate(page, '/admin/surveys');
+    await page.getByTestId('create-survey-button').click();
+    await page.waitForURL(url => url.pathname === '/admin/surveys/new', { timeout: 5_000 });
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+    const backPath = new URL(page.url()).pathname;
+    const backReturnedToList = backPath === '/admin/surveys';
+    await page.goForward({ waitUntil: 'domcontentloaded' });
+    const forwardPath = new URL(page.url()).pathname;
+    const forwardReturnedToForm = forwardPath === '/admin/surveys/new';
+    evidence = { ...(evidence || {}), backNavigation: { backPath, forwardPath, backReturnedToList, forwardReturnedToForm } };
+    if (!backReturnedToList || !forwardReturnedToForm) {
+      report.findings.push({
+        severity: 'high', route: entry.id, viewport: viewport.key, theme,
+        rule: 'history-navigation', detail: JSON.stringify(evidence.backNavigation),
+      });
+    }
+  }
+
+  return evidence;
+}
+
+async function collectExtremeEvidence(page, entry, viewport, theme) {
+  const markerEntries = {
+    'mock-survey-extremes': [extremeFixtures.surveyTitle],
+    'mock-activity-extremes': [extremeFixtures.ipv6, extremeFixtures.longComment.slice(0, 60)],
+    'mock-progress-extremes': [extremeFixtures.surveyTitle, extremeFixtures.personName],
+    'mock-results-extremes': [extremeFixtures.surveyTitle, extremeFixtures.longComment.slice(0, 60)],
+  };
+  const markers = markerEntries[entry.setup] || [];
+  const evidence = await page.evaluate(markerValues => {
+    const visible = element => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    };
+    const matches = [...document.querySelectorAll('main *')]
+      .filter(element => visible(element) && markerValues.some(marker => element.textContent?.includes(marker)))
+      .filter(element => ![...element.children].some(child => markerValues.some(marker => child.textContent?.includes(marker))))
+      .map(element => {
+        const style = getComputedStyle(element);
+        const overflows = element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1;
+        const intentionallyScrollable = [style.overflowX, style.overflowY].some(value => ['auto', 'scroll'].includes(value));
+        const clipsOverflow = [style.overflowX, style.overflowY].some(value => ['hidden', 'clip'].includes(value));
+        return {
+          tag: element.tagName.toLowerCase(),
+          overflows,
+          intentionallyScrollable,
+          clipped: overflows && clipsOverflow && !intentionallyScrollable,
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+          clientHeight: element.clientHeight,
+          scrollHeight: element.scrollHeight,
+        };
+      });
+    return { markerCount: markerValues.length, matches, clippedCount: matches.filter(match => match.clipped).length };
+  }, markers);
+
+  if (markers.length && (evidence.matches.length < markers.length || evidence.clippedCount > 0)) {
+    report.findings.push({
+      severity: 'high', route: entry.id, viewport: viewport.key, theme,
+      rule: 'extreme-content-integrity', detail: JSON.stringify(evidence),
+    });
+  }
+  return markers.length ? evidence : null;
+}
+
 async function collectMetrics(page) {
   return page.evaluate(() => {
     const visible = element => {
@@ -450,6 +995,7 @@ async function collectMetrics(page) {
       .map(element => {
         const target = effectiveTarget(element);
         const rect = target.getBoundingClientRect();
+        const hasExpandedBreadcrumbTarget = target.classList.contains('breadcrumb-link');
         return {
           tag: element.tagName.toLowerCase(),
           name:
@@ -458,11 +1004,35 @@ async function collectMetrics(page) {
             element.textContent?.trim().slice(0, 80) ||
             element.getAttribute('name') ||
             '',
-          width: Math.round(rect.width),
-          height: Math.round(rect.height),
+          width: Math.round(hasExpandedBreadcrumbTarget ? Math.max(rect.width, 44) : rect.width),
+          height: Math.round(hasExpandedBreadcrumbTarget ? Math.max(rect.height, 44) : rect.height),
         };
       })
       .filter(item => item.width < 44 || item.height < 44);
+    const compactLabels = new Set(['قبلی', 'بعدی', 'موفق', 'ناموفق', 'مدیر', 'کارمند']);
+    const visualLineCount = element => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const lineTops = [];
+      for (const rect of range.getClientRects()) {
+        if (rect.width <= 0 || rect.height <= 0) continue;
+        if (!lineTops.some(top => Math.abs(top - rect.top) <= 2)) lineTops.push(rect.top);
+      }
+      return lineTops.length;
+    };
+    const wrappedCompactLabels = [...document.querySelectorAll('button,span')]
+      .filter(element => visible(element) && compactLabels.has(element.textContent?.trim()))
+      .map(element => {
+        const rect = element.getBoundingClientRect();
+        return {
+          label: element.textContent?.trim() || '',
+          lineCount: visualLineCount(element),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          whiteSpace: getComputedStyle(element).whiteSpace,
+        };
+      })
+      .filter(item => item.lineCount > 1 || item.whiteSpace !== 'nowrap');
     const smallMobileFormText = [
       ...document.querySelectorAll(
         'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),select,textarea',
@@ -497,6 +1067,7 @@ async function collectMetrics(page) {
         document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
       interactiveCount: interactive.length,
       smallTargets,
+      wrappedCompactLabels,
       smallMobileFormText,
       fixedElements,
       h1Count: document.querySelectorAll('h1').length,
@@ -582,7 +1153,7 @@ async function collectAdminDensityEvidence(page, route, viewport, theme) {
     }
   }
 
-  if (['admin-survey-new', 'admin-survey-edit'].includes(route.id) && viewport.width <= 430) {
+  if ((route.id.startsWith('admin-survey-new') || route.id === 'admin-survey-edit') && viewport.width <= 430) {
     const detailsVisible = await page.getByTestId('survey-form-details-section').isVisible().catch(() => false);
     const questionsVisible = route.id === 'admin-survey-new'
       ? await page.getByTestId('survey-form-questions-section').isVisible().catch(() => false)
@@ -863,9 +1434,15 @@ async function openAndVerifyRatingModal(page, route, viewport, theme) {
 }
 
 async function captureRoute(page, route, viewport, theme) {
+  const networkScenario = await installNetworkScenario(page, route);
   await navigate(page, route.path);
-  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
-  await page.waitForTimeout(350);
+  if (route.captureWhileLoading) {
+    await page.locator('[aria-busy="true"]').first().waitFor({ state: 'visible', timeout: 5_000 });
+    await page.waitForTimeout(100);
+  } else {
+    await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+    await page.waitForTimeout(350);
+  }
   await page.evaluate(scale => {
     document.documentElement.style.fontSize = scale ? `${scale * 100}%` : '';
   }, route.textScale || null);
@@ -884,6 +1461,7 @@ async function captureRoute(page, route, viewport, theme) {
   if (route.setup === 'apply-admin-search-filter') {
     filterEvidence = await applyAdminSearchFilter(page, route, viewport, theme);
   }
+  const extremeSetupEvidence = await applyExtremeSetup(page, route, viewport, theme);
 
   const relativeFile = path.join(theme, viewport.key, `${route.id}.png`);
   const screenshotPath = path.join(outputDir, relativeFile);
@@ -894,6 +1472,7 @@ async function captureRoute(page, route, viewport, theme) {
   const focus = await collectFocusEvidence(page);
   const participationEvidence = await collectParticipationEvidence(page, route, viewport, theme);
   const adminDensityEvidence = await collectAdminDensityEvidence(page, route, viewport, theme);
+  const extremeEvidence = await collectExtremeEvidence(page, route, viewport, theme);
   let axe = null;
   if (route.axe && viewport.key === 'mobile-390' && theme === 'light') {
     const result = await new AxeBuilder({ page })
@@ -941,6 +1520,16 @@ async function captureRoute(page, route, viewport, theme) {
       detail: `${metrics.smallTargets.length} visible target(s) are smaller than 44 × 44 px.`,
     });
   }
+  if (metrics.wrappedCompactLabels.length) {
+    report.findings.push({
+      severity: 'high',
+      route: route.id,
+      viewport: viewport.key,
+      theme,
+      rule: 'compact-label-wrap',
+      detail: JSON.stringify(metrics.wrappedCompactLabels),
+    });
+  }
   if (viewport.width <= 430 && metrics.smallMobileFormText.length) {
     report.findings.push({
       severity: 'medium',
@@ -977,7 +1566,10 @@ async function captureRoute(page, route, viewport, theme) {
     participationEvidence,
     filterEvidence,
     adminDensityEvidence,
+    extremeSetupEvidence,
+    extremeEvidence,
   });
+  await networkScenario.cleanup();
 }
 
 async function getRoleSession(role) {
@@ -1016,6 +1608,8 @@ async function runRole(routes, role, viewport, theme) {
     route =>
       route.role === role &&
       route.path &&
+      (routeFilter.size === 0 || routeFilter.has(route.id)) &&
+      (route.viewportKeys ? route.viewportKeys.includes(viewport.key) : !viewport.special) &&
       (!route.mobileOnly || viewport.width <= 430),
   );
   if (!matchingRoutes.length) return;

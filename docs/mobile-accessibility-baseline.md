@@ -145,3 +145,24 @@ Milestone 3 introduced:
 - dynamic-viewport drawer sizing and safe-area padding for headers, drawers, page bottoms, fixed actions, and sticky form actions;
 - protected page padding so fixed anonymous actions cannot cover the final participant card, disclosure text, or copyright notice;
 - automated open-state evidence for initial focus containment, Escape handling, focus restoration, and successful reopen behavior.
+
+## Milestone 7 verification
+
+The extreme-state and regression pass was completed on 2026-08-07 against the local production Docker build.
+
+| Check | Result |
+| --- | ---: |
+| Captures | 164 |
+| Blocked routes | 0 |
+| Infrastructure errors | 0 |
+| Critical/high findings | 0 |
+| Mobile or landscape target-size findings | 0 |
+| Extreme-content clipping failures | 0 |
+| Document-level horizontal overflow failures | 0 |
+| Remaining advisories | 10 desktop-only target-size findings |
+
+The deterministic browser scenarios cover long mixed Persian/Latin survey and person names, unbroken text, IPv6, very large counts, long comments with bounded internal scrolling, empty data, server errors, offline responses, slow loading, permission denial, browser back/forward navigation, 200% text enlargement, phone landscape, and a reduced-height software-keyboard viewport. Compact Persian status, role, and pagination labels are explicitly checked for mid-word wrapping, including dedicated 200% Activity Center and survey-results states. Both light and dark themes are included. Temporary employee, survey, and anonymous-link fixtures are removed after the run; a post-run database check confirmed zero fixture records remained.
+
+Responsive changes remain frontend-only. Survey CSV, Excel, and PDF endpoints are protected by a four-test Django regression group running in an isolated temporary test database; all formats returned successful, correctly typed, non-empty responses. PDF and Excel generation code was not changed.
+
+The automated 200% check exercises text enlargement and reflow. Browser-chrome zoom, screen-reader behavior, and physical mobile keyboard behavior still require the documented manual real-device pass before a formal accessibility conformance claim.

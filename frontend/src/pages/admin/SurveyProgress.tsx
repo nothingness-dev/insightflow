@@ -130,11 +130,11 @@ function CompletionChart({ surveys }: { surveys: SurveyProgress[] }) {
 
             return (
               <div key={survey.survey_id}>
-                <div className="flex items-center justify-between gap-4 mb-1.5">
-                  <span className="text-sm font-medium text-slate-700 truncate" title={survey.title}>
+                <div className="mb-1.5 flex flex-col gap-1.5 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between min-[420px]:gap-4">
+                  <span className="min-w-0 flex-1 break-words text-sm font-medium leading-6 text-slate-700">
                     {survey.title}
                   </span>
-                  <span className={`text-xs font-bold flex-shrink-0 ${tone.text}`}>
+                  <span className={`max-w-full break-words text-xs font-bold leading-5 min-[420px]:flex-shrink-0 ${tone.text}`}>
                     {formatNumber(survey.completed_employees)} از {formatNumber(survey.assigned_employees)} کارمند · {formatNumber(survey.completion_percentage)}٪
                   </span>
                 </div>
@@ -172,9 +172,9 @@ function PendingUsersList({ users }: { users: SurveyProgress['pending_users'] })
     <div>
       <ul className="divide-y divide-gray-100 rounded-xl border border-gray-100 overflow-hidden">
         {pageUsers.map((user) => (
-          <li key={user.id} className="flex items-center justify-between gap-3 bg-white px-4 py-3.5">
-            <span className="text-sm font-medium text-slate-700 truncate">{user.full_name}</span>
-            <span className="text-xs text-gray-400 flex-shrink-0">@{user.username}</span>
+          <li key={user.id} className="flex flex-col items-start gap-1 bg-white px-4 py-3.5 min-[420px]:flex-row min-[420px]:justify-between min-[420px]:gap-3">
+            <span className="min-w-0 break-words text-sm font-medium text-slate-700">{user.full_name}</span>
+            <span className="max-w-full break-all text-xs text-gray-400" dir="ltr">@{user.username}</span>
           </li>
         ))}
       </ul>
@@ -189,18 +189,18 @@ function PendingUsersList({ users }: { users: SurveyProgress['pending_users'] })
               type="button"
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="px-3 py-1 text-xs rounded-lg border border-gray-200 bg-white text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="min-h-11 min-w-16 whitespace-nowrap px-3 py-1 text-xs rounded-lg border border-gray-200 bg-white text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
             >
               قبلی
             </button>
-            <span className="px-3 py-1 text-xs text-gray-500">
+            <span className="whitespace-nowrap px-3 py-1 text-xs text-gray-500">
               {formatNumber(page + 1)} / {formatNumber(totalPages)}
             </span>
             <button
               type="button"
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page === totalPages - 1}
-              className="px-3 py-1 text-xs rounded-lg border border-gray-200 bg-white text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+              className="min-h-11 min-w-16 whitespace-nowrap px-3 py-1 text-xs rounded-lg border border-gray-200 bg-white text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
             >
               بعدی
             </button>
@@ -225,7 +225,7 @@ function SurveyProgressCard({ survey }: { survey: SurveyProgress }) {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-semibold text-slate-800 truncate" title={survey.title}>
+              <h2 className="break-words text-base font-semibold leading-7 text-slate-800">
                 {survey.title}
               </h2>
               <StatusBadge status={survey.status} />
@@ -281,17 +281,17 @@ function SurveyProgressCard({ survey }: { survey: SurveyProgress }) {
               </p>
 
               <dl className="mt-4 grid grid-cols-3 divide-x divide-x-reverse divide-gray-200 border-t border-gray-200 pt-4">
-                <div className="text-center">
+                <div className="min-w-0 text-center">
                   <dt className="text-xs text-gray-400">تخصیص‌یافته</dt>
-                  <dd className="mt-1 text-lg font-bold text-slate-700">{formatNumber(survey.assigned_employees)}</dd>
+                  <dd className="mt-1 break-all text-base font-bold text-slate-700 sm:text-lg">{formatNumber(survey.assigned_employees)}</dd>
                 </div>
-                <div className="text-center">
+                <div className="min-w-0 text-center">
                   <dt className="text-xs text-gray-400">تکمیل‌شده</dt>
-                  <dd className="mt-1 text-lg font-bold text-emerald-600">{formatNumber(survey.completed_employees)}</dd>
+                  <dd className="mt-1 break-all text-base font-bold text-emerald-600 sm:text-lg">{formatNumber(survey.completed_employees)}</dd>
                 </div>
-                <div className="text-center">
+                <div className="min-w-0 text-center">
                   <dt className="text-xs text-gray-400">در انتظار</dt>
-                  <dd className="mt-1 text-lg font-bold text-amber-600">{formatNumber(survey.pending_employees)}</dd>
+                  <dd className="mt-1 break-all text-base font-bold text-amber-600 sm:text-lg">{formatNumber(survey.pending_employees)}</dd>
                 </div>
               </dl>
               <p className="mt-4 border-t border-gray-200 pt-3 text-xs text-gray-500">
@@ -429,7 +429,7 @@ export default function SurveyProgressPage() {
       />
 
       {error ? (
-        <div className="card p-8 text-center">
+        <div className="card p-8 text-center" data-testid="survey-progress-load-error" role="alert">
           <p className="text-sm text-red-600">{error}</p>
           <button type="button" onClick={() => void loadProgress()} className="btn-primary mt-4">
             تلاش دوباره
