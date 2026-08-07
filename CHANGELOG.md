@@ -1,5 +1,24 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.11] — 2026-08-07
+
+### Added
+
+- Added mobile card presentations for surveys, users, and activity logs while
+  preserving the existing desktop tables.
+- Expanded the mobile regression suite with admin editor, filtered-state,
+  results, IP audit, pagination, and responsive list coverage.
+
+### Improved
+
+- Reworked admin and IP audit filters with visible removable summaries,
+  reachable clear actions, and touch-friendly controls on narrow screens.
+- Made survey editing, results exports, result tabs, IP response pagination,
+  comment pagination, and admin actions reflow cleanly at 320 px and under text
+  scaling.
+- Added bounded wrapping and scrolling for long activity details and response
+  comments so administrative pages remain readable without page overflow.
+
 ## [2.10.0-ip-audit.10] — 2026-08-02
 
 ### Added
