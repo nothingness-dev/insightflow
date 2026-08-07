@@ -1,3 +1,26 @@
+## [2.10.10] — 2026-08-07
+
+### Added
+
+- Expanded the responsive regression matrix with deterministic long-content,
+  empty, error, offline, permission, keyboard, landscape, and 200% text states.
+- Added isolated CSV, Excel, and PDF export regression coverage.
+
+### Improved
+
+- Made long survey names, identities, IPv6 values, counts, and comments wrap or
+  scroll cleanly without clipping administrative pages.
+- Kept compact Persian status, role, pagination, and breadcrumb labels readable
+  at narrow widths and under text enlargement.
+- Improved recoverable loading and error states across survey, result, user, and
+  employee views.
+
+### Fixed
+
+- Prevented result cards and comment pagination from collapsing into narrow text
+  columns at 200% text size.
+- Removed excess RTL breadcrumb spacing while preserving accessible touch areas.
+
 ## [2.10.9] — 2026-08-07
 
 ### Added
