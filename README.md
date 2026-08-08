@@ -18,7 +18,7 @@ InsightFlow is a modern employee survey platform for Persian and RTL-first teams
 
 ## Screenshots
 
-These image slots are ready for GitHub. Replace the files in `screenshots/` whenever you want fresher captures; the README layout will update automatically.
+The gallery below uses the current captures tracked in `screenshots/`.
 
 | Login | Admin Dashboard |
 | --- | --- |
@@ -58,10 +58,10 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-4. Run migrations if needed.
+4. Check that every service is running.
 
 ```bash
-docker compose exec backend python manage.py migrate
+docker compose ps
 ```
 
 5. Open the app.
@@ -70,7 +70,9 @@ docker compose exec backend python manage.py migrate
 http://localhost
 ```
 
-The initial admin account is created from the `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_FULL_NAME` values in `.env`.
+The backend applies migrations, collects static files, and creates the initial
+admin account automatically during startup. Admin credentials come from
+`ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_FULL_NAME` in `.env`.
 
 ## Local Development
 
@@ -89,7 +91,7 @@ Frontend:
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -133,11 +135,19 @@ InsightFlow is designed to run as five Docker services:
 | `frontend` | React/Vite production build |
 | `nginx` | Reverse proxy for `/`, `/api/`, `/static/`, and `/media/` |
 
-For the common Linux deployment path, use:
+On a Linux host with `cron`, make the scripts executable and prepare the default
+backup directory before using the deployment helper:
 
 ```bash
+chmod +x deploy.sh backup.sh
+sudo install -d -m 700 -o "$USER" -g "$USER" /opt/InsightFlow/backups
 ./deploy.sh
 ```
+
+If `/opt/InsightFlow/backups` is not appropriate for the server, follow
+[BACKUP.md](BACKUP.md) and set a writable `BACKUP_DIR` when running
+`backup.sh`; use the direct Docker Compose path below instead of `deploy.sh`,
+which prepares the default `/opt/InsightFlow/backups` location.
 
 Or run Docker Compose directly:
 
@@ -169,12 +179,15 @@ At minimum, set these values in `.env` before production use:
 | `DEBUG` | Keep `False` outside development | `False` |
 | `ALLOWED_HOSTS` | Hostnames/IPs allowed by Django | `localhost,127.0.0.1,192.168.1.100` |
 | `CORS_ALLOWED_ORIGINS` | Browser origins allowed to call the API | `http://localhost,http://192.168.1.100` |
+| `VITE_PUBLIC_BASE_URL` | Public origin used when generating anonymous links | `http://192.168.1.100` |
 | `DB_NAME` | PostgreSQL database name | `surveydb` |
 | `DB_USER` | PostgreSQL user | `surveyuser` |
 | `DB_PASSWORD` | PostgreSQL password | `use-a-strong-password` |
+| `REDIS_URL` | Redis connection used by the backend | `redis://redis:6379/0` |
 | `ADMIN_USERNAME` | Initial admin username | `admin` |
 | `ADMIN_PASSWORD` | Initial admin password | `Admin@1234` |
 | `ADMIN_FULL_NAME` | Initial admin display name | `System Admin` |
+| `MAX_UPLOAD_SIZE` | Maximum uploaded image size in bytes | `2097152` |
 
 ### LAN or Custom URL
 
@@ -186,12 +199,15 @@ To make the app available from other devices on your network:
 ```env
 ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,192.168.1.100
 CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1,http://192.168.1.100
+VITE_PUBLIC_BASE_URL=http://192.168.1.100
 ```
 
-3. Restart the backend.
+3. Recreate the frontend and restart the backend. `VITE_PUBLIC_BASE_URL` is a
+frontend build argument, so a backend-only restart does not apply it.
 
 ```bash
 docker compose restart backend
+docker compose up -d --build frontend
 ```
 
 4. Open the app from another device:
@@ -206,7 +222,10 @@ For a local domain such as `survey.company.local`, add this to each client machi
 192.168.1.100    survey.company.local
 ```
 
-Then include the domain in `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and the Nginx `server_name`, then rebuild:
+Then include the domain in `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and
+`VITE_PUBLIC_BASE_URL`, then rebuild. The source-build Nginx configuration
+already accepts any host name; HTTPS customer deployments must also replace
+`your-domain.com` in `nginx/nginx.ssl.conf`.
 
 ```bash
 docker compose down
@@ -226,14 +245,20 @@ nginx:
 Use the included backup script for PostgreSQL backups:
 
 ```bash
-./backup.sh
-./backup.sh --restore
+./backup.sh backup
+./backup.sh list
+./backup.sh verify latest
+./backup.sh restore latest
 ```
+
+Restore is interactive and replaces the current database and uploaded media.
+Create and verify a fresh backup first. See [BACKUP.md](BACKUP.md) for custom
+paths, unattended restore, retention, and recovery-server instructions.
 
 Manual database backup and restore:
 
 ```bash
-docker compose exec db pg_dump -U surveyuser surveydb > backup.sql
+docker compose exec -T db pg_dump -U surveyuser surveydb > backup.sql
 docker compose exec -T db psql -U surveyuser surveydb < backup.sql
 ```
 
@@ -255,7 +280,11 @@ docker compose cp ./media_backup/. backend:/app/media
 | Port 80 is busy | `netstat -ano \| findstr :80` | Change the Nginx host port |
 | Uploaded images fail | `docker compose logs nginx` | Check media volume and proxy paths |
 
-To reset everything, including database volumes:
+> **Data-loss warning:** the following reset permanently deletes the PostgreSQL
+> database, Redis data, uploaded media, and collected static volumes for this
+> Compose project. Run `./backup.sh backup` and verify it before continuing.
+
+To reset everything and intentionally delete all named volumes:
 
 ```bash
 docker compose down -v
@@ -264,7 +293,34 @@ docker compose up --build -d
 
 ### Customer Deployment
 
-Additional customer/server notes live in [DEPLOYMENT.md](DEPLOYMENT.md).
+Customer deployments use prebuilt images and must not receive the application
+source or run `--build`. In addition to the standard `.env` values, set the
+versioned image references:
+
+```env
+INSIGHTFLOW_BACKEND_IMAGE=ghcr.io/nothingness-dev/insightflow-backend:<version>
+INSIGHTFLOW_FRONTEND_IMAGE=ghcr.io/nothingness-dev/insightflow-frontend:<version>
+HTTP_PORT=80
+HTTPS_PORT=443
+```
+
+Replace `your-domain.com` in `nginx/nginx.ssl.conf`, and place the TLS
+certificate and key at `ssl/fullchain.pem` and `ssl/privkey.pem`. For an
+existing installation, create and verify a backup before pulling images:
+
+```bash
+COMPOSE_FILE="$PWD/docker-compose.customer.yml" ./backup.sh backup
+COMPOSE_FILE="$PWD/docker-compose.customer.yml" ./backup.sh verify latest
+docker compose --env-file .env -f docker-compose.customer.yml config
+docker compose --env-file .env -f docker-compose.customer.yml pull backend frontend
+docker compose --env-file .env -f docker-compose.customer.yml up -d
+docker compose --env-file .env -f docker-compose.customer.yml ps
+```
+
+Named database and media volumes are preserved by `pull` and `up -d`. Never
+run `docker compose down -v` during an upgrade. See [BACKUP.md](BACKUP.md) for
+the complete backup and recovery workflow; [DEPLOYMENT.md](DEPLOYMENT.md)
+covers source-build installations.
 
 ## Contributing
 
@@ -276,7 +332,7 @@ Recommended workflow:
 2. Create a branch from `main`.
 
 ```bash
-git checkout -b feature/your-feature-name
+git switch -c feature/your-feature-name
 ```
 
 3. Make focused commits with clear messages.
@@ -306,4 +362,7 @@ Code standards:
 ## Project Docs
 
 - [CHANGELOG.md](CHANGELOG.md)
+- [DEPLOYMENT.md](DEPLOYMENT.md)
+- [BACKUP.md](BACKUP.md)
+- [DOCKER.md](DOCKER.md)
 - [LICENSE](LICENSE)
