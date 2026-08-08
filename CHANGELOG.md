@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.13] — 2026-08-08
+
+### Added
+
+- Added a pull-request CI gate for the complete mobile accessibility,
+  responsive, and IP-audit regression matrix.
+- Added screenshot coverage validation, SHA-256 evidence manifests, retained CI
+  artifacts, and a manual keyboard, NVDA, and real-device release checklist.
+
+### Improved
+
+- Separated intentional offline, permission-denied, and server-error browser
+  messages from unexpected console and page errors so CI failures remain
+  actionable.
+- Isolated CI fixtures and service volumes from development, customer, and
+  production data, with unconditional cleanup after every run.
+
 ## [2.10.0-ip-audit.12] — 2026-08-08
 
 ### Added
