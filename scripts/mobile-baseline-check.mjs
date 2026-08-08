@@ -98,6 +98,7 @@ const report = {
   findings: [],
   blocked: [],
   consoleErrors: [],
+  expectedConsoleMessages: [],
 };
 
 let browser;
@@ -108,6 +109,12 @@ let temporaryHashLinkId = null;
 let surveyId = null;
 let publishedSurveyId = null;
 const roleSessions = new Map();
+const expectedConsoleSetups = new Set([
+  'mock-survey-error',
+  'mock-users-permission-denied',
+  'mock-employee-offline',
+  'mock-results-error',
+]);
 
 function resolveChromePath() {
   if (process.env.E2E_CHROME_PATH) return process.env.E2E_CHROME_PATH;
@@ -1639,10 +1646,20 @@ async function getRoleSession(role) {
     reducedMotion: 'reduce',
   });
   const page = await context.newPage();
+  const session = {
+    context,
+    page,
+    activeRoute: null,
+    allowConsoleMessages: false,
+  };
   page.on('console', message => {
     if (['warning', 'error'].includes(message.type())) {
-      report.consoleErrors.push({
+      const collection = session.allowConsoleMessages
+        ? report.expectedConsoleMessages
+        : report.consoleErrors;
+      collection.push({
         role,
+        route: session.activeRoute,
         message: `${message.type()}: ${message.text()}`,
       });
     }
@@ -1650,13 +1667,13 @@ async function getRoleSession(role) {
   page.on('pageerror', error => {
     report.consoleErrors.push({
       role,
+      route: session.activeRoute,
       message: `pageerror: ${error.message}`,
     });
   });
 
   if (role === 'admin') await loginUi(page, adminCredentials, '/admin');
   if (role === 'employee') await loginUi(page, employeeCredentials, '/surveys');
-  const session = { context, page };
   roleSessions.set(role, session);
   return session;
 }
@@ -1671,7 +1688,8 @@ async function runRole(routes, role, viewport, theme) {
       (!route.mobileOnly || viewport.width <= 430),
   );
   if (!matchingRoutes.length) return;
-  const { page } = await getRoleSession(role);
+  const session = await getRoleSession(role);
+  const { page } = session;
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   if (page.url() === 'about:blank') {
     await navigate(page, '/login');
@@ -1680,8 +1698,15 @@ async function runRole(routes, role, viewport, theme) {
     localStorage.setItem('app-theme-mode', mode);
     localStorage.setItem('app-theme', 'purple');
   }, theme);
-  for (const route of matchingRoutes) {
-    await captureRoute(page, route, viewport, theme);
+  try {
+    for (const route of matchingRoutes) {
+      session.activeRoute = route.id;
+      session.allowConsoleMessages = expectedConsoleSetups.has(route.setup);
+      await captureRoute(page, route, viewport, theme);
+    }
+  } finally {
+    session.activeRoute = null;
+    session.allowConsoleMessages = false;
   }
 }
 
@@ -1704,6 +1729,8 @@ async function writeReports() {
     `Captures: ${report.captures.length}`,
     `Blocked routes: ${report.blocked.length}`,
     `Findings: ${JSON.stringify(findingsBySeverity)}`,
+    `Unexpected browser messages: ${report.consoleErrors.length}`,
+    `Expected failure-state messages: ${report.expectedConsoleMessages.length}`,
     '',
     '## Blocked routes',
     '',
@@ -1783,6 +1810,8 @@ const summary = {
   captures: report.captures.length,
   findings: report.findings.length,
   blocked: report.blocked.length,
+  unexpectedConsoleMessages: report.consoleErrors.length,
+  expectedFailureStateMessages: report.expectedConsoleMessages.length,
   infrastructureError: infrastructureError?.message || null,
 };
 console.log(JSON.stringify(summary, null, 2));
