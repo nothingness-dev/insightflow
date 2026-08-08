@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.15] — 2026-08-08
+
+### Improved
+
+- Replaced the product attribution across shared application views and PDF
+  exports with the minimal English credit `Built by nothingnessdev`.
+- Removed the fixed calendar year and extended copyright wording from the
+  attribution while preserving the developer profile link in the interface.
+
 ## [2.10.0-ip-audit.14] — 2026-08-08
 
 ### Improved
