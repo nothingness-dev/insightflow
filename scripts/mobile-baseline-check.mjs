@@ -1181,6 +1181,51 @@ async function collectAdminDensityEvidence(page, route, viewport, theme) {
     }
   }
 
+  if (route.id === 'admin-survey-detail') {
+    const actionLayout = await page.getByTestId('survey-detail-actions').evaluate(container => {
+      const containerRect = container.getBoundingClientRect();
+      const actions = [...container.children]
+        .filter(element => {
+          const rect = element.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        })
+        .map(element => {
+          const rect = element.getBoundingClientRect();
+          return {
+            testId: element.getAttribute('data-testid'),
+            x: Math.round(rect.x),
+            y: Math.round(rect.y),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          };
+        });
+      const primary = actions.find(action => action.testId === 'survey-detail-primary-action');
+      const secondary = actions.filter(action => action !== primary);
+      return {
+        display: getComputedStyle(container).display,
+        containerWidth: Math.round(containerRect.width),
+        actions,
+        primaryFullWidth: Boolean(primary && primary.width >= containerRect.width - 2),
+        allTouchSized: actions.every(action => action.height >= 44),
+        secondaryAligned: secondary.length !== 2 || (
+          Math.abs(secondary[0].y - secondary[1].y) <= 2 &&
+          Math.abs(secondary[0].width - secondary[1].width) <= 2
+        ),
+      };
+    });
+    evidence.actionLayout = actionLayout;
+    const expected = viewport.width <= 430
+      ? actionLayout.display === 'grid' && actionLayout.primaryFullWidth &&
+        actionLayout.allTouchSized && actionLayout.secondaryAligned
+      : actionLayout.display === 'flex';
+    if (!expected) {
+      report.findings.push({
+        severity: 'high', route: route.id, viewport: viewport.key, theme,
+        rule: 'survey-detail-action-layout', detail: JSON.stringify(actionLayout),
+      });
+    }
+  }
+
   return Object.keys(evidence).length ? evidence : null;
 }
 
