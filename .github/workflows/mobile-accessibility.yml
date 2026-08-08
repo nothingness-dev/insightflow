@@ -1,0 +1,121 @@
+name: Mobile accessibility
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-accessibility-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  responsive-regression:
+    name: Responsive and accessibility regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      COMPOSE_PROJECT_NAME: insightflow-mobile-ci
+      MOBILE_BASE_URL: http://127.0.0.1
+      MOBILE_ALLOW_LOCAL_FIXTURES: '1'
+      MOBILE_ADMIN_USERNAME: ci_accessibility_admin
+      MOBILE_ADMIN_PASSWORD: CiOnly-9vYx7-Q2pLm4
+      MOBILE_OUTPUT_DIR: ux-audit/mobile-baseline/generated
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Type-check frontend
+        run: npm run typecheck --prefix frontend
+
+      - name: Build production frontend
+        run: npm run build --prefix frontend
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Create isolated CI environment
+        shell: bash
+        run: |
+          umask 077
+          cat > .env <<'ENV'
+          SECRET_KEY=ci-only-mobile-accessibility-secret-key-not-for-production-2026
+          DEBUG=False
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1
+          SESSION_COOKIE_SECURE=False
+          CSRF_COOKIE_SECURE=False
+          DB_NAME=insightflow_mobile_ci
+          DB_USER=insightflow_ci
+          DB_PASSWORD=CiDatabase-4mN8-rT2x
+          REDIS_URL=redis://redis:6379/0
+          ADMIN_USERNAME=ci_accessibility_admin
+          ADMIN_PASSWORD=CiOnly-9vYx7-Q2pLm4
+          ADMIN_FULL_NAME=CI Accessibility Admin
+          VITE_PUBLIC_BASE_URL=http://127.0.0.1
+          MAX_UPLOAD_SIZE=2097152
+          ENV
+
+      - name: Build and start isolated application
+        run: docker compose up -d --build --wait --wait-timeout 240
+
+      - name: Verify application entry point
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1/login >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          exit 1
+
+      - name: Capture accessibility and responsive evidence
+        id: baseline
+        continue-on-error: true
+        run: npm run e2e:mobile-baseline --prefix frontend -- --strict
+
+      - name: Validate report and screenshot coverage
+        shell: bash
+        run: |
+          node scripts/validate-mobile-baseline.mjs
+          test "${{ steps.baseline.outcome }}" = "success"
+
+      - name: Capture service logs on failure
+        if: failure() || steps.baseline.outcome == 'failure'
+        shell: bash
+        run: |
+          mkdir -p ux-audit/mobile-baseline/generated
+          docker compose logs --no-color > ux-audit/mobile-baseline/generated/docker-compose.log
+
+      - name: Upload responsive evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobile-accessibility-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ux-audit/mobile-baseline/generated/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 6
+
+      - name: Remove isolated CI services and volumes
+        if: always()
+        run: docker compose down --volumes --remove-orphans

@@ -166,3 +166,29 @@ The deterministic browser scenarios cover long mixed Persian/Latin survey and pe
 Responsive changes remain frontend-only. Survey CSV, Excel, and PDF endpoints are protected by a four-test Django regression group running in an isolated temporary test database; all formats returned successful, correctly typed, non-empty responses. PDF and Excel generation code was not changed.
 
 The automated 200% check exercises text enlargement and reflow. Browser-chrome zoom, screen-reader behavior, and physical mobile keyboard behavior still require the documented manual real-device pass before a formal accessibility conformance claim.
+
+## Milestone 8 regression gate
+
+Milestone 8 adds a GitHub Actions gate for pull requests, pushes to `main`, and
+manual workflow runs. The job builds an isolated production-style Docker stack,
+runs the strict browser matrix, and verifies that:
+
+- login, anonymous, employee, and admin axe smoke journeys are present;
+- light and dark screenshots exist at 320 px, 390 px, and desktop widths;
+- every reported screenshot exists, is non-empty, and is indexed by SHA-256;
+- no route is blocked and no critical/high result is present;
+- browser errors from intentional offline, permission, and server-error fixtures
+  are separated from unexpected console and page errors.
+
+The workflow uploads the complete report, screenshots, summary, and screenshot
+manifest for 14 days. Its credentials and database are disposable CI-only data;
+fixture creation remains hard-blocked for non-loopback hosts, and CI volumes are
+removed after the run.
+
+Pixel-perfect image comparison is intentionally a review step because browser
+font rasterization can differ between environments. Reviewers compare the
+current artifact with the latest successful `main` artifact and record intended
+visual changes in the
+[mobile accessibility release checklist](mobile-accessibility-release-checklist.md).
+That checklist is also the required record for keyboard, Windows NVDA, browser
+zoom, reduced-motion, RTL, contrast, and real-device TalkBack/VoiceOver checks.
