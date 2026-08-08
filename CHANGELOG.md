@@ -1,3 +1,19 @@
+## [2.10.12] — 2026-08-08
+
+### Improved
+
+- Reorganized survey-detail actions into a clear mobile hierarchy with a
+  full-width primary action and aligned secondary actions.
+- Preserved the compact desktop action bar while keeping mobile controls
+  readable, evenly sized, and touch-friendly.
+
+### Fixed
+
+- Prevented survey-detail action buttons from wrapping into an uneven layout
+  on narrow screens.
+- Added responsive regression coverage for action alignment, sizing, and
+  minimum touch-target dimensions.
+
 ## [2.10.11] — 2026-08-08
 
 ### Added
