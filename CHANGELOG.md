@@ -1,3 +1,20 @@
+## [2.10.11] — 2026-08-08
+
+### Added
+
+- Added a pull-request and main-branch CI gate for the complete mobile
+  accessibility and responsive regression matrix.
+- Added screenshot coverage validation, SHA-256 evidence manifests, retained CI
+  artifacts, and a manual keyboard, NVDA, and real-device release checklist.
+
+### Improved
+
+- Separated intentional offline, permission-denied, and server-error browser
+  messages from unexpected console and page errors so CI failures remain
+  actionable.
+- Isolated CI fixtures and service volumes from development, customer, and
+  production data, with unconditional cleanup after every run.
+
 ## [2.10.10] — 2026-08-07
 
 ### Added
