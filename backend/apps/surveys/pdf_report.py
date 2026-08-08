@@ -115,7 +115,7 @@ _SLATE = colors.HexColor('#64748b')
 _LIGHT = colors.HexColor('#e2e8f0')
 _BRAND = colors.HexColor('#4f46e5')
 _ALT_ROW = colors.HexColor('#f8fafc')
-_COPYRIGHT_NOTICE = 'این محصول توسط nothingness-dev توسعه یافته است. تمامی حقوق محفوظ میباشد. | © ۱۴۰۵ | https://github.com/nothingness-dev'
+_COPYRIGHT_NOTICE = 'Built by nothingnessdev'
 
 
 class _GradientBand(Flowable):
@@ -186,7 +186,7 @@ def build_survey_pdf(survey, results, questions_meta, comment_groups, summary,
         canvas.setFillColor(_SLATE)
         canvas.drawCentredString(
             page_w / 2, 9 * mm,
-            _rtl(f'{_COPYRIGHT_NOTICE}'),
+            _COPYRIGHT_NOTICE,
         )
         canvas.setStrokeColor(_LIGHT)
         canvas.setLineWidth(0.5)
