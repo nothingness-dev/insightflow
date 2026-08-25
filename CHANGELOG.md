@@ -1,3 +1,16 @@
+## [2.10.19] — 2026-08-25
+
+### Fixed
+
+- `X-Forwarded-Host` / `X-Forwarded-Proto` are now honored only when
+  `TRUST_PROXY_HEADERS` is enabled, matching the client-IP trust policy.
+- Added `SECURE_REFERRER_POLICY` plus env-gated `SECURE_SSL_REDIRECT` and
+  HSTS settings for HTTPS deployments.
+- Expired JWT refresh tokens are now pruned daily (`flushexpiredtokens`
+  background loop in both compose commands) instead of accumulating forever.
+- Cache invalidation failures and django_redis errors log at WARNING so a
+  Redis outage is no longer invisible in production logs.
+
 ## [2.10.18] — 2026-08-25
 
 ### Fixed
