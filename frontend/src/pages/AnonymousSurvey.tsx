@@ -507,7 +507,7 @@ export default function AnonymousSurvey() {
 
   const loadSurvey = useCallback(() => {
     if (!token) return;
-    anonymousApi.survey(token)
+    anonymousApi.survey(token, anonToken)
       .then(r => {
         setSurvey(r.data);
         if (r.data.ip_locked) setIpLocked(true);
@@ -517,7 +517,7 @@ export default function AnonymousSurvey() {
         setError(msg);
       })
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, anonToken]);
 
   const loadMyRatings = useCallback(() => {
     if (!token || !survey) return;

@@ -309,9 +309,10 @@ class AnonymousHashLinkParticipationTests(APITestCase):
         self.link = SurveyHashLink.objects.create(survey=self.survey, label='public')
         self.url = f'/api/s/{self.link.token}/people/{self.person.id}/rate/'
 
-    def submit(self, anonymous_token, ip='203.0.113.10'):
+    def submit(self, anonymous_token, ip='203.0.113.10', person=None):
+        target = person if person is not None else self.person
         return self.client.post(
-            self.url,
+            f'/api/s/{self.link.token}/people/{target.id}/rate/',
             {
                 'anonymous_token': anonymous_token,
                 'answers': [{'question_id': self.question.id, 'score': 8}],
@@ -357,6 +358,109 @@ class AnonymousHashLinkParticipationTests(APITestCase):
         self.assertTrue(response.data['is_complete'])
         self.assertTrue(response.data['ip_locked'])
         self.assertEqual(response.data['rated_person_ids'], [self.person.id])
+
+    def _second_person(self):
+        return SurveyPerson.objects.create(
+            survey=self.survey, full_name='فرد دوم', display_order=1, is_active=True
+        )
+
+    def test_device_cannot_split_ballots_across_tokens(self):
+        """Regression: a device must not rate different people under different
+        anonymous tokens before completing the survey (partial-ballot loophole)."""
+        second = self._second_person()
+
+        first = self.submit('anon-token-1')
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+
+        smuggled = self.submit('anon-token-2', person=second)
+        self.assertEqual(smuggled.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(
+            Rating.objects.filter(survey=self.survey, anonymous_token='anon-token-2').exists(),
+            'A second token from the same IP must not leave any ballot behind.',
+        )
+        self.assertEqual(AnonymousParticipation.objects.count(), 1)
+        registration = AnonymousParticipation.objects.get()
+        self.assertEqual(registration.anonymous_token, 'anon-token-1')
+
+    def test_first_ballot_registers_device_and_finishes_on_completion(self):
+        second = self._second_person()
+
+        first = self.submit('anon-token-1')
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        self.link.refresh_from_db()
+        self.assertEqual(self.link.anonymous_participant_count, 1)
+        registration = AnonymousParticipation.objects.get()
+        self.assertIsNone(registration.finished_at, 'Half-finished session must not be marked complete.')
+        self.assertFalse(ActivityLog.objects.filter(action=ActivityActions.ANONYMOUS_VOTE).exists())
+
+        resumed = self.submit('anon-token-1', person=second)
+        self.assertEqual(resumed.status_code, status.HTTP_201_CREATED)
+        self.link.refresh_from_db()
+        self.assertEqual(self.link.anonymous_participant_count, 1, 'Resuming must not consume a second slot.')
+        registration.refresh_from_db()
+        self.assertIsNotNone(registration.finished_at)
+        self.assertTrue(ActivityLog.objects.filter(action=ActivityActions.ANONYMOUS_VOTE).exists())
+
+    def test_full_capacity_blocks_new_sessions_but_not_the_bound_one(self):
+        second = self._second_person()
+        self.link.max_participants = 1
+        self.link.save(update_fields=['max_participants'])
+
+        first = self.submit('anon-token-1')
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+
+        resumed = self.submit('anon-token-1', person=second)
+        self.assertEqual(resumed.status_code, status.HTTP_201_CREATED)
+
+        fresh_ip = self.submit('anon-token-9', ip='198.51.100.77')
+        self.assertEqual(fresh_ip.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_detail_view_lock_semantics_for_registration_states(self):
+        second = self._second_person()
+        detail_url = f'/api/s/{self.link.token}/'
+
+        fresh = self.client.get(detail_url, HTTP_X_REAL_IP='203.0.113.10')
+        self.assertFalse(fresh.data['ip_locked'])
+
+        self.submit('anon-token-1')
+
+        bound_resume = self.client.get(
+            detail_url, {'anonymous_token': 'anon-token-1'}, HTTP_X_REAL_IP='203.0.113.10',
+        )
+        self.assertFalse(bound_resume.data['ip_locked'])
+
+        foreign_token = self.client.get(
+            detail_url, {'anonymous_token': 'other-device'}, HTTP_X_REAL_IP='203.0.113.10',
+        )
+        self.assertTrue(foreign_token.data['ip_locked'])
+
+        self.submit('anon-token-1', person=second)
+        finished = self.client.get(
+            detail_url, {'anonymous_token': 'anon-token-1'}, HTTP_X_REAL_IP='203.0.113.10',
+        )
+        self.assertTrue(finished.data['ip_locked'])
+
+    def test_my_ratings_reports_partial_progress_for_bound_session(self):
+        second = self._second_person()
+        self.submit('anon-token-1')
+
+        response = self.client.get(
+            f'/api/s/{self.link.token}/surveys/{self.survey.id}/my-ratings/',
+            {'anonymous_token': 'anon-token-1'},
+            HTTP_X_REAL_IP='203.0.113.10',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data['ip_locked'])
+        self.assertFalse(response.data['is_complete'])
+        self.assertEqual(response.data['rated_person_ids'], [self.person.id])
+
+        hijack = self.client.get(
+            f'/api/s/{self.link.token}/surveys/{self.survey.id}/my-ratings/',
+            {'anonymous_token': 'fresh-tab-token'},
+            HTTP_X_REAL_IP='203.0.113.10',
+        )
+        self.assertTrue(hijack.data['ip_locked'])
 
 
 class ResultsTests(APITestCase):
