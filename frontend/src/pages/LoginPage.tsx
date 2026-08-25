@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import CopyrightNotice from "../components/common/CopyrightNotice";
 import VersionBadge from "../components/common/VersionBadge";
 import { D, E, T, fadeUp, useMotionDisabled } from "../motion";
+import { getErrorMessage } from "../utils/helpers";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -44,12 +45,8 @@ export default function LoginPage() {
       navigate(loggedInUser?.role === "admin" ? "/admin" : "/surveys", {
         replace: true,
       });
-    } catch (err: any) {
-      toast.error(
-        err?.response?.data?.non_field_errors?.[0] ||
-          err?.response?.data?.detail ||
-          "خطا در ورود به سیستم",
-      );
+    } catch (err) {
+      toast.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
