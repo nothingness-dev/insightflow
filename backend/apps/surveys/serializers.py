@@ -165,20 +165,35 @@ class SurveySerializer(serializers.ModelSerializer):
     def get_created_by_name(self, obj):
         return obj.created_by.full_name if obj.created_by else None
 
+    # List endpoints annotate these counters (see services.annotate_survey_list_stats)
+    # so serializing N surveys costs a fixed number of queries; single-object
+    # endpoints without annotations fall back to the per-instance query.
     def get_people_count(self, obj):
+        annotated = getattr(obj, 'active_people_count', None)
+        if annotated is not None:
+            return annotated
         return obj.people.filter(is_active=True).count()
 
     def get_questions_count(self, obj):
+        annotated = getattr(obj, 'active_questions_count', None)
+        if annotated is not None:
+            return annotated
         return obj.questions.filter(is_active=True).count()
 
     def get_total_responses(self, obj):
         """Count authenticated voters who fully completed the survey."""
+        bulk = getattr(obj, 'bulk_total_responses', None)
+        if bulk is not None:
+            return bulk
         from .services import completed_participants
         voter_ids, _anonymous = completed_participants(obj)
         return len(voter_ids)
 
     def get_anonymous_participants_count(self, obj):
         """Sum of anonymous_participant_count across all hash links for this survey."""
+        annotated = getattr(obj, 'anon_participants_total', None)
+        if annotated is not None:
+            return annotated
         from django.db.models import Sum
         result = obj.hash_links.aggregate(total=Sum('anonymous_participant_count'))
         return result['total'] or 0

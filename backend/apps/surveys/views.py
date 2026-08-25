@@ -1,5 +1,6 @@
 import csv
 import io
+from collections import defaultdict
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -19,7 +20,7 @@ from .serializers import (
     SurveyPersonPublicSerializer, SurveyPublicSerializer, RatingCreateSerializer,
     SurveyProgressDashboardSerializer, SurveyHashLinkSerializer, SurveyQuestionSerializer,
 )
-from .services import calculate_survey_results, duplicate_survey, calculate_survey_progress, validate_question_answers, effective_questions_for_person, required_question_pairs, completed_participants, completed_participants_for, completed_person_ids as participant_completed_person_ids
+from .services import calculate_survey_results, duplicate_survey, calculate_survey_progress, validate_question_answers, effective_questions_for_person, required_question_pairs, completed_participants, completed_participants_for, completed_person_ids as participant_completed_person_ids, annotate_survey_list_stats, bulk_completed_response_counts
 from apps.activity.models import ActivityActions
 from apps.activity.services import log_activity
 from .export_data import (
@@ -102,6 +103,22 @@ class AdminSurveyListCreateView(generics.ListCreateAPIView):
         if status_filter:
             qs = qs.filter(status=status_filter)
         return qs
+
+    def list(self, request, *args, **kwargs):
+        # Annotated counters + one bulk completion query keep the list at a
+        # fixed query count instead of ~5 queries per survey row.
+        queryset = annotate_survey_list_stats(self.filter_queryset(self.get_queryset())).select_related('created_by')
+        page = self.paginate_queryset(queryset)
+        surveys = page if page is not None else list(queryset)
+
+        completed_counts = bulk_completed_response_counts([s.id for s in surveys])
+        for survey in surveys:
+            survey.bulk_total_responses = completed_counts.get(survey.id, 0)
+
+        serializer = self.get_serializer(surveys, many=True)
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         serializer = SurveyCreateUpdateSerializer(data=request.data)
@@ -1135,38 +1152,50 @@ class EmployeeSurveyListView(generics.ListAPIView):
         )
 
     def list(self, request, *args, **kwargs):
-        qs = self.get_queryset().prefetch_related('people', 'questions')
-        data = []
-        for survey in qs:
-            s = SurveySerializer(survey, context={'request': request}).data
-            active_people_count = survey.people.filter(is_active=True).count()
-            active_questions_count = survey.questions.filter(is_active=True).count()
-            required_answers_per_person = active_questions_count
+        # Annotated counters + two grouped queries (bulk completions, this
+        # user's answered rows) replace the former ~7 queries and a ratings
+        # dump per survey.
+        qs = (
+            annotate_survey_list_stats(self.get_queryset())
+            .select_related('created_by')
+            .prefetch_related('people', 'questions')
+        )
+        surveys = list(qs)
 
-            completed_person_ids = set()
-            if required_answers_per_person > 0:
-                rows = (
-                    Rating.objects
-                    .filter(
-                        survey=survey,
-                        voter=request.user,
-                        person__is_active=True,
-                        question__is_active=True,
-                        question__survey=survey,
-                    )
-                    .values('person_id')
-                    .annotate(answered_count=Count('question_id', distinct=True))
+        completed_counts = bulk_completed_response_counts([s.id for s in surveys])
+        for survey in surveys:
+            survey.bulk_total_responses = completed_counts.get(survey.id, 0)
+
+        data = SurveySerializer(surveys, many=True, context={'request': request}).data
+
+        answered_by_survey = defaultdict(dict)
+        if surveys and any(s.active_questions_count > 0 for s in surveys):
+            rows = (
+                Rating.objects
+                .filter(
+                    survey_id__in=[s.id for s in surveys],
+                    voter=request.user,
+                    person__is_active=True,
+                    question__is_active=True,
                 )
-                completed_person_ids = {
-                    row['person_id']
-                    for row in rows
-                    if row['answered_count'] == required_answers_per_person
-                }
+                .values('survey_id', 'person_id')
+                .annotate(answered_count=Count('question_id', distinct=True))
+            )
+            for row in rows:
+                answered_by_survey[row['survey_id']][row['person_id']] = row['answered_count']
 
-            s['my_votes_count'] = len(completed_person_ids)
-            s['total_people'] = active_people_count
-            s['total_questions'] = active_questions_count
-            data.append(s)
+        for survey, item in zip(surveys, data):
+            required_answers_per_person = survey.active_questions_count
+            answered_by_person = answered_by_survey.get(survey.id, {})
+            completed_person_ids = {
+                person_id
+                for person_id, answered_count in answered_by_person.items()
+                if required_answers_per_person > 0 and answered_count == required_answers_per_person
+            }
+
+            item['my_votes_count'] = len(completed_person_ids)
+            item['total_people'] = survey.active_people_count
+            item['total_questions'] = survey.active_questions_count
         return Response(data)
 
 
@@ -1363,7 +1392,12 @@ class AdminDashboardView(APIView):
         )
         total_employees = User.objects.filter(role='employee').count()
 
-        recent_surveys = Survey.objects.order_by('-created_at')[:5]
+        recent_surveys = list(
+            annotate_survey_list_stats(Survey.objects.order_by('-created_at')).select_related('created_by')[:5]
+        )
+        recent_completed = bulk_completed_response_counts([s.id for s in recent_surveys])
+        for survey in recent_surveys:
+            survey.bulk_total_responses = recent_completed.get(survey.id, 0)
         recent_data = SurveySerializer(recent_surveys, many=True, context={'request': request}).data
 
         payload = {

@@ -123,6 +123,95 @@ def _get_participant_key(rating):
     return ('anon', rating.anonymous_token)
 
 
+def annotate_survey_list_stats(queryset):
+    """Attach per-survey list counters in a fixed number of queries.
+
+    Annotates active_people_count, active_questions_count, and
+    anon_participants_total so SurveySerializer's method fields never fall
+    back to per-instance queries on list endpoints.
+    """
+    from .models import SurveyHashLink
+
+    anon_totals = (
+        SurveyHashLink.objects
+        .filter(survey=OuterRef('pk'))
+        .values('survey_id')
+        .annotate(total=Sum('anonymous_participant_count'))
+        .values('total')[:1]
+    )
+    return queryset.annotate(
+        active_people_count=Count('people', filter=Q(people__is_active=True), distinct=True),
+        active_questions_count=Count('questions', filter=Q(questions__is_active=True), distinct=True),
+        anon_participants_total=Coalesce(Subquery(anon_totals, output_field=IntegerField()), Value(0)),
+    )
+
+
+def _required_pair_totals(survey_ids):
+    """Required (person, question) pair totals per survey id.
+
+    Mirrors required_question_pairs(): every active person contributes their
+    effective question set - the survey's active default questions for
+    default-assigned people, or their own active custom questions otherwise.
+    Two bounded queries replace walking people/questions per survey.
+    """
+    default_counts = dict(
+        SurveyQuestion.objects
+        .filter(survey_id__in=survey_ids, person__isnull=True, is_active=True)
+        .values('survey_id')
+        .annotate(total=Count('id'))
+        .values_list('survey_id', 'total')
+    )
+    required = defaultdict(int)
+    people_rows = (
+        SurveyPerson.objects
+        .filter(survey_id__in=survey_ids, is_active=True)
+        .annotate(custom_total=Count('custom_questions', filter=Q(custom_questions__is_active=True)))
+        .values('survey_id', 'uses_default_questions', 'custom_total')
+    )
+    for row in people_rows:
+        survey_id = row['survey_id']
+        if row['uses_default_questions']:
+            required[survey_id] += default_counts.get(survey_id, 0)
+        else:
+            required[survey_id] += row['custom_total']
+    return required
+
+
+def bulk_completed_response_counts(survey_ids):
+    """Authenticated voters who completed each survey, in three queries total.
+
+    Mirrors completed_participants()/completed_participants_for() semantics:
+    ratings are restricted to active persons and questions, and a voter
+    completes a survey when their answered-pair count reaches that survey's
+    required pair total. Rating rows are unique per (person, question,
+    voter) pair, so row count equals distinct-pair count. Returns
+    {survey_id: completed_voter_count}.
+    """
+    survey_ids = list(survey_ids)
+    if not survey_ids:
+        return {}
+    required_by_survey = _required_pair_totals(survey_ids)
+    required_by_survey = {sid: total for sid, total in required_by_survey.items() if total > 0}
+    if not required_by_survey:
+        return {}
+    voter_answer_counts = (
+        Rating.objects
+        .filter(
+            survey_id__in=required_by_survey.keys(),
+            voter__isnull=False,
+            person__is_active=True,
+            question__is_active=True,
+        )
+        .values('survey_id', 'voter_id')
+        .annotate(answered=Count('id'))
+    )
+    completed = defaultdict(int)
+    for row in voter_answer_counts:
+        if row['answered'] >= required_by_survey[row['survey_id']]:
+            completed[row['survey_id']] += 1
+    return dict(completed)
+
+
 def calculate_survey_results(survey, request=None):
     """Calculate survey results, counting both authenticated and anonymous participants.
 
