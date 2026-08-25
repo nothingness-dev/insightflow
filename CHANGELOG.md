@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.22] — 2026-08-25
+
+### Fixed
+
+- Added composite indexes for the survey-question hot path
+  `(survey, is_active, person, display_order)` — used by every
+  effective-questions resolution across lists, details, rating, and
+  serialization — and for active-people-per-survey lookups
+  `(survey, is_active)` used by list counters and completion totals.
+
 ## [2.10.0-ip-audit.21] — 2026-08-25
 
 ### Fixed
