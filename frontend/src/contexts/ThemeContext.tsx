@@ -183,7 +183,10 @@ function getSystemMode(): Mode {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    return (localStorage.getItem(THEME_KEY) as Theme) || 'purple';
+    // Storage may hold a stale or hand-edited value; anything that is not a
+    // known theme key would silently break the CSS variable palette.
+    const saved = localStorage.getItem(THEME_KEY);
+    return THEMES.some(t => t.key === saved) ? (saved as Theme) : 'purple';
   });
   const [mode, setModeState] = useState<Mode>(() => {
     const saved = localStorage.getItem(MODE_KEY) as Mode | null;
