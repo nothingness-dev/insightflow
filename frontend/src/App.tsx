@@ -7,6 +7,7 @@ import AdminLayout from './layouts/AdminLayout';
 import EmployeeLayout from './layouts/EmployeeLayout';
 import RouteLoadingBar from './components/common/RouteLoadingBar';
 import MediaProtection from './components/common/MediaProtection';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import NotFound from './pages/NotFound';
 
 
@@ -50,7 +51,10 @@ export default function App() {
       <MediaProtection />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <RouteLoadingBar />
-        <Suspense fallback={<PageFallback />}>
+        {/* Route-level guard: one broken page recovers on its own instead of
+            taking the whole app shell down with it. */}
+        <ErrorBoundary>
+          <Suspense fallback={<PageFallback />}>
           <Routes>
 <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
 <Route path="/admin" element={<AdminWrapper><AdminDashboard /></AdminWrapper>} />
@@ -69,7 +73,8 @@ export default function App() {
 <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<NotFound />} />
           </Routes>
-        </Suspense>
+          </Suspense>
+        </ErrorBoundary>
       </BrowserRouter>
 
       <Toaster

@@ -13,6 +13,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// A corrupted or tampered session entry used to throw inside the mount
+// effect and white-screen the whole app before any error handling existed.
+// Parse defensively: only well-formed user objects are restored, and broken
+// data is dropped so the next boot starts clean.
+function parseSavedUser(raw: string | null): User | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as User;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -21,9 +38,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const savedUser = authTokenStore.getSavedUser();
     const hasRefreshToken = Boolean(authTokenStore.getRefreshToken());
+    const restoredUser = parseSavedUser(savedUser);
+    if (savedUser && !restoredUser) {
+      authTokenStore.setSavedUser(null);
+    }
 
-    if (savedUser && hasRefreshToken) {
-      setUser(JSON.parse(savedUser));
+    if (restoredUser && hasRefreshToken) {
+      setUser(restoredUser);
       // The in-memory access token doesn't survive a page reload, so every
       // component that fetches data on mount would otherwise fire its first
       // request unauthenticated, get a 401, and independently trigger a
