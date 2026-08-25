@@ -83,7 +83,7 @@ const AnonymousPersonCard = ({ person, onRate, disabled, rowRef, highlight }: {
             <img src={person.photo_url} alt="" className="h-full w-full object-cover"/>
           </div>
           {done && (
-            <div className="absolute end-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 shadow-md ring-2 ring-white" aria-label="تکمیل شده">
+            <div role="img" aria-label="تکمیل شده" className="absolute end-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 shadow-md ring-2 ring-white">
               <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
               </svg>

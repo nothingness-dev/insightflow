@@ -50,7 +50,10 @@ export const authTokenStore = {
 };
 
 const api = axios.create({
-  baseURL: '/api',
+  // VITE_API_BASE_URL is provided at Docker build time for deployments where
+  // the API lives on a different origin; it defaults to the same-origin
+  // reverse-proxied path.
+  baseURL: (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api',
   headers: {
     'Content-Type': 'application/json',
   },
