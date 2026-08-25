@@ -1,3 +1,11 @@
+## [2.10.25] — 2026-08-25
+
+### Fixed
+
+- The CI backend job now receives the required settings environment
+  variables (dummy `SECRET_KEY`, explicit hosts and proxy-trust flag) so the
+  test suite can run without the gitignored `.env` file.
+
 ## [2.10.24] — 2026-08-25
 
 ### Documentation
