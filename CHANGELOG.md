@@ -1,3 +1,10 @@
+## [2.10.24] — 2026-08-25
+
+### Documentation
+
+- Documented the optional `SECURE_SSL_REDIRECT` and `SECURE_HSTS_SECONDS`
+  environment variables in `.env.example`.
+
 ## [2.10.23] — 2026-08-25
 
 ### Fixed
