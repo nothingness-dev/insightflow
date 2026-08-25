@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.26] — 2026-08-25
+
+### Documentation
+
+- Documented the optional `SECURE_SSL_REDIRECT` and `SECURE_HSTS_SECONDS`
+  environment variables in `.env.example`.
+
 ## [2.10.0-ip-audit.25] — 2026-08-25
 
 ### Fixed
