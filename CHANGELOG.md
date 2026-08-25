@@ -1,5 +1,19 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.25] — 2026-08-25
+
+### Fixed
+
+- Split vendor libraries (react/router, framer-motion, axios) into
+  separately cacheable chunks, shrinking the application entry bundle from
+  ~420 KB to ~93 KB.
+- Wired the previously dead `VITE_API_BASE_URL` Docker build argument into
+  the axios client with the same-origin `/api` default.
+- Login errors now flow through the shared `getErrorMessage` helper instead
+  of an `any`-typed ad-hoc extractor; decorative status badges expose
+  `role="img"` so screen readers announce their labels; removed an unused
+  ActivityCenter constant.
+
 ## [2.10.0-ip-audit.24] — 2026-08-25
 
 ### Added
