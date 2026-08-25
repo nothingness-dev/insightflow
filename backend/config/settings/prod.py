@@ -14,6 +14,13 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
+# These prod settings are only used by Docker Compose, where the bundled
+# nginx always overwrites X-Real-IP / X-Forwarded-For from socket data.
+# Default true so upgrading deployments keep real client IPs (vote locks,
+# audit entries) even when their .env predates this flag; a bare-metal
+# Gunicorn behind no trusted proxy must explicitly set it to false.
+TRUST_PROXY_HEADERS = config('TRUST_PROXY_HEADERS', default=True, cast=bool)
+
 SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=True, cast=bool)
 CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=True, cast=bool)
 

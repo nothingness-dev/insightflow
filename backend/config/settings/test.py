@@ -47,3 +47,8 @@ REST_FRAMEWORK = {
         'anonymous_survey': '10000/minute',
     },
 }
+
+# Tests simulate the bundled nginx by sending HTTP_X_REAL_IP directly, so
+# proxy-header trust must behave as in a real proxied deployment.
+TRUST_PROXY_HEADERS = True
+REST_FRAMEWORK['NUM_PROXIES'] = 1

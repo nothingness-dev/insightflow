@@ -97,6 +97,13 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Only enable behind a reverse proxy that overwrites X-Real-IP /
+# X-Forwarded-For from socket-level data (the bundled nginx does). Off by
+# default so a directly exposed backend can never have client IPs — and
+# therefore anonymous-vote locks, audit entries, or throttle buckets —
+# forged through spoofed headers.
+TRUST_PROXY_HEADERS = config('TRUST_PROXY_HEADERS', default=False, cast=bool)
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -121,6 +128,11 @@ REST_FRAMEWORK = {
         'anonymous_survey': '30/minute',
     },
 }
+
+# Pin DRF throttle identity to the same trust policy as _client_ip():
+# 1 trusted proxy (use the header value nginx wrote), or none at all
+# (always REMOTE_ADDR) so forged X-Forwarded-For cannot rotate buckets.
+REST_FRAMEWORK['NUM_PROXIES'] = 1 if TRUST_PROXY_HEADERS else 0
 
 from datetime import timedelta
 SIMPLE_JWT = {
