@@ -62,25 +62,52 @@ function StatCard({
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
   const reduced = useMotionDisabled();
 
   useEffect(() => {
     const controller = new AbortController();
     dashboardApi
       .stats(controller.signal)
-      .then((r) => setData(r.data))
+      .then((r) => {
+        setData(r.data);
+        setLoadError(null);
+      })
       .catch((err) => {
         if (isCanceledRequest(err, controller.signal)) return;
-        toast.error(getErrorMessage(err));
+        const message = getErrorMessage(err);
+        setLoadError(message);
+        toast.error(message);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, []);
+  }, [retryToken]);
 
   if (loading) return <DashboardSkeleton />;
-  if (!data) return null;
+  if (!data) {
+    // A failed stats fetch used to leave a permanent blank page once the
+    // toast disappeared; surface a persistent retry state instead.
+    return (
+      <div className="responsive-page">
+        <div className="card p-8 text-center" data-testid="dashboard-load-error" role="alert">
+          <h1 className="page-title mb-2">دریافت آمار داشبورد ناموفق بود</h1>
+          <p className="mb-5 break-words text-sm text-gray-500">
+            {loadError || 'خطای ناشناخته‌ای رخ داد.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryToken((t) => t + 1)}
+            className="btn-primary"
+          >
+            تلاش دوباره
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const { stats, recent_surveys } = data;
 
