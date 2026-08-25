@@ -1,3 +1,4 @@
+from django.test import RequestFactory, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -5,7 +6,7 @@ from rest_framework.test import APITestCase
 from apps.accounts.models import User
 
 from .models import ActivityActions, ActivityLog
-from .services import log_activity
+from .services import _client_ip, log_activity
 
 
 class LogActivityServiceTests(APITestCase):
@@ -33,11 +34,61 @@ class LogActivityServiceTests(APITestCase):
         self.assertEqual(log.metadata.get('name'), 'ok')
 
     def test_log_activity_never_raises(self):
-                                                                           
+                                                                            
         try:
             log_activity(ActivityActions.LOGIN, metadata={'obj': object(), 'nested': {'a': 1}})
         except Exception as exc:                    
             self.fail(f'log_activity raised: {exc}')
+
+
+class ClientIPTrustTests(APITestCase):
+    """Regression coverage for spoofable proxy headers (bug: clients could
+    forge X-Real-IP / X-Forwarded-For to defeat vote locks, audit trails,
+    and throttle buckets whenever the backend was directly reachable)."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _request(self, **meta):
+        return self.factory.get('/', **meta)
+
+    def test_untrusted_headers_are_ignored(self):
+        request = self._request(
+            REMOTE_ADDR='198.51.100.7',
+            HTTP_X_REAL_IP='203.0.113.99',
+            HTTP_X_FORWARDED_FOR='203.0.113.99, 10.0.0.1',
+        )
+        with override_settings(TRUST_PROXY_HEADERS=False):
+            self.assertEqual(_client_ip(request), '198.51.100.7')
+
+    def test_trusted_real_ip_wins(self):
+        request = self._request(
+            REMOTE_ADDR='172.18.0.9',
+            HTTP_X_REAL_IP='203.0.113.99',
+            HTTP_X_FORWARDED_FOR='203.0.113.99',
+        )
+        with override_settings(TRUST_PROXY_HEADERS=True):
+            self.assertEqual(_client_ip(request), '203.0.113.99')
+
+    def test_trusted_forwarded_for_uses_leftmost_valid_entry(self):
+        request = self._request(
+            REMOTE_ADDR='172.18.0.9',
+            HTTP_X_FORWARDED_FOR='not-an-ip, 203.0.113.50',
+        )
+        with override_settings(TRUST_PROXY_HEADERS=True):
+            self.assertEqual(_client_ip(request), '203.0.113.50')
+
+    def test_invalid_header_values_fall_through_to_remote_addr(self):
+        request = self._request(
+            REMOTE_ADDR='198.51.100.7',
+            HTTP_X_REAL_IP='<script>alert(1)</script>',
+            HTTP_X_FORWARDED_FOR='garbage',
+        )
+        with override_settings(TRUST_PROXY_HEADERS=True):
+            self.assertEqual(_client_ip(request), '198.51.100.7')
+
+    def test_none_request_returns_none(self):
+        self.assertIsNone(_client_ip(None))
 
 
 class ActivityApiTests(APITestCase):

@@ -1,6 +1,8 @@
    
+import ipaddress
 import logging
 
+from django.conf import settings
 from django.utils import timezone
 
 from .models import ActivityLog, ACTION_LABELS, CRITICAL_ACTIONS
@@ -18,24 +20,37 @@ _MAX_METADATA_KEYS = 25
 
 
 def _client_ip(request):
-    """Extract the real client IP from nginx reverse-proxy headers.
+    """Extract the client IP for the current request.
 
-    In Docker, REMOTE_ADDR is always the nginx container IP (172.x.x.x).
-    nginx sets X-Real-IP to the actual client's IP via $remote_addr at the
-    TCP socket level — this is the value we want.
+    Proxy headers are honored only when TRUST_PROXY_HEADERS is enabled,
+    which must happen exclusively where every reverse proxy in front of
+    Django overwrites X-Real-IP / X-Forwarded-For from socket-level data
+    (the bundled nginx does via $remote_addr). With the flag off — e.g. a
+    directly exposed Gunicorn — only REMOTE_ADDR is trusted, so callers can
+    no longer forge their IP through spoofed headers. Header values are
+    validated as real IP addresses and junk entries are skipped.
     """
     if request is None:
         return None
 
-    real_ip = (request.META.get('HTTP_X_REAL_IP') or '').strip()
-    if real_ip:
-        return real_ip
+    candidates = []
+    if getattr(settings, 'TRUST_PROXY_HEADERS', False):
+        real_ip = (request.META.get('HTTP_X_REAL_IP') or '').strip()
+        if real_ip:
+            candidates.append(real_ip)
+        forwarded_for = (request.META.get('HTTP_X_FORWARDED_FOR') or '').strip()
+        if forwarded_for:
+            # Leftmost entry is the originating client per proxy convention.
+            candidates.extend(part.strip() for part in forwarded_for.split(','))
 
-    forwarded_for = (request.META.get('HTTP_X_FORWARDED_FOR') or '').strip()
-    if forwarded_for:
-        return forwarded_for.split(',')[0].strip()
+    candidates.append((request.META.get('REMOTE_ADDR') or '').strip())
 
-    return request.META.get('REMOTE_ADDR')
+    for candidate in candidates:
+        try:
+            return str(ipaddress.ip_address(candidate))
+        except ValueError:
+            continue
+    return None
 
 
 def _user_agent(request):
