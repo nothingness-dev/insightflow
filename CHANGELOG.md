@@ -1,3 +1,15 @@
+## [2.10.21] — 2026-08-25
+
+### Fixed
+
+- Extracted the emoji-rating picker and question-type label into a shared
+  module used by both the anonymous voting flow and the employee survey
+  flow, eliminating the copy-pasted widget that risked accessibility and
+  validation drift.
+- The admin dashboard no longer renders a permanent blank page when the
+  stats request fails; it shows a persistent error card with a retry
+  action, matching the employee survey list behavior.
+
 ## [2.10.20] — 2026-08-25
 
 ### Fixed
