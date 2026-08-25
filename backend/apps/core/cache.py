@@ -36,7 +36,7 @@ def invalidate_dashboard() -> None:
     try:
         cache.delete(key_dashboard())
     except Exception:
-        logger.debug('cache.invalidate_dashboard failed silently')
+        logger.warning('cache.invalidate_dashboard failed silently')
 
 
 def invalidate_survey_results(survey_id: int) -> None:
@@ -44,7 +44,7 @@ def invalidate_survey_results(survey_id: int) -> None:
     try:
         cache.delete(key_survey_results(survey_id))
     except Exception:
-        logger.debug('cache.invalidate_survey_results(%s) failed silently', survey_id)
+        logger.warning('cache.invalidate_survey_results(%s) failed silently', survey_id)
 
 
 def invalidate_activity_stats() -> None:
@@ -56,7 +56,7 @@ def invalidate_activity_stats() -> None:
         for days in (7, 14, 30, 60):
             cache.delete(key_activity_charts(days))
     except Exception:
-        logger.debug('cache.invalidate_activity_stats failed silently')
+        logger.warning('cache.invalidate_activity_stats failed silently')
 
 
 def invalidate_filter_options() -> None:
@@ -64,7 +64,7 @@ def invalidate_filter_options() -> None:
     try:
         cache.delete(key_activity_filter_options())
     except Exception:
-        logger.debug('cache.invalidate_filter_options failed silently')
+        logger.warning('cache.invalidate_filter_options failed silently')
 
 
 def invalidate_employee_survey_list(user_id: int) -> None:
@@ -72,7 +72,7 @@ def invalidate_employee_survey_list(user_id: int) -> None:
     try:
         cache.delete(key_employee_survey_list(user_id))
     except Exception:
-        logger.debug('cache.invalidate_employee_survey_list(%s) failed silently', user_id)
+        logger.warning('cache.invalidate_employee_survey_list(%s) failed silently', user_id)
 
 
 def invalidate_all_employee_survey_lists() -> None:
@@ -81,7 +81,7 @@ def invalidate_all_employee_survey_lists() -> None:
 
         cache.delete_pattern('*employee:*:survey_list')                              
     except Exception:
-        logger.debug('cache.invalidate_all_employee_survey_lists failed silently')
+        logger.warning('cache.invalidate_all_employee_survey_lists failed silently')
 
 
 def key_hash_links(survey_id: int) -> str:
@@ -93,4 +93,4 @@ def invalidate_hash_links(survey_id: int) -> None:
     try:
         cache.delete(key_hash_links(survey_id))
     except Exception:
-        logger.debug('cache.invalidate_hash_links(%s) failed silently', survey_id)
+        logger.warning('cache.invalidate_hash_links(%s) failed silently', survey_id)

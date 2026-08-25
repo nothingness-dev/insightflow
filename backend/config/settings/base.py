@@ -170,8 +170,11 @@ CACHE_TTL_ACTIVITY_CHARTS = 60 * 10
 CACHE_TTL_FILTER_OPTIONS  = 60 * 30
 CACHE_TTL_EMPLOYEE_LIST   = 60 * 2
 
-USE_X_FORWARDED_HOST = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# Only honor X-Forwarded-Host / X-Forwarded-Proto when the proxy chain is
+# trusted (same policy as client-IP resolution); otherwise a caller could
+# influence host/URL building through forged headers.
+USE_X_FORWARDED_HOST = TRUST_PROXY_HEADERS
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if TRUST_PROXY_HEADERS else None
 
 CONTENT_SECURITY_POLICY = config(
     'CONTENT_SECURITY_POLICY',
