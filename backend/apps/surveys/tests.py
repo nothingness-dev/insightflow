@@ -921,6 +921,153 @@ class EmployeeSurveyListTests(APITestCase):
         self.assertEqual(published_item['total_questions'], 1)
         self.assertEqual(published_item['my_votes_count'], 0)
 
+    def _login_employee(self):
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': self.employee.username, 'password': 'EmpPass@1'},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+    def _rate(self, employee_token_holder, survey, person, question, score=8):
+        Rating.objects.create(
+            survey=survey,
+            person=person,
+            question=question,
+            voter=employee_token_holder,
+            score=score,
+        )
+
+    def test_employee_list_reports_bulk_counters_and_custom_person_completion(self):
+        """total_responses must respect per-person custom questions exactly
+        like completed_participants(), and list counters must be populated."""
+        custom_person = SurveyPerson.objects.create(
+            survey=self.published,
+            full_name='فرد اختصاصی لیست',
+            display_order=5,
+            is_active=True,
+            uses_default_questions=False,
+        )
+        default_question = self.published.questions.get(person__isnull=True)
+        custom_question = SurveyQuestion.objects.create(
+            survey=self.published,
+            person=custom_person,
+            text='سوال اختصاصی فرد',
+            has_score=True,
+            score_required=True,
+            display_order=0,
+        )
+        default_person = self.published.people.get(uses_default_questions=True)
+
+        # Employee completes the whole survey: default pair + custom pair.
+        self._rate(self.employee, self.published, default_person, default_question)
+        self._rate(self.employee, self.published, custom_person, custom_question)
+        # A second employee only answers part of it.
+        partial = create_employee(username='employee_partial')
+        self._rate(partial, self.published, default_person, default_question)
+
+        self._login_employee()
+        response = self.client.get('/api/surveys/')
+        item = next(i for i in response.data if i['id'] == self.published.id)
+
+        self.assertEqual(item['people_count'], 2)
+        self.assertEqual(item['questions_count'], 2)
+        self.assertEqual(item['total_responses'], 1, 'Only fully-completing voters count.')
+        # Preserved historical list semantics: my_votes compares each person's
+        # answered count against the survey-wide active question total, which
+        # undercounts on mixed default/custom surveys (the survey-detail
+        # endpoint is the precise source). Pinned so the bulk rewrite keeps
+        # byte-identical output.
+        self.assertEqual(item['my_votes_count'], 0)
+        self.assertEqual(item['total_people'], 2)
+        self.assertEqual(item['total_questions'], 2)
+        self.assertEqual(item['anonymous_participants_count'], 0)
+
+    def test_employee_list_query_count_does_not_scale_with_surveys(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        self._login_employee()
+
+        def measure():
+            with CaptureQueriesContext(connection) as ctx:
+                response = self.client.get('/api/surveys/')
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            return len(ctx)
+
+        base_count = measure()
+
+        extra_surveys = []
+        for index in range(4):
+            survey = create_survey(
+                self.admin,
+                status=Survey.STATUS_PUBLISHED,
+                title=f'نظرسنجی مقیاس {index}',
+                with_question=False,
+            )
+            person = create_person(survey, full_name=f'فرد مقیاس {index}')
+            question = SurveyQuestion.objects.create(
+                survey=survey,
+                text='سوال مقیاس',
+                has_score=True,
+                score_required=True,
+                display_order=0,
+            )
+            self._rate(self.employee, survey, person, question)
+            extra_surveys.append(survey)
+
+        scaled_count = measure()
+
+        self.assertLessEqual(
+            scaled_count - base_count,
+            3,
+            'Employee list query count must stay flat as surveys grow (N+1 regression).',
+        )
+
+        response = self.client.get('/api/surveys/')
+        ids = {i['id'] for i in response.data}
+        for survey in extra_surveys:
+            self.assertIn(survey.id, ids)
+        scaled_item = next(i for i in response.data if i['id'] == extra_surveys[0].id)
+        self.assertEqual(scaled_item['my_votes_count'], 1)
+        self.assertEqual(scaled_item['total_responses'], 1)
+
+
+class AdminSurveyListStatsTests(APITestCase):
+    def setUp(self):
+        self.admin = create_admin(username='admin_stats')
+        employee = create_employee(username='stats_employee')
+        self.survey = create_survey(self.admin, status=Survey.STATUS_PUBLISHED, with_question=False)
+        person = create_person(self.survey)
+        question = SurveyQuestion.objects.create(
+            survey=self.survey,
+            text='سوال آمار',
+            has_score=True,
+            score_required=True,
+            display_order=0,
+        )
+        Rating.objects.create(
+            survey=self.survey, person=person, question=question,
+            voter=employee, score=9,
+        )
+        self.link = SurveyHashLink.objects.create(survey=self.survey, label='stats')
+
+    def test_admin_list_returns_annotated_stats_without_per_row_queries(self):
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': self.admin.username, 'password': 'AdminPass@1'},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+        response = self.client.get('/api/admin/surveys/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data['results'] if isinstance(response.data, dict) else response.data
+        item = next(i for i in results if i['id'] == self.survey.id)
+        self.assertEqual(item['people_count'], 1)
+        self.assertEqual(item['questions_count'], 1)
+        self.assertEqual(item['total_responses'], 1)
+        self.assertEqual(item['anonymous_participants_count'], 0)
+
 
 class QuestionRequirementInvariantTests(TestCase):
     def setUp(self):
