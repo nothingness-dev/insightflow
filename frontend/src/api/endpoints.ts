@@ -184,8 +184,8 @@ export const adminHashLinkApi = {
 
 
 export const anonymousApi = {
-  survey: (token: string) =>
-    api.get(`/s/${token}/`),
+  survey: (token: string, anonymousToken?: string) =>
+    api.get(`/s/${token}/`, { params: anonymousToken ? { anonymous_token: anonymousToken } : undefined }),
   rate: (
     token: string,
     personId: number,

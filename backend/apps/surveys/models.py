@@ -168,7 +168,8 @@ class SurveyHashLink(models.Model):
     """An anonymous participation link for a survey.
 
     Anyone with the link can participate without logging in.
-    The anonymous_participant_count tracks completed submissions via this link.
+    The anonymous_participant_count tracks devices registered through this
+    link (incremented at each device's first ballot, not at completion).
     """
     survey = models.ForeignKey(
         Survey, on_delete=models.CASCADE,
@@ -251,7 +252,15 @@ class SurveyHashLink(models.Model):
 
 
 class AnonymousParticipation(models.Model):
-    """Completed anonymous participation for a hash link, locked by client IP."""
+    """Device registration for an anonymous hash-link session.
+
+    Created when a device (client IP) casts its first ballot through a link,
+    binding the IP to the client-side anonymous_token. Any later ballot from
+    the same IP must present the same token, so one device can never spread
+    ballots across multiple tokens. finished_at marks the moment every
+    required question of the survey was answered; completed_at stays the
+    first-ballot registration time.
+    """
     survey = models.ForeignKey(
         Survey, on_delete=models.CASCADE,
         related_name='anonymous_participations', verbose_name='نظرسنجی'
@@ -263,7 +272,8 @@ class AnonymousParticipation(models.Model):
     ip_address = models.GenericIPAddressField(verbose_name='آدرس IP')
     anonymous_token = models.CharField(max_length=64, blank=True, verbose_name='توکن ناشناس')
     user_agent = models.TextField(blank=True, verbose_name='مرورگر')
-    completed_at = models.DateTimeField(default=timezone.now, verbose_name='زمان تکمیل')
+    completed_at = models.DateTimeField(default=timezone.now, verbose_name='زمان ثبت')
+    finished_at = models.DateTimeField(null=True, blank=True, verbose_name='زمان تکمیل')
 
     class Meta:
         verbose_name = 'مشارکت ناشناس'

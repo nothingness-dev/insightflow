@@ -1799,8 +1799,10 @@ class AdminHashLinkDetailView(APIView):
 
 class AnonymousSurveyDetailView(APIView):
     """Return survey detail for an anonymous participant using a hash token.
-    Also returns ip_locked=True when this device already completed the survey,
-    so the frontend can immediately show the "already participated" state.
+    Also returns ip_locked=True when this device may no longer participate:
+    either it already finished the survey, or its registration is bound to a
+    different anonymous token than the one presented. An unfinished session
+    presenting its own token stays unlockable so participants can resume.
     """
     permission_classes = [AllowAny]
     throttle_classes = [AnonymousSurveyRateThrottle]
@@ -1824,11 +1826,18 @@ class AnonymousSurveyDetailView(APIView):
             return Response({'detail': 'این نظرسنجی بسته شده است.'}, status=status.HTTP_400_BAD_REQUEST)
 
         client_ip = get_client_ip(request)
-        ip_locked = bool(
-            client_ip and AnonymousParticipation.objects.filter(
+        presented_token = request.query_params.get('anonymous_token', '').strip()
+        ip_locked = False
+        if client_ip:
+            registration = AnonymousParticipation.objects.filter(
                 survey=survey, hash_link=link, ip_address=client_ip
-            ).exists()
-        )
+            ).first()
+            if registration is not None:
+                if registration.finished_at:
+                    ip_locked = True
+                else:
+                    # Unfinished device: only the bound token may continue.
+                    ip_locked = not presented_token or presented_token != registration.anonymous_token
 
         if link.is_full and not ip_locked:
             return Response({'detail': 'ظرفیت شرکت‌کنندگان این لینک تکمیل شده است.'}, status=status.HTTP_403_FORBIDDEN)
@@ -1866,16 +1875,26 @@ class AnonymousRatePersonView(APIView):
         if not anon_session or len(anon_session) > 64:
             return Response({'detail': 'توکن ناشناس معتبر نیست.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        already_locked = bool(client_ip and AnonymousParticipation.objects.filter(
-            survey=survey,
-            hash_link=link,
-            ip_address=client_ip,
-        ).exists())
+        # Device binding: the first ballot from this IP registers a
+        # participation bound to anon_session. Any later ballot from the same
+        # IP must present that same token, so one device can never split
+        # ballots across several tokens (the partial-ballot loophole).
+        registration = None
+        resuming_registration = False
+        if client_ip:
+            registration = AnonymousParticipation.objects.filter(
+                survey=survey,
+                hash_link=link,
+                ip_address=client_ip,
+            ).first()
+            if registration is not None:
+                if registration.anonymous_token != anon_session:
+                    return Response({'detail': 'از این دستگاه/آدرس IP قبلا در این نظرسنجی شرکت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+                resuming_registration = True
 
-        if already_locked:
-            return Response({'detail': 'از این دستگاه/آدرس IP قبلا در این نظرسنجی شرکت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if link.is_full:
+        if link.is_full and not resuming_registration:
+            # An in-progress session keeps its already-consumed slot and may
+            # finish; only brand-new participants are capped by the limit.
             return Response({'detail': 'ظرفیت شرکت‌کنندگان این لینک تکمیل شده است.'}, status=status.HTTP_403_FORBIDDEN)
         try:
             person = SurveyPerson.objects.get(pk=person_id, survey=survey, is_active=True)
@@ -1913,18 +1932,28 @@ class AnonymousRatePersonView(APIView):
         except ValueError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        participation_completed = False
+        participation_finished = False
         try:
             with transaction.atomic():
-                # Serialize submissions for this link so capacity checks cannot
-                # race, and roll answers back if final participation fails.
+                # Serialize submissions for this link so capacity checks and
+                # device registrations cannot race, and roll answers back if
+                # the binding check below rejects a concurrent new session.
                 locked_link = SurveyHashLink.objects.select_for_update().get(pk=link.pk)
-                if locked_link.is_full:
+
+                current_registration = None
+                if client_ip:
+                    # Re-check under lock: two fresh tokens racing from one
+                    # IP must not both register.
+                    current_registration = AnonymousParticipation.objects.filter(
+                        survey=survey, hash_link=locked_link, ip_address=client_ip,
+                    ).first()
+                    if (
+                        current_registration is not None
+                        and current_registration.anonymous_token != anon_session
+                    ):
+                        return Response({'detail': 'از این دستگاه/آدرس IP قبلا در این نظرسنجی شرکت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+                if locked_link.is_full and not resuming_registration:
                     return Response({'detail': 'ظرفیت شرکت‌کنندگان این لینک تکمیل شده است.'}, status=status.HTTP_403_FORBIDDEN)
-                if client_ip and AnonymousParticipation.objects.filter(
-                    survey=survey, hash_link=locked_link, ip_address=client_ip,
-                ).exists():
-                    return Response({'detail': 'از این دستگاه/آدرس IP قبلا در این نظرسنجی شرکت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
 
                 Rating.objects.bulk_create([
                     Rating(
@@ -1950,21 +1979,29 @@ class AnonymousRatePersonView(APIView):
                     question__is_active=True,
                 ).count()
 
-                if answered_count >= required:
-                    AnonymousParticipation.objects.create(
-                        survey=survey,
-                        hash_link=locked_link,
-                        ip_address=client_ip,
-                        anonymous_token=anon_session,
-                        user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
-                    )
-                    SurveyHashLink.objects.filter(pk=locked_link.pk).update(
-                        anonymous_participant_count=F('anonymous_participant_count') + 1
-                    )
-                    participation_completed = True
+                if client_ip:
+                    if current_registration is None:
+                        AnonymousParticipation.objects.create(
+                            survey=survey,
+                            hash_link=locked_link,
+                            ip_address=client_ip,
+                            anonymous_token=anon_session,
+                            user_agent=request.META.get('HTTP_USER_AGENT', '')[:500],
+                        )
+                        SurveyHashLink.objects.filter(pk=locked_link.pk).update(
+                            anonymous_participant_count=F('anonymous_participant_count') + 1
+                        )
+                    if answered_count >= required:
+                        # Mark completion exactly once, even across resumes.
+                        participation_finished = bool(AnonymousParticipation.objects.filter(
+                            survey=survey,
+                            hash_link=locked_link,
+                            ip_address=client_ip,
+                            finished_at__isnull=True,
+                        ).update(finished_at=timezone.now()))
         except IntegrityError:
             return Response({'detail': 'شما قبلاً برای این فرد پاسخ ثبت کرده‌اید.'}, status=status.HTTP_400_BAD_REQUEST)
-        if participation_completed:
+        if participation_finished:
             log_activity(
                 ActivityActions.ANONYMOUS_VOTE,
                 request=request,
@@ -2000,26 +2037,34 @@ class AnonymousMyRatingsView(APIView):
 
         total_active_people = survey.people.filter(is_active=True).count()
         active_questions_count = survey.questions.filter(is_active=True).count()
-        completed_by_ip = AnonymousParticipation.objects.filter(
-            survey=survey,
-            hash_link=link,
-            ip_address=get_client_ip(request),
-        ).exists()
-        if completed_by_ip:
-            return Response({
-                'survey_id': survey.id,
-                'rated_person_ids': list(survey.people.filter(is_active=True).values_list('id', flat=True)),
-                'rated_count': total_active_people,
-                'total_people': total_active_people,
-                'total_questions': active_questions_count,
-                'required_answers_count': len(required_question_pairs(survey)),
-                'is_complete': total_active_people > 0,
-                'ip_locked': True,
-            })
-
         anon_session = request.query_params.get('anonymous_token', '').strip()
+
+        client_ip = get_client_ip(request)
+        registration = None
+        if client_ip:
+            registration = AnonymousParticipation.objects.filter(
+                survey=survey,
+                hash_link=link,
+                ip_address=client_ip,
+            ).first()
+        if registration is not None:
+            # Locked when finished, or when this device is registered under a
+            # different token than the one presented. A same-token unfinished
+            # session falls through so real progress keeps being reported.
+            if registration.finished_at or anon_session != registration.anonymous_token:
+                return Response({
+                    'survey_id': survey.id,
+                    'rated_person_ids': list(survey.people.filter(is_active=True).values_list('id', flat=True)),
+                    'rated_count': total_active_people,
+                    'total_people': total_active_people,
+                    'total_questions': active_questions_count,
+                    'required_answers_count': len(required_question_pairs(survey)),
+                    'is_complete': total_active_people > 0,
+                    'ip_locked': True,
+                })
+
         if not anon_session:
-            return Response({'rated_person_ids': [], 'rated_count': 0, 'total_people': 0, 'is_complete': False})
+            return Response({'rated_person_ids': [], 'rated_count': 0, 'total_people': 0, 'is_complete': False, 'ip_locked': False})
 
         completed_person_ids = list(participant_completed_person_ids(survey, anonymous_token=anon_session))
 
@@ -2031,4 +2076,5 @@ class AnonymousMyRatingsView(APIView):
             'total_questions': active_questions_count,
             'required_answers_count': len(required_question_pairs(survey)),
             'is_complete': len(completed_person_ids) == total_active_people and total_active_people > 0,
+            'ip_locked': False,
         })
