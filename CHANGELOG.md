@@ -1,3 +1,16 @@
+## [2.10.15] — 2026-08-25
+
+### Fixed
+
+- Hardened client-IP resolution against spoofed `X-Real-IP` /
+  `X-Forwarded-For` headers: proxy headers are honored only when
+  `TRUST_PROXY_HEADERS=true`, so a directly exposed backend can no longer
+  have anonymous-vote IP locks, audit entries, or rate-limit buckets forged.
+- Pinned DRF throttle identity to the same trust policy via `NUM_PROXIES`,
+  keeping rate limiting consistent with the new IP resolution.
+- Invalid proxy-header values are now validated as real IP addresses and
+  skipped instead of being stored or used for device locks.
+
 ## [2.10.14] — 2026-08-25
 
 ### Fixed
