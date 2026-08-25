@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.27] — 2026-08-25
+
+### Fixed
+
+- The CI backend job now receives the required settings environment
+  variables (dummy `SECRET_KEY`, explicit hosts and proxy-trust flag) so the
+  test suite can run without the gitignored `.env` file.
+
 ## [2.10.0-ip-audit.26] — 2026-08-25
 
 ### Documentation
