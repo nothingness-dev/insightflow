@@ -94,6 +94,14 @@ class SurveyQuestion(models.Model):
         verbose_name = 'سوال نظرسنجی'
         verbose_name_plural = 'سوال‌های نظرسنجی'
         ordering = ['display_order', 'created_at']
+        indexes = [
+            # Hot path: effective_questions_for_person() resolves each
+            # person's assigned questions on every list/detail/rating call.
+            models.Index(
+                fields=['survey', 'is_active', 'person', 'display_order'],
+                name='surveyq_active_person_idx',
+            ),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=(
@@ -159,6 +167,11 @@ class SurveyPerson(models.Model):
         verbose_name = 'شخص'
         verbose_name_plural = 'افراد'
         ordering = ['display_order', 'created_at']
+        indexes = [
+            # Hot path: active people per survey drive list counters,
+            # required-pair totals, and public serializers.
+            models.Index(fields=['survey', 'is_active'], name='surveyp_survey_active_idx'),
+        ]
 
     def __str__(self):
         return f"{self.full_name} - {self.survey.title}"
