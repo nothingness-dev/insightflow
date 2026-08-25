@@ -1,5 +1,19 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.18] — 2026-08-25
+
+### Fixed
+
+- Prevented a corrupted or tampered sessionStorage user entry from crashing
+  the app on boot; broken session data is now parsed defensively and dropped,
+  letting the session start clean.
+- Added an error boundary at the app root and around the route shell, so any
+  unexpected render error (including a stale lazily-loaded chunk after a
+  deploy) shows a Persian recovery screen with retry, reload, and
+  clear-session actions instead of a permanent blank page.
+- Saved theme keys are validated against the known palette list, falling back
+  to the default theme for unknown values.
+
 ## [2.10.0-ip-audit.17] — 2026-08-25
 
 ### Fixed
