@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.24] — 2026-08-25
+
+### Added
+
+- A CI workflow running the backend migration-consistency check and full
+  Django test suite plus the frontend typecheck and production build on
+  every push to both branches and on pull requests.
+
 ## [2.10.0-ip-audit.23] — 2026-08-25
 
 ### Fixed
