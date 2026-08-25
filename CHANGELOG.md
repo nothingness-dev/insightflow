@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.16] — 2026-08-25
+
+### Fixed
+
+- Closed an anonymous-voting loophole where one device could rate different
+  people under different anonymous tokens without ever triggering the IP lock.
+- Anonymous participation now registers the device on its first ballot and
+  binds it to that session token; later ballots from the same IP must present
+  the same token, while multi-step voting and cross-visit resume keep working.
+- Recorded survey completion separately in `finished_at` so the audit log
+  still fires exactly once per completed anonymous session, with a migration
+  backfilling prior completion records.
+
 ## [2.10.0-ip-audit.15] — 2026-08-08
 
 ### Improved
