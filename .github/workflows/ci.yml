@@ -20,16 +20,21 @@ jobs:
     name: Backend Django test suite
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # Settings require these to be present; test settings use SQLite and
+      # an in-memory cache, so dummy values are safe - nothing here is a
+      # real credential.
+      SECRET_KEY: ci-only-dummy-secret-key-for-test-settings-0123456789abcdef
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+      TRUST_PROXY_HEADERS: 'True'
     steps:
       - name: Check out source
         uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-          cache: pip
-          cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
         working-directory: backend
