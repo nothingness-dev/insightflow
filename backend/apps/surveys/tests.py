@@ -1069,6 +1069,78 @@ class AdminSurveyListStatsTests(APITestCase):
         self.assertEqual(item['anonymous_participants_count'], 0)
 
 
+class PhotoUploadValidationTests(APITestCase):
+    """Uploads must be validated by decoding actual bytes with Pillow, not by
+    trusting client-declared extension or content-type."""
+
+    def setUp(self):
+        self.admin = create_admin(username='admin_photo')
+        self.survey = create_survey(self.admin, status=Survey.STATUS_DRAFT, with_question=False)
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': self.admin.username, 'password': 'AdminPass@1'},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+    def _png_bytes(self, color='red'):
+        from io import BytesIO
+        from PIL import Image
+        buffer = BytesIO()
+        Image.new('RGB', (4, 4), color).save(buffer, format='PNG')
+        buffer.seek(0)
+        return buffer.read()
+
+    def _jpeg_bytes(self):
+        from io import BytesIO
+        from PIL import Image
+        buffer = BytesIO()
+        Image.new('RGB', (4, 4), 'blue').save(buffer, format='JPEG')
+        buffer.seek(0)
+        return buffer.read()
+
+    def _create_person_with_photo(self, uploaded_file):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        payload = {
+            'full_name': 'فرد تصویردار',
+            'role_title': 'کارشناس',
+            'display_order': '1',
+            'photo': uploaded_file,
+        }
+        return self.client.post(
+            f'/api/admin/surveys/{self.survey.id}/people/',
+            payload,
+            format='multipart',
+        )
+
+    def test_real_png_upload_is_accepted_and_stored(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        response = self._create_person_with_photo(SimpleUploadedFile(
+            'photo.png', self._png_bytes(), content_type='image/png',
+        ))
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        person = SurveyPerson.objects.get(pk=response.data['id'])
+        self.assertTrue(person.photo)
+
+    def test_renamed_non_image_payload_is_rejected(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        fake = SimpleUploadedFile('photo.png', b'<html>not an image</html>', content_type='image/png')
+        response = self._create_person_with_photo(fake)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(SurveyPerson.objects.filter(full_name='فرد تصویردار').exists())
+
+    def test_extension_format_mismatch_is_rejected(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        mismatch = SimpleUploadedFile('photo.png', self._jpeg_bytes(), content_type='image/png')
+        response = self._create_person_with_photo(mismatch)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_truncated_image_is_rejected(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        truncated = SimpleUploadedFile('photo.png', self._png_bytes()[:10], content_type='image/png')
+        response = self._create_person_with_photo(truncated)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
 class QuestionRequirementInvariantTests(TestCase):
     def setUp(self):
         self.admin = create_admin(username='question_requirement_admin')

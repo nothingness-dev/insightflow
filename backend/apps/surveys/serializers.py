@@ -6,6 +6,14 @@ from django.utils import timezone
 from .models import Survey, SurveyQuestion, SurveyPerson, Rating, SurveyHashLink
 
 
+# PIL format name -> allowed upload extension(s).
+_PIL_FORMAT_EXTENSIONS = {
+    'JPEG': {'jpg', 'jpeg'},
+    'PNG': {'png'},
+    'WEBP': {'webp'},
+}
+
+
 def validate_photo(file):
     if file:
         ext = file.name.rsplit('.', 1)[-1].lower()
@@ -16,6 +24,34 @@ def validate_photo(file):
         allowed_mime = ['image/jpeg', 'image/png', 'image/webp']
         if hasattr(file, 'content_type') and file.content_type not in allowed_mime:
             raise serializers.ValidationError('نوع فایل مجاز نیست.')
+
+        # Content sniffing: the declared extension/content-type are
+        # client-controlled, so decode the actual bytes with Pillow and
+        # require the real format to be an allowed image type that matches
+        # the claimed extension. A renamed payload (e.g. HTML or a script
+        # saved as .png) is rejected instead of being stored.
+        from PIL import Image
+
+        try:
+            original_position = file.tell()
+        except (AttributeError, OSError):
+            original_position = None
+
+        pil_format = None
+        try:
+            image = Image.open(file)
+            pil_format = image.format
+            image.verify()
+        except Exception:
+            raise serializers.ValidationError('محتوای فایل یک تصویر معتبر نیست.')
+        finally:
+            try:
+                file.seek(original_position if original_position is not None else 0)
+            except (AttributeError, OSError):
+                pass
+
+        if not pil_format or ext not in _PIL_FORMAT_EXTENSIONS.get(pil_format, set()):
+            raise serializers.ValidationError('محتوای فایل با فرمت اعلام‌شده مطابقت ندارد.')
     return file
 
 
