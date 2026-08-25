@@ -1,3 +1,12 @@
+## [2.10.18] — 2026-08-25
+
+### Fixed
+
+- Photo uploads are now validated by decoding the actual bytes with Pillow:
+  the real image format must be an allowed type and must match the claimed
+  extension, so renamed non-image payloads and truncated files are rejected
+  instead of being stored as person photos.
+
 ## [2.10.17] — 2026-08-25
 
 ### Fixed
