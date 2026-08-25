@@ -1,3 +1,11 @@
+## [2.10.22] — 2026-08-25
+
+### Added
+
+- A CI workflow running the backend migration-consistency check and full
+  Django test suite plus the frontend typecheck and production build on
+  every push to both branches and on pull requests.
+
 ## [2.10.21] — 2026-08-25
 
 ### Fixed
