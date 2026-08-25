@@ -1,3 +1,17 @@
+## [2.10.17] — 2026-08-25
+
+### Fixed
+
+- Removed the N+1 query explosion from the employee survey list: counters
+  are annotated once per request, completion totals are computed across all
+  listed surveys in three grouped queries instead of dumping every rating of
+  every survey into Python, and the requesting user's progress is batched
+  into a single query — the response contract is unchanged.
+- Applied the same annotations to the admin survey list and dashboard
+  recent-surveys so serializing surveys no longer costs ~5 queries per row.
+- Added bounded-query-count and custom-question completion-semantics
+  regression tests guarding the list endpoints.
+
 ## [2.10.16] — 2026-08-25
 
 ### Fixed
