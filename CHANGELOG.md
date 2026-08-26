@@ -1,3 +1,17 @@
+## [2.10.26] — 2026-08-25
+
+### Fixed
+
+- Person creation through multipart forms no longer saves `is_active=False`
+  when the field is omitted (DRF BooleanField default gotcha); absent now
+  means active.
+- Survey creation and all admin user mutations (create, update, delete,
+  activate, deactivate, bulk import) invalidate the dashboard cache, so
+  survey and employee totals are never stale.
+- Anonymous votes invalidate the hash-links panel cache so participant
+  counts update immediately instead of lagging 60 seconds.
+- Removed dead employee-survey-list cache helpers that were never populated.
+
 ## [2.10.25] — 2026-08-25
 
 ### Fixed
