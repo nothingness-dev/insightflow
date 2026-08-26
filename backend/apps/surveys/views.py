@@ -36,9 +36,8 @@ import logging
 from django.conf import settings
 from django.core.cache import cache
 from apps.core.cache import (
-    key_dashboard, key_survey_results, key_employee_survey_list, key_hash_links,
+    key_dashboard, key_survey_results, key_hash_links,
     invalidate_dashboard, invalidate_survey_results,
-    invalidate_all_employee_survey_lists, invalidate_employee_survey_list,
     invalidate_hash_links,
 )
 
@@ -130,6 +129,7 @@ class AdminSurveyListCreateView(generics.ListCreateAPIView):
         serializer = SurveyCreateUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         survey = serializer.save(created_by=request.user)
+        invalidate_dashboard()
         logger.info(f"Admin {request.user.username} created survey: {survey.title}")
         log_activity(
             ActivityActions.SURVEY_CREATE,
@@ -230,7 +230,6 @@ class AdminSurveyDetailView(generics.RetrieveUpdateDestroyAPIView):
         response = super().destroy(request, *args, **kwargs)
         invalidate_dashboard()
         invalidate_survey_results(survey_id)
-        invalidate_all_employee_survey_lists()
         log_activity(
             ActivityActions.SURVEY_DELETE,
             request=request,
@@ -309,7 +308,6 @@ class AdminSurveyPublishView(APIView):
         survey.published_at = timezone.now()
         survey.save()
         invalidate_dashboard()
-        invalidate_all_employee_survey_lists()
         logger.info(f"Admin {request.user.username} published survey: {survey.title}")
         log_activity(
             ActivityActions.SURVEY_PUBLISH,
@@ -339,7 +337,6 @@ class AdminSurveyCloseView(APIView):
         survey.save()
         invalidate_dashboard()
         invalidate_survey_results(survey.id)
-        invalidate_all_employee_survey_lists()
         logger.info(f"Admin {request.user.username} closed survey: {survey.title}")
         log_activity(
             ActivityActions.SURVEY_CLOSE,
@@ -1402,7 +1399,6 @@ class EmployeeRatePersonView(APIView):
 
         invalidate_survey_results(survey.id)
         invalidate_dashboard()
-        invalidate_employee_survey_list(request.user.id)
         return Response({'detail': 'پاسخ‌های شما با موفقیت ثبت شد.'}, status=status.HTTP_201_CREATED)
 
 
@@ -2048,6 +2044,7 @@ class AnonymousRatePersonView(APIView):
 
         invalidate_survey_results(survey.id)
         invalidate_dashboard()
+        invalidate_hash_links(survey.id)
         return Response({'detail': 'پاسخ‌های شما با موفقیت ثبت شد.'}, status=status.HTTP_201_CREATED)
 
 

@@ -18,6 +18,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.activity.models import ActivityActions, ActivityLog
 from apps.activity.services import log_activity
+from apps.core.cache import invalidate_dashboard
 from .throttles import LoginRateThrottle
 
 from .models import User
@@ -174,6 +175,7 @@ class UserListCreateView(generics.ListCreateAPIView):
             target_repr=user.full_name or user.username,
             metadata={'username': user.username, 'role': user.role},
         )
+        invalidate_dashboard()
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
@@ -200,6 +202,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
             target_repr=user.full_name or user.username,
             metadata={'username': user.username, 'role': user.role, 'is_active': user.is_active},
         )
+        invalidate_dashboard()
         return response
 
     def delete(self, request, pk):
@@ -225,6 +228,7 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
             target_repr=full_name or username,
             metadata={'username': username},
         )
+        invalidate_dashboard()
         return Response({'detail': 'کاربر با موفقیت حذف شد.'}, status=status.HTTP_200_OK)
 
 
@@ -274,6 +278,7 @@ class UserActivateView(APIView):
             target_repr=user.full_name or user.username,
             metadata={'username': user.username},
         )
+        invalidate_dashboard()
         return Response({'detail': 'حساب کاربری فعال شد.'})
 
 
@@ -301,6 +306,7 @@ class UserDeactivateView(APIView):
             target_repr=user.full_name or user.username,
             metadata={'username': user.username},
         )
+        invalidate_dashboard()
         return Response({'detail': 'حساب کاربری غیرفعال شد.'})
 
 
@@ -492,6 +498,8 @@ class UserBulkImportView(APIView):
                 'file_name': file.name,
             },
         )
+        if created:
+            invalidate_dashboard()
 
         return Response({
             'created_count': len(created),

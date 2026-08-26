@@ -104,6 +104,12 @@ class SurveyQuestionPublicSerializer(serializers.ModelSerializer):
 
 
 class SurveyPersonSerializer(serializers.ModelSerializer):
+    # DRF's BooleanField treats a missing key in HTML/multipart submissions as
+    # an explicit False (default_empty_html=False), which silently saved every
+    # person created without an explicit is_active as inactive - the same
+    # gotcha previously dodged for uses_default_questions. Declaring the field
+    # with an explicit default keeps absent meaning active.
+    is_active = serializers.BooleanField(required=False, default=True)
     photo_url = serializers.SerializerMethodField()
     question_ids = serializers.SerializerMethodField()
     questions = serializers.SerializerMethodField()

@@ -26,11 +26,6 @@ def key_activity_filter_options() -> str:
     return 'activity:filter_options'
 
 
-def key_employee_survey_list(user_id: int) -> str:
-    return f'employee:{user_id}:survey_list'
-
-
-
 def invalidate_dashboard() -> None:
     """Call whenever the survey / user / rating counts change."""
     try:
@@ -65,23 +60,6 @@ def invalidate_filter_options() -> None:
         cache.delete(key_activity_filter_options())
     except Exception:
         logger.warning('cache.invalidate_filter_options failed silently')
-
-
-def invalidate_employee_survey_list(user_id: int) -> None:
-    """Call after a rating is submitted or a survey's status/people changes."""
-    try:
-        cache.delete(key_employee_survey_list(user_id))
-    except Exception:
-        logger.warning('cache.invalidate_employee_survey_list(%s) failed silently', user_id)
-
-
-def invalidate_all_employee_survey_lists() -> None:
-    """Invalidate every employee's survey list (used when a survey is published/closed/deleted)."""
-    try:
-
-        cache.delete_pattern('*employee:*:survey_list')                              
-    except Exception:
-        logger.warning('cache.invalidate_all_employee_survey_lists failed silently')
 
 
 def key_hash_links(survey_id: int) -> str:

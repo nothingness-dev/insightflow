@@ -156,3 +156,51 @@ class UserManagementApiTests(APITestCase):
                 call_command('create_admin_if_not_exists')
 
         self.assertFalse(User.objects.filter(username='bootstrap_admin').exists())
+
+
+class DashboardCacheFreshnessTests(APITestCase):
+    """User mutations must invalidate the cached dashboard totals."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='dash_admin', password='AdminPass@1', full_name='مدیر', role='admin')
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': self.admin.username, 'password': 'AdminPass@1'},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+    def _dashboard_employees(self):
+        response = self.client.get('/api/admin/dashboard/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        return response.data['stats']['total_employees']
+
+    def test_user_create_refreshes_dashboard_total_employees(self):
+        from apps.core.cache import invalidate_dashboard
+        invalidate_dashboard()
+        before = self._dashboard_employees()
+        response = self.client.post('/api/admin/users/', {
+            'username': 'fresh_cache_emp',
+            'password': 'FreshPass@123',
+            'password_confirm': 'FreshPass@123',
+            'full_name': 'کارمند تازه',
+            'role': 'employee',
+        }, format='json')
+        self.assertIn(response.status_code, (status.HTTP_201_CREATED, status.HTTP_200_OK),
+                      response.content)
+        after = self._dashboard_employees()
+        self.assertEqual(after, before + 1,
+                         'user creation must invalidate the dashboard cache')
+
+    def test_user_delete_refreshes_dashboard_total_employees(self):
+        employee = User.objects.create_user(
+            username='deleted_emp', password='EmpPass@12@', full_name='حذف‌شونده',
+            role='employee')
+        from apps.core.cache import invalidate_dashboard
+        invalidate_dashboard()
+        before = self._dashboard_employees()
+        response = self.client.delete(f'/api/admin/users/{employee.id}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        after = self._dashboard_employees()
+        self.assertEqual(after, before - 1,
+                         'user deletion must invalidate the dashboard cache')
