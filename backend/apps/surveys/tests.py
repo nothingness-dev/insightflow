@@ -463,6 +463,80 @@ class AnonymousHashLinkParticipationTests(APITestCase):
         self.assertTrue(hijack.data['ip_locked'])
 
 
+class CacheInvalidationAndDefaultsTests(APITestCase):
+    """Regression guards for DB-save defaults and cache invalidation coverage."""
+
+    def setUp(self):
+        self.admin = create_admin(username='cache_admin')
+        self.survey = create_survey(self.admin, status=Survey.STATUS_DRAFT, with_question=False)
+        SurveyQuestion.objects.create(
+            survey=self.survey, text='q', has_score=True,
+            score_required=True, display_order=0,
+        )
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': self.admin.username, 'password': 'AdminPass@1'},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+    def test_multipart_person_without_is_active_is_saved_active(self):
+        from io import BytesIO
+
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        buffer = BytesIO()
+        Image.new('RGB', (4, 4), 'red').save(buffer, format='PNG')
+        buffer.seek(0)
+        response = self.client.post(
+            f'/api/admin/surveys/{self.survey.id}/people/',
+            {'full_name': 'فرد فعال پیش‌فرض', 'display_order': '1',
+             'photo': SimpleUploadedFile('p.png', buffer.read(), content_type='image/png')},
+            format='multipart',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        person = SurveyPerson.objects.get(full_name='فرد فعال پیش‌فرض')
+        self.assertTrue(person.is_active, 'omitted is_active must default to active')
+
+    def test_survey_create_refreshes_dashboard_immediately(self):
+        before = self.client.get('/api/admin/dashboard/').data['stats']['total_surveys']
+        response = self.client.post('/api/admin/surveys/', {
+            'title': 'تازگی داشبورد', 'description': '',
+            'questions': [{'text': 'q', 'has_score': True, 'score_required': True,
+                           'has_comment': False, 'has_emoji': False, 'display_order': 0,
+                           'is_active': True}],
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        after = self.client.get('/api/admin/dashboard/').data['stats']['total_surveys']
+        self.assertEqual(after, before + 1, 'survey create must invalidate the dashboard cache')
+
+    def test_anonymous_vote_invalidates_hash_links_panel_cache(self):
+        SurveyPerson.objects.create(survey=self.survey, full_name='فرد لینک')
+        publish = self.client.post(f'/api/admin/surveys/{self.survey.id}/publish/')
+        self.assertEqual(publish.status_code, status.HTTP_200_OK, publish.content)
+        link_response = self.client.post(
+            f'/api/admin/surveys/{self.survey.id}/hash-links/', {'label': 'cache'}, format='json')
+        token = link_response.data['token']
+
+        primed = self.client.get(f'/api/admin/surveys/{self.survey.id}/hash-links/')
+        self.assertEqual(primed.status_code, status.HTTP_200_OK)
+
+        question = self.survey.questions.get()
+        person = SurveyPerson.objects.get()
+        vote = self.client.post(
+            f'/api/s/{token}/people/{person.id}/rate/',
+            {'anonymous_token': 'cache-check-token',
+             'answers': [{'question_id': question.id, 'score': 6}]},
+            format='json', HTTP_X_REAL_IP='203.0.113.44')
+        self.assertEqual(vote.status_code, status.HTTP_201_CREATED, vote.content)
+
+        fresh = self.client.get(f'/api/admin/surveys/{self.survey.id}/hash-links/')
+        item = next(i for i in fresh.data if i['token'] == token)
+        count = item.get('anonymous_participant_count', item.get('anonymous_participants_count', 0))
+        self.assertGreaterEqual(count, 1,
+                                'panel must not serve a stale participant count after a vote')
+
+
 class ResultsTests(APITestCase):
     def setUp(self):
         self.admin = create_admin(username='admin_res')
