@@ -1,4 +1,4 @@
-import csv
+﻿import csv
 import io
 from collections import defaultdict
 from django.http import HttpResponse
@@ -20,7 +20,7 @@ from .serializers import (
     SurveyPersonPublicSerializer, SurveyPublicSerializer, RatingCreateSerializer,
     SurveyProgressDashboardSerializer, SurveyHashLinkSerializer, SurveyQuestionSerializer,
 )
-from .services import calculate_survey_results, duplicate_survey, calculate_survey_progress, validate_question_answers, effective_questions_for_person, required_question_pairs, completed_participants, completed_participants_for, completed_person_ids as participant_completed_person_ids, annotate_survey_list_stats, bulk_completed_response_counts
+from .services import calculate_survey_results, duplicate_survey, calculate_survey_progress, validate_question_answers, effective_questions_for_person, required_pair_total_for, completed_participants, completed_participants_for, completed_person_ids as participant_completed_person_ids, annotate_survey_list_stats, bulk_completed_response_counts
 from apps.activity.models import ActivityActions
 from apps.activity.services import log_activity
 from .export_data import (
@@ -256,6 +256,7 @@ class AdminSurveyDuplicateView(APIView):
             return Response({'detail': 'نظرسنجی یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
         duplicate = duplicate_survey(source_survey, request.user)
+        invalidate_dashboard()
         logger.info(
             'Admin %s duplicated survey %s into survey %s',
             request.user.username,
@@ -1310,7 +1311,7 @@ class EmployeeMyRatingsView(APIView):
             'rated_count': len(completed_person_ids),
             'total_people': total_active_people,
             'total_questions': active_questions_count,
-            'required_answers_count': len(required_question_pairs(survey)),
+            'required_answers_count': required_pair_total_for(survey),
             'is_complete': len(completed_person_ids) == total_active_people and total_active_people > 0,
         })
 
@@ -1360,31 +1361,13 @@ class AdminDashboardView(APIView):
         closed_surveys = Survey.objects.filter(status=Survey.STATUS_CLOSED).count()
 
 
-        survey_meta = list(
-            Survey.objects
-            .annotate(
-                ap=Count('people', filter=Q(people__is_active=True), distinct=True),
-                aq=Count('questions', filter=Q(questions__is_active=True), distinct=True),
-            )
-            .values('id', 'ap', 'aq')
-        )
-        required_by_survey = {
-            s['id']: s['ap'] * s['aq'] for s in survey_meta if s['ap'] * s['aq'] > 0
-        }
-        voter_answer_counts = (
-            Rating.objects
-            .filter(
-                survey_id__in=required_by_survey.keys(),
-                person__is_active=True,
-                question__is_active=True,
-            )
-            .values('survey_id', 'voter_id')
-            .annotate(answered_count=Count('id', distinct=True))
-        )
+        # Completion totals must use the precise per-person model (custom
+        # question sets included); the old ap*aq shortcut undercounted mixed
+        # default/custom surveys and contradicted the list endpoints.
         total_responses = sum(
-            1
-            for row in voter_answer_counts
-            if row['answered_count'] >= required_by_survey.get(row['survey_id'], 0)
+            bulk_completed_response_counts(
+                Survey.objects.values_list('id', flat=True)
+            ).values()
         )
         total_employees = User.objects.filter(role='employee').count()
 
@@ -1645,7 +1628,13 @@ class AdminHashLinkDetailView(APIView):
         if 'label' in request.data:
             link.label = (request.data['label'] or '').strip()
         if 'is_active' in request.data:
-            link.is_active = bool(request.data['is_active'])
+            raw_active = request.data['is_active']
+            # Multipart bodies deliver booleans as strings; bool('false') is
+            # True, which silently activated links the admin tried to disable.
+            if isinstance(raw_active, bool):
+                link.is_active = raw_active
+            else:
+                link.is_active = str(raw_active).strip().lower() in ('true', '1', 'yes')
 
         limit_fields = {}
         for field in ('max_participants', 'expiry_value', 'expiry_unit'):
@@ -1890,7 +1879,7 @@ class AnonymousRatePersonView(APIView):
                     for item in validated_answers
                 ])
 
-                required = len(required_question_pairs(survey))
+                required = required_pair_total_for(survey)
                 answered_count = Rating.objects.filter(
                     survey=survey,
                     anonymous_token=anon_session,
@@ -1978,7 +1967,7 @@ class AnonymousMyRatingsView(APIView):
                     'rated_count': total_active_people,
                     'total_people': total_active_people,
                     'total_questions': active_questions_count,
-                    'required_answers_count': len(required_question_pairs(survey)),
+                    'required_answers_count': required_pair_total_for(survey),
                     'is_complete': total_active_people > 0,
                     'ip_locked': True,
                 })
@@ -1994,7 +1983,7 @@ class AnonymousMyRatingsView(APIView):
             'rated_count': len(completed_person_ids),
             'total_people': total_active_people,
             'total_questions': active_questions_count,
-            'required_answers_count': len(required_question_pairs(survey)),
+            'required_answers_count': required_pair_total_for(survey),
             'is_complete': len(completed_person_ids) == total_active_people and total_active_people > 0,
             'ip_locked': False,
         })

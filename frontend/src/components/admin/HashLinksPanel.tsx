@@ -476,7 +476,9 @@ export default function HashLinksPanel({ surveyId, surveyStatus }: Props) {
                 className={`input-field w-full pr-9 ${labelError ? 'border-red-400 focus:ring-red-200' : ''}`}
                 maxLength={200}
                 autoFocus
-                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !creating) handleCreate();
+                }}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300">
                 <LinkIcon />
