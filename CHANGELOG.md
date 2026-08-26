@@ -1,5 +1,23 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.31] — 2026-08-26
+
+### Fixed
+
+- Scoped rate limits added for token refresh (30/min), password change
+  (5/min), every CSV/Excel/PDF export (20/min), and bulk import (5/min).
+- `Rating` gains a 1000-character comment validator and a full-clean guard
+  rejecting ratings with no answer component, so admin inserts cannot
+  poison averages.
+- `duplicate_survey` skips stray cross-survey questions instead of failing
+  with a KeyError.
+- Logout only blacklists refresh tokens owned by the caller.
+- Person names, departments, role titles, and question texts are now
+  formula-neutralized in CSV/Excel matrix rows and headers.
+- Removed dead PersianDatePicker/ThemeSwitcher components and four unused
+  barrel exports; gitignored the local seed script; added skip-to-content
+  links to both shells; gated the npm build behind typecheck.
+
 ## [2.10.0-ip-audit.30] — 2026-08-26
 
 ### Fixed
