@@ -16,26 +16,61 @@ def effective_questions_for_person(person):
     return questions.order_by('display_order', 'created_at')
 
 
-def required_question_pairs(survey):
+def effective_question_map(survey, people):
+    """{person_id: [question]} for the given active people, in two queries.
+
+    Equivalent to calling effective_questions_for_person() once per person
+    (identical filtering and display_order/created_at ordering), but without
+    the per-person query that made group result building O(people).
+    """
+    defaults = list(
+        SurveyQuestion.objects
+        .filter(survey=survey, person__isnull=True, is_active=True)
+        .order_by('display_order', 'created_at')
+    )
+    customs_by_person = defaultdict(list)
+    for question in (
+        SurveyQuestion.objects
+        .filter(survey=survey, person__isnull=False, is_active=True)
+        .order_by('display_order', 'created_at')
+    ):
+        customs_by_person[question.person_id].append(question)
+    return {
+        person.id: (
+            list(defaults) if person.uses_default_questions
+            else customs_by_person.get(person.id, [])
+        )
+        for person in people
+    }
+
+
+def required_question_pairs(survey, qmap=None):
+    if qmap is None:
+        qmap = effective_question_map(
+            survey, survey.people.filter(is_active=True))
     return {(person.id, question.id)
             for person in survey.people.filter(is_active=True)
-            for question in effective_questions_for_person(person)}
+            for question in qmap.get(person.id, [])}
 
 
-def required_question_pairs_for(people):
+def required_question_pairs_for(people, qmap=None):
     """Required (person_id, question_id) pairs for a specific group of people only."""
+    if qmap is not None:
+        return {(person.id, question.id)
+                for person in people
+                for question in qmap.get(person.id, [])}
     return {(person.id, question.id)
             for person in people
             for question in effective_questions_for_person(person)}
 
 
-def completed_participants_for(survey, people):
+def completed_participants_for(survey, people, qmap=None):
     """Voters/anon tokens who fully answered every question for this group of
     people only. Used to isolate completion between the general/shared group
     and each particular person, so finishing one section never gates whether
     someone counts as "done" in an unrelated section."""
     people = list(people)
-    required = required_question_pairs_for(people)
+    required = required_question_pairs_for(people, qmap=qmap)
     if not required:
         return [], []
     person_ids = [p.id for p in people]
@@ -56,7 +91,11 @@ def completed_participants(survey):
     assigned to me" tracking (progress dashboard, my_votes_count) - NOT for
     results/comments, where general and each particular person must be
     judged independently. See completed_participants_for()."""
-    return completed_participants_for(survey, survey.people.filter(is_active=True))
+    return completed_participants_for(
+        survey,
+        survey.people.filter(is_active=True),
+        qmap=effective_question_map(survey, survey.people.filter(is_active=True)),
+    )
 
 
 def completed_person_ids(survey, *, voter_id=None, anonymous_token=None):
@@ -236,6 +275,9 @@ def calculate_survey_results(survey, request=None):
     people = list(survey.people.filter(is_active=True).order_by('display_order', 'created_at'))
     general_people = [p for p in people if p.uses_default_questions]
     custom_people = [p for p in people if not p.uses_default_questions]
+    # One two-query snapshot of every person's assigned questions, shared by
+    # completion checks and group aggregation instead of per-person queries.
+    qmap = effective_question_map(survey, people)
 
     def _rank(group_results):
         group_results.sort(key=lambda x: (
@@ -251,8 +293,8 @@ def calculate_survey_results(survey, request=None):
 
     results = []
     for group_people in ([general_people] if general_people else []) + [[p] for p in custom_people]:
-        completed_voter_ids, completed_anon_tokens = completed_participants_for(survey, group_people)
-        group_results = _calculate_group_results(survey, group_people, completed_voter_ids, completed_anon_tokens, request)
+        completed_voter_ids, completed_anon_tokens = completed_participants_for(survey, group_people, qmap=qmap)
+        group_results = _calculate_group_results(survey, group_people, completed_voter_ids, completed_anon_tokens, request, qmap=qmap)
         # Rank is computed within its own group only - a particular person is
         # never numbered relative to anyone outside their own isolated section.
         results += _rank(group_results)
@@ -260,7 +302,7 @@ def calculate_survey_results(survey, request=None):
     return results
 
 
-def _calculate_group_results(survey, people, completed_voter_ids, completed_anon_tokens, request=None):
+def _calculate_group_results(survey, people, completed_voter_ids, completed_anon_tokens, request=None, qmap=None):
     """Aggregate result dicts for one completion-isolated group of people
     (the general/shared group, or a single particular person)."""
     person_ids = [p.id for p in people]
@@ -356,7 +398,10 @@ def _calculate_group_results(survey, people, completed_voter_ids, completed_anon
         person_score_agg = scored_aggregates.get(person.id, {})
         question_results = []
 
-        person_questions = list(effective_questions_for_person(person))
+        person_questions = (
+            qmap.get(person.id) if qmap is not None
+            else list(effective_questions_for_person(person))
+        )
         for question in person_questions:
             q_agg = question_aggregates.get((person.id, question.id), {})
             emoji_agg = emoji_question_aggregates.get((person.id, question.id), {})
@@ -613,6 +658,9 @@ def calculate_survey_progress():
     anon_totals = {
         row['survey_id']: row['total']
         for row in SurveyHashLink.objects
+        # Only active links, matching the latest_anonymous_response_at
+        # annotation above - inactive links must not inflate progress.
+        .filter(is_active=True)
         .values('survey_id')
         .annotate(total=Sum('anonymous_participant_count'))
     }

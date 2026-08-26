@@ -463,6 +463,63 @@ class AnonymousHashLinkParticipationTests(APITestCase):
         self.assertTrue(hijack.data['ip_locked'])
 
 
+class ResultsEngineQueryScalingTests(APITestCase):
+    """calculate_survey_results must not grow per-person queries: the
+    effective-question map batches what used to be one query per person."""
+
+    def setUp(self):
+        self.admin = create_admin(username='scale_results_admin')
+        self.survey = create_survey(self.admin, status=Survey.STATUS_CLOSED,
+                                    with_question=False)
+        self.question = SurveyQuestion.objects.create(
+            survey=self.survey, text='q', has_score=True,
+            score_required=True, display_order=0)
+        self.employee = create_employee(username='scale_voter')
+
+    def _seed_people(self, count, prefix):
+        for i in range(count):
+            person = SurveyPerson.objects.create(
+                survey=self.survey, full_name=f'{prefix}{i}',
+                display_order=100 + i)
+            Rating.objects.create(survey=self.survey, person=person,
+                                  question=self.question,
+                                  voter=self.employee, score=7)
+
+    def _measure(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        with CaptureQueriesContext(connection) as ctx:
+            results = calculate_survey_results(self.survey)
+        return len(ctx), results
+
+    def test_query_count_stays_flat_as_people_grow(self):
+        SurveyPerson.objects.create(survey=self.survey, full_name='base')
+        base_count, base_results = self._measure()
+        self.assertTrue(base_results)
+
+        self._seed_people(5, 'extra')
+        scaled_count, scaled_results = self._measure()
+
+        self.assertLessEqual(scaled_count - base_count, 3,
+                             'results engine query count must not scale '
+                             'with the number of people (N+1 regression)')
+        self.assertEqual(len(scaled_results), len(base_results) + 5)
+
+    def test_custom_person_sections_still_complete_correctly(self):
+        custom = SurveyPerson.objects.create(
+            survey=self.survey, full_name='custom', display_order=9,
+            uses_default_questions=False)
+        cq = SurveyQuestion.objects.create(
+            survey=self.survey, person=custom, text='cq',
+            has_score=True, score_required=True, display_order=0)
+        Rating.objects.create(survey=self.survey, person=custom,
+                              question=cq, voter=self.employee, score=9)
+
+        results = {r['person_id']: r for r in calculate_survey_results(self.survey)}
+        self.assertEqual(results[custom.id]['votes_count'], 1,
+                         'custom section completion must stay isolated')
+
+
 class CacheInvalidationAndDefaultsTests(APITestCase):
     """Regression guards for DB-save defaults and cache invalidation coverage."""
 
