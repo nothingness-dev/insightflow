@@ -35,7 +35,13 @@ def invalidate_dashboard() -> None:
 
 
 def invalidate_survey_results(survey_id: int) -> None:
-    """Call whenever ratings for *survey_id* change."""
+    """Belt-and-braces invalidation for ratings changes on *survey_id*.
+
+    Results payloads are actually stored under signature-suffixed keys
+    (survey:{id}:results:{signature}, see surveys.views.survey_results_cache_key),
+    so freshness is guaranteed by the key itself; this delete covers the bare
+    key for any legacy/fallback entries and documents intent at call sites.
+    """
     try:
         cache.delete(key_survey_results(survey_id))
     except Exception:

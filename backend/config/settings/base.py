@@ -126,6 +126,12 @@ REST_FRAMEWORK = {
         'user':  '300/minute',
         'login': '5/minute',
         'anonymous_survey': '30/minute',
+        # Credential-guessing and expensive-operation scopes; ScopedRateThrottle
+        # keys these per-user (authenticated) or per-IP (anonymous).
+        'auth_refresh': '30/minute',
+        'password_change': '5/minute',
+        'exports': '20/minute',
+        'bulk_import': '5/minute',
     },
 }
 

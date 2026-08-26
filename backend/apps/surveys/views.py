@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from apps.accounts.permissions import IsAdminUser, IsEmployeeUser
-from apps.accounts.throttles import AnonymousSurveyRateThrottle
+from apps.accounts.throttles import AnonymousSurveyRateThrottle, ExportRateThrottle
 from apps.core.export_security import sanitize_cell
 
 from .models import Survey, SurveyQuestion, SurveyPerson, Rating, SurveyHashLink, AnonymousParticipation
@@ -368,6 +368,7 @@ class AdminSurveyResultsView(APIView):
 
 
 class AdminSurveyExportCSVView(APIView):
+    throttle_classes = [ExportRateThrottle]
     """Export survey results as a UTF-8 CSV (BOM for Excel compatibility).
 
     The CSV is organized into clearly labeled sections (separated by blank
@@ -431,22 +432,25 @@ class AdminSurveyExportCSVView(APIView):
         section_title('نتایج به تفکیک افراد')
 
         def _headers_for(qs):
-            headers = ['رتبه', 'نام و نام خانوادگی', 'واحد سازمانی', 'سمت',
-                       'میانگین کلی', 'کیفیت', 'تعداد رأی‌دهنده', 'تعداد پاسخ امتیازی']
+            headers = ['رتبه', 'نام و نام خانوادگی', 'سمت سازمانی', 'واحد',
+                       'میانگین نمره؟', 'وضعیت', 'تعداد رأی‌دهنده', 'تعداد پاسخ']
             for q in qs:
+                safe_text = sanitize_cell(q.text)
                 if q.has_score:
-                    headers.append(f"میانگین: {q.text}")
-                    headers.append(f"تعداد پاسخ: {q.text}")
+                    headers.append(f"میانگین: {safe_text}")
+                    headers.append(f"تعداد پاسخ: {safe_text}")
                 if q.has_emoji:
-                    headers.append(f"امتیاز ایموجی: {q.text}")
-                    headers.append(f"تعداد پاسخ ایموجی: {q.text}")
+                    headers.append(f"میانگین کیفی: {safe_text}")
+                    headers.append(f"تعداد پاسخ کیفی: {safe_text}")
                 if q.has_comment:
-                    headers.append(f"تعداد نظرات: {q.text}")
+                    headers.append(f"تعداد توضیحات: {safe_text}")
             return headers
 
         def _row_for(r, qs):
             row = [
-                r['rank'], r['full_name'], r['department'] or '', r['role_title'] or '',
+                r['rank'], sanitize_cell(r['full_name']),
+                sanitize_cell(r['department'] or ''),
+                sanitize_cell(r['role_title'] or ''),
                 r['average_score'] if r['average_score'] is not None else '',
                 score_grade(r['average_score']),
                 r['votes_count'], r['scored_answers_count'],
@@ -536,6 +540,7 @@ class AdminSurveyExportCSVView(APIView):
 
 
 class AdminSurveyExportExcelView(APIView):
+    throttle_classes = [ExportRateThrottle]
     """Export survey results as a styled multi-sheet Excel workbook.
 
     Visual language matches the PDF report (indigo brand header, KPI summary,
@@ -739,14 +744,15 @@ class AdminSurveyExportExcelView(APIView):
                 continue
             q_headers = []
             for q in group['questions']:
+                safe_text = sanitize_cell(q.text)
                 if q.has_score:
-                    q_headers.append(f"میانگین\n{q.text}")
-                    q_headers.append(f"تعداد پاسخ\n{q.text}")
+                    q_headers.append(f"میانگین\n{safe_text}")
+                    q_headers.append(f"تعداد پاسخ\n{safe_text}")
                 if q.has_emoji:
-                    q_headers.append(f"امتیاز ایموجی\n{q.text}")
-                    q_headers.append(f"تعداد پاسخ ایموجی\n{q.text}")
+                    q_headers.append(f"امتیاز ایموجی\n{safe_text}")
+                    q_headers.append(f"تعداد پاسخ ایموجی\n{safe_text}")
                 if q.has_comment:
-                    q_headers.append(f"تعداد نظرات\n{q.text}")
+                    q_headers.append(f"تعداد نظرات\n{safe_text}")
             group_ncols = len(base_cols) + len(q_headers)
             max_ncols = max(max_ncols, group_ncols)
 
@@ -766,7 +772,9 @@ class AdminSurveyExportExcelView(APIView):
             for r in group['results']:
                 avg_v = r['average_score']
                 row = [
-                    r['rank'], r['full_name'], r['department'] or '', r['role_title'] or '',
+                    r['rank'], sanitize_cell(r['full_name']),
+                    sanitize_cell(r['department'] or ''),
+                    sanitize_cell(r['role_title'] or ''),
                     round(avg_v, 2) if avg_v is not None else '',
                     score_grade(avg_v),
                     r['votes_count'], r.get('scored_answers_count') or 0,
@@ -947,6 +955,7 @@ class AdminSurveyExportExcelView(APIView):
 
 
 class AdminSurveyExportPDFView(APIView):
+    throttle_classes = [ExportRateThrottle]
     """Export survey results as a beautiful, comprehensive RTL PDF report.
 
     The PDF is an executive summary: comments are grouped by question and

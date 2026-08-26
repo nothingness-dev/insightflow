@@ -5,7 +5,7 @@ import string
 from datetime import timedelta
 from django.db import models
 from django.conf import settings
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxLengthValidator, MinValueValidator, MaxValueValidator
 from django.utils import timezone
 
 
@@ -346,11 +346,22 @@ class Rating(models.Model):
     )
     comment = models.TextField(
         blank=True, null=True,
+        validators=[MaxLengthValidator(1000)],
         verbose_name='توضیحات'
     )
     ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name='آدرس IP')
     user_agent = models.TextField(null=True, blank=True, verbose_name='مرورگر')
     created_at = models.DateTimeField(default=timezone.now, verbose_name='تاریخ ثبت')
+
+    def clean(self):
+        """Guard for django-admin and other full_clean() paths: a rating must
+        carry at least one answer component, otherwise it silently poisons
+        averages. The app's serializer path already enforces this."""
+        from django.core.exceptions import ValidationError
+        has_comment = bool(self.comment)
+        if self.score is None and not self.emoji_rating and not has_comment:
+            raise ValidationError('هر پاسخ باید حداقل یک نوع پاسخ داشته باشد.')
+        super().clean()
 
     class Meta:
         verbose_name = 'پاسخ'
