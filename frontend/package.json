@@ -1,7 +1,7 @@
 {
   "name": "survey-frontend",
   "private": true,
-  "version": "2.10.0-ip-audit.28",
+  "version": "2.10.0-ip-audit.29",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -1,5 +1,26 @@
 ## [Unreleased]
 
+## [2.10.0-ip-audit.29] — 2026-08-26
+
+### Fixed
+
+- Admin password resets now terminate every session of the target account
+  by blacklisting its outstanding refresh tokens.
+- `must_change_password` is enforced server-side: flagged users are rejected
+  from regular endpoints until they change their password, while me /
+  change-password / logout stay reachable.
+- Dashboard `total_responses` uses the precise per-person completion model,
+  fixing undercounting on surveys that mix default and custom questions.
+- Hash-link PATCH parses multipart booleans correctly; `'false'` no longer
+  re-activates a disabled link.
+- Bulk import survives concurrent username races (row-by-row fallback) and
+  reports invalid roles as row errors instead of silently demoting admins.
+- Anonymous ballots compute their required total with a constant-query
+  helper instead of an N+1 while holding the link row lock.
+- Frontend: token refresh honors `VITE_API_BASE_URL`; Activity Center search
+  is genuinely debounced (400 ms); hash-link creation ignores Enter while a
+  request is in flight.
+
 ## [2.10.0-ip-audit.28] — 2026-08-25
 
 ### Fixed
