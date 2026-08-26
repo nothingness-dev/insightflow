@@ -19,7 +19,7 @@ from apps.core.export_security import sanitize_cell
 from .models import Survey, SurveyQuestion, SurveyPerson, Rating, SurveyHashLink, AnonymousParticipation
 from .serializers import (
     SurveySerializer, SurveyCreateUpdateSerializer, SurveyPersonSerializer,
-    SurveyPersonPublicSerializer, SurveyPublicSerializer, RatingCreateSerializer,
+    SurveyPersonPublicSerializer, SurveyPublicSerializer, SurveyListSerializer, RatingCreateSerializer,
     SurveyProgressDashboardSerializer, SurveyHashLinkSerializer, SurveyQuestionSerializer,
     IPAuditIPListQuerySerializer, IPAuditQuerySerializer,
 )
@@ -1267,7 +1267,6 @@ class EmployeeSurveyListView(generics.ListAPIView):
         qs = (
             annotate_survey_list_stats(self.get_queryset())
             .select_related('created_by')
-            .prefetch_related('people', 'questions')
         )
         surveys = list(qs)
 
@@ -1275,7 +1274,7 @@ class EmployeeSurveyListView(generics.ListAPIView):
         for survey in surveys:
             survey.bulk_total_responses = completed_counts.get(survey.id, 0)
 
-        data = SurveySerializer(surveys, many=True, context={'request': request}).data
+        data = SurveyListSerializer(surveys, many=True, context={'request': request}).data
 
         answered_by_survey = defaultdict(dict)
         if surveys and any(s.active_questions_count > 0 for s in surveys):

@@ -76,11 +76,16 @@ def _build_questions_meta(questions, results, comments_map):
     person's own private question set, so their stats never mix.
     """
     questions_meta = []
+    # Build the per-result lookup once; rebuilding it inside the question
+    # loop made this O(questions x results x questions-per-result).
+    by_result = [
+        {item['question_id']: item for item in r.get('question_results', [])}
+        for r in results
+    ]
     for q in questions:
         scores, total_resps = [], 0
         emoji_numeric_values, emoji_total_resps = [], 0
-        for r in results:
-            by_q = {item['question_id']: item for item in r.get('question_results', [])}
+        for r, by_q in zip(results, by_result):
             item = by_q.get(q.id, {})
             if item.get('average_score') is not None and item.get('responses_count', 0) > 0:
                 scores.extend([item['average_score']] * item['responses_count'])
@@ -136,6 +141,8 @@ def build_export_dataset(survey, request=None):
     active_people = list(survey.people.filter(is_active=True))
     general_people = [p for p in active_people if p.uses_default_questions]
     custom_people = [p for p in active_people if not p.uses_default_questions]
+    from .services import effective_question_map
+    qmap = effective_question_map(survey, active_people)
 
     # Shared/general people only - particular persons must not surface in the
     # general summary count, only inside their own isolated result_groups block.
@@ -145,7 +152,7 @@ def build_export_dataset(survey, request=None):
         """Comment rows for this group only, gated by that group's OWN
         completion - a particular person's completion never depends on (or
         leaks into) the general group's, and vice versa."""
-        voter_ids, anon_tokens = completed_participants_for(survey, people)
+        voter_ids, anon_tokens = completed_participants_for(survey, people, qmap=qmap)
         rows = defaultdict(list)
         if not voter_ids and not anon_tokens:
             return rows

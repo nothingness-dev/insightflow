@@ -176,3 +176,44 @@ class ActivityApiTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn('text/csv', res['Content-Type'])
         self.assertIn('attachment', res['Content-Disposition'])
+
+
+class DailyChartAggregationTests(APITestCase):
+    """The daily buckets must be aggregated in the database and match the
+    previous row-by-row local-date bucketing exactly."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username='chart_admin', password='Pass@1234', full_name='مدیر', role='admin')
+
+    def test_daily_buckets_count_total_and_failed(self):
+        from django.utils import timezone
+        import datetime as dt
+        now = timezone.localtime()
+        today_midnight = now.replace(hour=12, minute=0, second=0, microsecond=0)
+        yesterday_noon = (now - dt.timedelta(days=1)).replace(hour=12, minute=0,
+                                                              second=0, microsecond=0)
+        ActivityLog.objects.create(action=ActivityActions.LOGIN, actor=self.admin,
+                                   actor_username=self.admin.username, created_at=today_midnight)
+        ActivityLog.objects.create(action=ActivityActions.LOGIN, actor=self.admin,
+                                   actor_username=self.admin.username, created_at=today_midnight)
+        ActivityLog.objects.create(action=ActivityActions.LOGIN_FAILED, actor=None,
+                                   actor_username='nope', status=ActivityLog.STATUS_FAILED,
+                                   created_at=yesterday_noon)
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.get('/api/admin/activity/charts/?days=7')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        daily = {b['date']: b for b in response.data['daily']}
+        self.assertEqual(len(response.data['daily']), 7)
+        today_key = today_midnight.date().isoformat()
+        yesterday_key = yesterday_noon.date().isoformat()
+        self.assertEqual(daily[today_key]['total'], 2)
+        self.assertEqual(daily[today_key]['failed'], 0)
+        self.assertEqual(daily[yesterday_key]['total'], 1)
+        self.assertEqual(daily[yesterday_key]['failed'], 1)
+
+        empty_days = [b for b in response.data['daily'] if b['total'] == 0]
+        for bucket in empty_days:
+            self.assertEqual(bucket['failed'], 0)

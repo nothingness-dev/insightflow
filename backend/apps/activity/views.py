@@ -3,6 +3,7 @@ import datetime as dt
 import logging
 
 from django.db.models import Count, Q
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
@@ -217,24 +218,29 @@ class ActivityChartsView(APIView):
         start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         window_start = start_of_today - dt.timedelta(days=days - 1)
 
-        rows = (
+        # Aggregate in the database (TruncDate buckets by the local timezone,
+        # matching the previous row-by-row local-date bucketing) instead of
+        # pulling every log row of the window into Python.
+        day_rows = (
             ActivityLog.objects
             .filter(created_at__gte=window_start)
-            .values_list('created_at', 'status')
+            .annotate(day=TruncDate('created_at'))
+            .values('day')
+            .annotate(
+                total=Count('id'),
+                failed=Count('id', filter=Q(status=ActivityLog.STATUS_FAILED)),
+            )
         )
-        buckets = {}
+        counts_by_day = {row['day']: row for row in day_rows}
+        daily = []
         for i in range(days):
             day = (window_start + dt.timedelta(days=i)).date()
-            buckets[day] = {'date': day.isoformat(), 'total': 0, 'failed': 0}
-        for created_at, row_status in rows:
-            day = timezone.localtime(created_at).date()
-            bucket = buckets.get(day)
-            if bucket is None:
-                continue
-            bucket['total'] += 1
-            if row_status == ActivityLog.STATUS_FAILED:
-                bucket['failed'] += 1
-        daily = [buckets[(window_start + dt.timedelta(days=i)).date()] for i in range(days)]
+            counts = counts_by_day.get(day)
+            daily.append({
+                'date': day.isoformat(),
+                'total': counts['total'] if counts else 0,
+                'failed': counts['failed'] if counts else 0,
+            })
 
         by_action_rows = (
             ActivityLog.objects

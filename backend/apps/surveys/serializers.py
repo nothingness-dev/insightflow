@@ -241,6 +241,22 @@ class SurveySerializer(serializers.ModelSerializer):
         return result['total'] or 0
 
 
+class SurveyListSerializer(SurveySerializer):
+    """Employee-list variant without the nested questions array.
+
+    The employee survey list previously shipped every question of every
+    published/closed survey (including inactive and other people's custom
+    question texts) and grew linearly forever. The list card only needs the
+    legacy `question` summary plus the annotated counters, both of which the
+    frontend already prefers.
+    """
+
+    class Meta(SurveySerializer.Meta):
+        fields = [
+            field for field in SurveySerializer.Meta.fields if field != 'questions'
+        ]
+
+
 class SurveyCreateUpdateSerializer(serializers.ModelSerializer):
     questions = SurveyQuestionSerializer(many=True, required=False)
     question = serializers.CharField(required=False, allow_blank=True, write_only=True)
