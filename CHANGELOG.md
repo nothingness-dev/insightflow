@@ -1,3 +1,20 @@
+## [2.10.28] — 2026-08-26
+
+### Fixed
+
+- Results calculation no longer runs one query per person: a shared
+  two-query question map feeds completion checks, group aggregation, and
+  export comment gating with identical output.
+- Question-meta export aggregation hoisted its per-result lookup out of the
+  question loop (was quadratic).
+- Daily activity charts aggregate in the database via TruncDate instead of
+  loading every log row of the window into Python; buckets are identical.
+- The employee survey list no longer ships every question of every survey —
+  payload stops growing with question count and inactive/custom question
+  texts stop leaking to clients (frontend already prefers the summary
+  fields).
+- Progress anonymous totals ignore inactive links consistently.
+
 ## [2.10.27] — 2026-08-26
 
 ### Fixed
