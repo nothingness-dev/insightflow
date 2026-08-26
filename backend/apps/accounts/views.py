@@ -19,7 +19,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.activity.models import ActivityActions, ActivityLog
 from apps.activity.services import log_activity
 from apps.core.cache import invalidate_dashboard
-from .throttles import LoginRateThrottle
+from .throttles import BulkImportRateThrottle, LoginRateThrottle, PasswordChangeRateThrottle
 
 from .models import User
 from .permissions import IsAdminUser
@@ -97,7 +97,13 @@ class LogoutView(APIView):
         try:
             refresh_token = request.data.get('refresh')
             if refresh_token:
-                RefreshToken(refresh_token).blacklist()
+                # Only blacklist tokens that actually belong to the caller;
+                # blacklisting whatever token is posted would let one user
+                # revoke somebody else's session if the value ever leaked.
+                from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+                outstanding = OutstandingToken.objects.filter(token=str(refresh_token)).first()
+                if outstanding is None or outstanding.user_id == request.user.id:
+                    RefreshToken(refresh_token).blacklist()
         except Exception:
             pass
         log_activity(
@@ -125,6 +131,8 @@ class MeView(APIView):
 class ChangePasswordView(APIView):
     # The whole point of the forced flow - always reachable while pending.
     password_change_exempt = True
+    # current_password is a brute-force oracle; cap guesses hard.
+    throttle_classes = [PasswordChangeRateThrottle]
 
     """Authenticated users (admin or employee) change their own password."""
     permission_classes = [IsAuthenticated]
@@ -330,6 +338,7 @@ class UserBulkImportView(APIView):
     """Create users from a CSV/TXT file without per-row database lookups."""
 
     permission_classes = [IsAdminUser]
+    throttle_classes = [BulkImportRateThrottle]
 
     MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
     MAX_ROWS = 5_000

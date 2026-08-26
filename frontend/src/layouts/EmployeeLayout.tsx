@@ -61,7 +61,13 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="shell-main responsive-page app-container max-w-5xl py-5 pb-[max(1.25rem,var(--safe-bottom))] sm:py-8 sm:pb-[max(2rem,var(--safe-bottom))]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:start-2 focus:z-50 focus:rounded-lg focus:bg-[color:var(--c-600)] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+      >
+        پرش به محتوای اصلی
+      </a>
+      <main id="main-content" tabIndex={-1} className="shell-main responsive-page app-container max-w-5xl py-5 pb-[max(1.25rem,var(--safe-bottom))] sm:py-8 sm:pb-[max(2rem,var(--safe-bottom))]">
         <PageTransition>{children}</PageTransition>
         <CopyrightNotice className="mt-8 border-t border-gray-100 pt-5" />
       </main>

@@ -14,6 +14,7 @@ from apps.accounts.models import User
 from apps.accounts.permissions import IsAdminUser
 
 from django.conf import settings
+from apps.accounts.throttles import ExportRateThrottle
 from django.core.cache import cache
 from apps.core.cache import (
     key_activity_stats, key_activity_charts, key_activity_filter_options,
@@ -297,6 +298,7 @@ class ActivityFilterOptionsView(APIView):
 
 
 class ActivityExportView(APIView):
+    throttle_classes = [ExportRateThrottle]
     """Export center: download activity logs within a date range as CSV/Excel/PDF.
 
     ``from_date`` and ``to_date`` are REQUIRED — the export is always scoped to a

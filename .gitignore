@@ -105,3 +105,6 @@ coverage/
 # Local UX audit artifacts
 scripts/ux-audit.mjs
 ux-audit/
+
+# Local-only data seeder (never commit: prints credentials, bypasses validators)
+backend/seed_mock_survey.py

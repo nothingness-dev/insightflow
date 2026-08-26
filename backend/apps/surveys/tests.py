@@ -463,6 +463,70 @@ class AnonymousHashLinkParticipationTests(APITestCase):
         self.assertTrue(hijack.data['ip_locked'])
 
 
+class HygieneHardeningTests(APITestCase):
+    """Model/admin-path guards and export sanitization."""
+
+    def setUp(self):
+        self.admin = create_admin(username='hygiene_admin')
+        self.survey = create_survey(self.admin, status=Survey.STATUS_PUBLISHED,
+                                    with_question=False)
+        SurveyQuestion.objects.create(survey=self.survey, text='q',
+                                      has_score=True, score_required=True,
+                                      display_order=0)
+
+    def _admin_login(self):
+        login = self.client.post('/api/auth/login/', {
+            'username': self.admin.username, 'password': 'AdminPass@1'})
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+    def test_duplicate_survey_survives_stray_cross_survey_question(self):
+        from apps.surveys.services import duplicate_survey
+        other = create_survey(self.admin, status=Survey.STATUS_PUBLISHED,
+                              with_question=False)
+        stranger = SurveyPerson.objects.create(survey=other, full_name='stranger')
+        # django-admin allows saving a custom question pointing at a person
+        # from another survey; duplicating used to die with KeyError.
+        SurveyQuestion.objects.create(survey=self.survey, person=stranger,
+                                      text='stray', has_score=True,
+                                      score_required=True, display_order=9)
+        duplicate = duplicate_survey(self.survey, self.admin)
+        self.assertEqual(
+            duplicate.questions.filter(person__isnull=False).count(), 0,
+            'stray cross-survey questions must be skipped, not crash')
+        self.assertTrue(duplicate.questions.filter(person__isnull=True).exists())
+
+    def test_rating_clean_rejects_empty_components(self):
+        from django.core.exceptions import ValidationError
+        person = SurveyPerson.objects.create(survey=self.survey, full_name='p1')
+        rating = Rating(survey=self.survey, person=person,
+                        question=self.survey.questions.get())
+        with self.assertRaises(ValidationError):
+            rating.full_clean(exclude=['survey', 'person', 'question'])
+
+    def test_comment_max_length_validator(self):
+        from django.core.exceptions import ValidationError
+        person = SurveyPerson.objects.create(survey=self.survey, full_name='p2')
+        rating = Rating(survey=self.survey, person=person,
+                        question=self.survey.questions.get(),
+                        comment='x' * 1001)
+        with self.assertRaises(ValidationError):
+            rating.full_clean(exclude=['survey', 'person', 'question'])
+
+    def test_csv_export_neutralizes_formula_in_names(self):
+        self._admin_login()
+        SurveyPerson.objects.create(
+            survey=self.survey, full_name='=HYPERLINK("http://evil")',
+            display_order=9)
+        response = self.client.get(f'/api/admin/surveys/{self.survey.id}/export/csv/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        content = response.content.decode('utf-8-sig')
+        for line in content.splitlines():
+            for cell in line.split(','):
+                self.assertFalse(
+                    cell.strip().startswith('=HYPERLINK'),
+                    f'unsanitized formula cell leaked into CSV: {cell}')
+
+
 class ResultsEngineQueryScalingTests(APITestCase):
     """calculate_survey_results must not grow per-person queries: the
     effective-question map batches what used to be one query per person."""

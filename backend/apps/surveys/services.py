@@ -1,9 +1,13 @@
 from collections import defaultdict
 
+import logging
+
 from django.db import transaction
 from django.db.models import Sum, Count, Avg, F, Q, Case, When, Value, IntegerField, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from .models import AnonymousParticipation, Survey, SurveyQuestion, SurveyPerson, Rating
+
+logger = logging.getLogger('apps')
 
 
 def effective_questions_for_person(person):
@@ -508,10 +512,22 @@ def duplicate_survey(source_survey, created_by):
             source.id: new for source, new in zip(source_people, new_people)
         }
         source_custom_questions = source_survey.questions.filter(person__isnull=False).order_by('display_order', 'created_at')
-        SurveyQuestion.objects.bulk_create([
-            SurveyQuestion(
+        importable_questions = []
+        for question in source_custom_questions:
+            new_person = new_person_by_source_id.get(question.person_id)
+            if new_person is None:
+                # django-admin allows saving a custom question whose person
+                # belongs to another survey; duplicating it would raise a
+                # KeyError. Skip the stray row instead of failing the whole
+                # operation.
+                logger.warning(
+                    'duplicate_survey skipped stray question %s whose person %s is not part of survey %s',
+                    question.id, question.person_id, source_survey.id,
+                )
+                continue
+            importable_questions.append(SurveyQuestion(
                 survey=duplicate,
-                person=new_person_by_source_id[question.person_id],
+                person=new_person,
                 text=question.text,
                 help_text=question.help_text,
                 has_score=question.has_score,
@@ -522,9 +538,9 @@ def duplicate_survey(source_survey, created_by):
                 emoji_required=question.emoji_required,
                 display_order=question.display_order,
                 is_active=question.is_active,
-            )
-            for question in source_custom_questions
-        ])
+            ))
+        if importable_questions:
+            SurveyQuestion.objects.bulk_create(importable_questions)
 
     return duplicate
 

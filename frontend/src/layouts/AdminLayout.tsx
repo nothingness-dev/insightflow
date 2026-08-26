@@ -382,7 +382,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="shell-main app-page flex-1 min-w-0 overflow-y-auto lg:[--page-gutter:1.75rem]">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:start-2 focus:z-50 focus:rounded-lg focus:bg-[color:var(--c-600)] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white"
+        >
+          پرش به محتوای اصلی
+        </a>
+        <main id="main-content" tabIndex={-1} className="shell-main app-page flex-1 min-w-0 overflow-y-auto lg:[--page-gutter:1.75rem]">
           <PageTransition>{children}</PageTransition>
           <CopyrightNotice className="mt-8 border-t border-gray-100 pt-5" />
         </main>

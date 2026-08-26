@@ -335,15 +335,6 @@ export function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`skeleton ${className}`} />;
 }
 
-export function CardSkeleton() {
-  return (
-    <div className="card p-5 space-y-3">
-      <Skeleton className="h-5 w-2/3" />
-      <Skeleton className="h-4 w-1/2" />
-      <Skeleton className="h-4 w-3/4" />
-    </div>
-  );
-}
 
 export function CardGridSkeleton({ items = 6 }: { items?: number }) {
   return (
@@ -383,37 +374,7 @@ export function SurveyDetailSkeleton() {
   );
 }
 
-export function UserTableSkeleton() {
-  return (
-    <div className="responsive-page">
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-32" />
-          <Skeleton className="h-4 w-56" />
-        </div>
-        <Skeleton className="h-10 w-32 rounded-lg" />
-      </div>
-      <Skeleton className="h-10 w-full max-w-sm rounded-lg mb-4" />
-      <TableSkeleton rows={6} />
-    </div>
-  );
-}
 
-export function LoginSkeleton() {
-  return (
-    <div className="min-h-[100dvh] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm card p-6 sm:p-8 space-y-5">
-        <div className="flex flex-col items-center gap-3 mb-2">
-          <Skeleton className="w-12 h-12 rounded-xl" />
-          <Skeleton className="h-5 w-32" />
-        </div>
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-10 w-full rounded-lg" />
-      </div>
-    </div>
-  );
-}
 
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
@@ -560,13 +521,6 @@ export function Spinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   return <div className={`${s} border-2 border-[color:var(--c-600)] border-t-transparent rounded-full animate-spin`} />;
 }
 
-export function PageLoader() {
-  return (
-    <div className="flex items-center justify-center py-24">
-      <Spinner size="lg" />
-    </div>
-  );
-}
 
 
 export function DashboardSkeleton() {
