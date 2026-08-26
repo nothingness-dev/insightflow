@@ -1143,6 +1143,210 @@ class AdminSurveyListStatsTests(APITestCase):
         self.assertEqual(item['anonymous_participants_count'], 0)
 
 
+class SessionAndBooleanFixTests(APITestCase):
+    """Regression guards for the session-termination, dashboard-math,
+    hash-link boolean, and duplicate-invalidation fixes."""
+
+    def setUp(self):
+        self.admin = create_admin(username='fix_admin')
+        self.survey = create_survey(self.admin, status=Survey.STATUS_DRAFT, with_question=False)
+        SurveyQuestion.objects.create(
+            survey=self.survey, text='q', has_score=True,
+            score_required=True, display_order=0)
+        SurveyPerson.objects.create(survey=self.survey, full_name='p1')
+        SurveyPerson.objects.create(survey=self.survey, full_name='p2')
+
+    def _admin_login(self):
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': self.admin.username, 'password': 'AdminPass@1'},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+    def test_password_reset_blacklists_target_refresh_tokens(self):
+        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+        employee = create_employee(username='reset_target')
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': employee.username, 'password': 'EmpPass@1'},
+        )
+        old_refresh = login.data['refresh']
+        self._admin_login()
+
+        response = self.client.post(
+            f'/api/admin/users/{employee.id}/reset-password/',
+            {'new_password': 'BrandNew@1234', 'new_password_confirm': 'BrandNew@1234'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+
+        refresh_attempt = self.client.post(
+            '/api/auth/refresh/', {'refresh': old_refresh}, format='json')
+        self.assertEqual(refresh_attempt.status_code, status.HTTP_401_UNAUTHORIZED,
+                         'stolen refresh token must die with the password reset')
+
+    def test_dashboard_counts_completion_on_mixed_custom_surveys(self):
+        custom_person = SurveyPerson.objects.create(
+            survey=self.survey, full_name='custom', display_order=9,
+            is_active=True, uses_default_questions=False)
+        custom_question = SurveyQuestion.objects.create(
+            survey=self.survey, person=custom_person, text='cq',
+            has_score=True, score_required=True, display_order=0)
+        default_question = self.survey.questions.get(person__isnull=True)
+
+        employee = create_employee(username='mixed_voter')
+        for default_person in self.survey.people.filter(uses_default_questions=True):
+            Rating.objects.create(survey=self.survey, person=default_person,
+                                  question=default_question, voter=employee, score=8)
+        Rating.objects.create(survey=self.survey, person=custom_person,
+                              question=custom_question, voter=employee, score=9)
+
+        from apps.core.cache import invalidate_dashboard
+        invalidate_dashboard()
+
+        self.survey.status = Survey.STATUS_CLOSED
+        self.survey.save(update_fields=['status'])
+        self._admin_login()
+
+        stats = self.client.get('/api/admin/dashboard/').data['stats']
+        self.assertEqual(stats['total_responses'], 1,
+                         'a fully-participating voter must be counted even '
+                         'when the survey mixes default and custom questions')
+
+    def test_hash_link_patch_with_multipart_false_stays_inactive(self):
+        self._admin_login()
+        self.survey.status = Survey.STATUS_PUBLISHED
+        self.survey.save(update_fields=['status'])
+        link_response = self.client.post(
+            f'/api/admin/surveys/{self.survey.id}/hash-links/',
+            {'label': 'bool'}, format='json')
+        token_pk = link_response.data['id']
+
+        response = self.client.patch(
+            f'/api/admin/hash-links/{token_pk}/',
+            {'is_active': 'false'},
+            format='multipart',
+        )
+        self.assertIn(response.status_code, (status.HTTP_200_OK,))
+        from apps.surveys.models import SurveyHashLink as Link
+        link = Link.objects.get(pk=token_pk)
+        self.assertFalse(link.is_active, "multipart string 'false' must not activate the link")
+
+    def test_duplicate_survey_refreshes_dashboard(self):
+        self._admin_login()
+        before = self.client.get('/api/admin/dashboard/').data['stats']['total_surveys']
+        response = self.client.post(f'/api/admin/surveys/{self.survey.id}/duplicate/')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        after = self.client.get('/api/admin/dashboard/').data['stats']['total_surveys']
+        self.assertEqual(after, before + 1,
+                         'duplicating a survey must invalidate the dashboard cache')
+
+
+class PendingPasswordEnforcementTests(APITestCase):
+    """must_change_password must block API usage server-side, not just in UI."""
+
+    def setUp(self):
+        self.employee = User.objects.create_user(
+            username='pending_emp', password='EmpPass@1', full_name='معلق',
+            role='employee', must_change_password=True)
+
+    def _login(self):
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': self.employee.username, 'password': 'EmpPass@1'},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+    def test_flagged_user_cannot_use_regular_endpoints(self):
+        self._login()
+        response = self.client.get('/api/surveys/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('رمز عبور', str(response.data))
+
+    def test_change_password_stays_reachable_while_pending(self):
+        self._login()
+        response = self.client.post('/api/auth/change-password/', {
+            'current_password': 'EmpPass@1',
+            'new_password': 'Changed@4567',
+            'new_password_confirm': 'Changed@4567',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        self.employee.refresh_from_db()
+        self.assertFalse(self.employee.must_change_password)
+
+        unlocked = self.client.get('/api/surveys/')
+        self.assertEqual(unlocked.status_code, status.HTTP_200_OK,
+                         'after changing the password access must be restored')
+
+
+class BulkImportRobustnessTests(APITestCase):
+    def setUp(self):
+        self.admin = create_admin(username='import_admin')
+        self._login()
+
+    def _login(self):
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': self.admin.username, 'password': 'AdminPass@1'},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+    def _import(self, content):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        return self.client.post(
+            '/api/admin/users/bulk-import/',
+            {'file': SimpleUploadedFile('users.csv', content.encode('utf-8'),
+                                        content_type='text/csv')},
+            format='multipart',
+        )
+
+    def test_existing_username_conflict_is_skipped_not_lost(self):
+        create_employee(username='already_here')
+        response = self._import(
+            'username,full_name,password,role\n'
+            'already_here,تکراری,Whatever@123,employee\n'
+            'brand_new_row,تازه,Whatever@123,employee\n')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['created_count'], 1)
+        self.assertEqual(response.data['skipped_count'], 1)
+        self.assertTrue(User.objects.filter(username='brand_new_row').exists(),
+                        'valid rows must survive alongside conflicts')
+
+    def test_invalid_role_is_reported_as_error_not_silently_demoted(self):
+        response = self._import(
+            'username,full_name,password,role\n'
+            'typo_admin,مدیر تایپی,Whatever@123,adimn\n')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['created_count'], 0)
+        self.assertGreaterEqual(len(response.data['errors']), 1)
+        self.assertFalse(User.objects.filter(username='typo_admin').exists())
+
+
+class AnonymousBallotRequiredTotalsTests(APITestCase):
+    """The ballot path must keep working after switching to the constant-query
+    required-total helper (same values as required_question_pairs)."""
+
+    def setUp(self):
+        self.admin = create_admin(username='ballot_admin')
+        self.survey = create_survey(self.admin, status=Survey.STATUS_PUBLISHED,
+                                    with_question=False)
+        self.person = SurveyPerson.objects.create(survey=self.survey, full_name='p')
+        self.question = SurveyQuestion.objects.create(
+            survey=self.survey, text='q', has_score=True,
+            score_required=True, display_order=0)
+        self.link = SurveyHashLink.objects.create(survey=self.survey, label='totals')
+
+    def test_ballot_registers_and_finishes_via_bulk_totals(self):
+        response = self.client.post(
+            f'/api/s/{self.link.token}/people/{self.person.id}/rate/',
+            {'anonymous_token': 'totals-token',
+             'answers': [{'question_id': self.question.id, 'score': 5}]},
+            format='json', HTTP_X_REAL_IP='203.0.113.90')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        participation = AnonymousParticipation.objects.get(survey=self.survey)
+        self.assertIsNotNone(participation.finished_at)
+
+
 class PhotoUploadValidationTests(APITestCase):
     """Uploads must be validated by decoding actual bytes with Pillow, not by
     trusting client-declared extension or content-type."""

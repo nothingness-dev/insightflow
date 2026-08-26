@@ -6,6 +6,9 @@ const USER_KEY = 'user';
 
 let accessToken: string | null = null;
 
+const API_BASE_URL: string =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api';
+
 function clearLegacyLocalStorage() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
@@ -53,7 +56,7 @@ const api = axios.create({
   // VITE_API_BASE_URL is provided at Docker build time for deployments where
   // the API lives on a different origin; it defaults to the same-origin
   // reverse-proxied path.
-  baseURL: (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -87,7 +90,10 @@ export function refreshAccessToken(): Promise<string> {
     refreshPromise = (async () => {
       const refresh = authTokenStore.getRefreshToken();
       if (!refresh) throw new Error('No refresh token');
-      const res = await axios.post('/api/auth/refresh/', { refresh });
+      // Raw axios on purpose: the api instance's response interceptor would
+      // intercept this very refresh flow. The base URL must match the
+      // configured API origin (split-origin deployments).
+      const res = await axios.post(`${API_BASE_URL}/auth/refresh/`, { refresh });
       const newAccess: string = res.data.access;
       authTokenStore.setAccessToken(newAccess);
       if (res.data.refresh) authTokenStore.setRefreshToken(res.data.refresh);

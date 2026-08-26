@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from rest_framework import generics, status
 from rest_framework.pagination import PageNumberPagination
@@ -88,6 +88,9 @@ class LoginView(APIView):
 
 
 class LogoutView(APIView):
+    # Reachable while a password change is pending so users can sign out.
+    password_change_exempt = True
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -109,6 +112,10 @@ class LogoutView(APIView):
 
 
 class MeView(APIView):
+    # Reachable while a password change is pending so the UI can render the
+    # forced-change modal.
+    password_change_exempt = True
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -116,6 +123,9 @@ class MeView(APIView):
 
 
 class ChangePasswordView(APIView):
+    # The whole point of the forced flow - always reachable while pending.
+    password_change_exempt = True
+
     """Authenticated users (admin or employee) change their own password."""
     permission_classes = [IsAuthenticated]
 
@@ -246,6 +256,12 @@ class UserResetPasswordView(APIView):
         user.set_password(serializer.validated_data['new_password'])
         user.must_change_password = True
         user.save(update_fields=['password', 'must_change_password', 'updated_at'])
+        # Terminate every session of the compromised account: without this,
+        # stolen refresh tokens would keep working for up to
+        # REFRESH_TOKEN_LIFETIME after the reset.
+        from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+        for outstanding in OutstandingToken.objects.filter(user=user):
+            BlacklistedToken.objects.get_or_create(token=outstanding)
         logger.info('Admin %s reset password for: %s', request.user.username, user.username)
         log_activity(
             ActivityActions.PASSWORD_RESET,
@@ -390,7 +406,18 @@ class UserBulkImportView(APIView):
                 continue
 
             username, full_name, password = cells[:3]
-            role = cells[3] if len(cells) >= 4 and cells[3] in dict(User.ROLE_CHOICES) else 'employee'
+            role = 'employee'
+            if len(cells) >= 4 and cells[3]:
+                if cells[3] in dict(User.ROLE_CHOICES):
+                    role = cells[3]
+                else:
+                    # A typo'd role must never silently demote an intended
+                    # admin to employee - surface it as a row error instead.
+                    errors.append({
+                        'line': line_number,
+                        'error': f"نقش «{cells[3]}» معتبر نیست؛ از admin یا employee استفاده کنید.",
+                    })
+                    continue
 
             if not username or not full_name or not password:
                 errors.append({
@@ -464,8 +491,26 @@ class UserBulkImportView(APIView):
         ]
 
         if users_to_create:
-            with transaction.atomic():
-                User.objects.bulk_create(users_to_create, batch_size=self.BULK_CREATE_BATCH_SIZE)
+            try:
+                with transaction.atomic():
+                    User.objects.bulk_create(users_to_create, batch_size=self.BULK_CREATE_BATCH_SIZE)
+            except IntegrityError:
+                # Concurrent import / user creation raced the pre-check.
+                # Fall back to row-by-row inserts so only genuine conflicts
+                # are skipped instead of losing the whole batch to a 500.
+                created_rows = []
+                for row, user_obj in zip(rows_to_create, users_to_create):
+                    try:
+                        with transaction.atomic():
+                            user_obj.save()
+                        created_rows.append(row)
+                    except IntegrityError:
+                        skipped.append({
+                            'line': row['line'],
+                            'username': row['username'],
+                            'reason': 'نام کاربری همزمان توسط عملیات دیگری ثبت شد.',
+                        })
+                rows_to_create = created_rows
 
         created = [
             {'username': row['username'], 'full_name': row['full_name'], 'role': row['role']}

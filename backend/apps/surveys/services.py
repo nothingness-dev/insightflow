@@ -177,6 +177,16 @@ def _required_pair_totals(survey_ids):
     return required
 
 
+def required_pair_total_for(survey):
+    """Constant-query equivalent of len(required_question_pairs(survey)).
+
+    Used on hot paths (anonymous ballot submission holds a row lock while
+    computing this) where walking every person's effective question set with
+    per-person queries is too expensive.
+    """
+    return _required_pair_totals([survey.id]).get(survey.id, 0)
+
+
 def bulk_completed_response_counts(survey_ids):
     """Authenticated voters who completed each survey, in three queries total.
 

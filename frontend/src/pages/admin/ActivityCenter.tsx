@@ -1,4 +1,4 @@
-import { Fragment, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, ReactNode, useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { activityApi } from '../../api/endpoints';
 import {
@@ -348,7 +348,17 @@ export default function ActivityCenter() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const [exportOpen, setExportOpen] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce keystrokes: `search` tracks the input for instant UI feedback,
+  // while `debouncedSearch` is what actually drives the request.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
   const hasActiveFilters = Boolean(action || actor || statusFilter || criticalOnly || search.trim());
@@ -359,6 +369,7 @@ export default function ActivityCenter() {
     setStatusFilter('');
     setCriticalOnly(false);
     handleSearch('');
+    clearFiltersNow();
   });
 
   const actionLabel = options?.actions.find(item => item.value === action)?.label;
@@ -395,7 +406,7 @@ export default function ActivityCenter() {
         page: String(page),
         page_size: String(PAGE_SIZE),
       };
-      if (search) params.search = search;
+      if (debouncedSearch) params.search = debouncedSearch;
       if (action) params.action = action;
       if (statusFilter) params.status = statusFilter;
       if (actor) params.actor = actor;
@@ -409,7 +420,7 @@ export default function ActivityCenter() {
     } finally {
       if (!signal?.aborted) setLoadingTable(false);
     }
-  }, [page, search, action, statusFilter, actor, criticalOnly]);
+  }, [page, debouncedSearch, action, statusFilter, actor, criticalOnly]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -425,10 +436,11 @@ export default function ActivityCenter() {
 
   const onFilterChange = (fn: () => void) => { fn(); setPage(1); };
 
-  const handleSearch = (v: string) => {
-    setSearch(v);
-    setPage(1);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+  const handleSearch = (v: string) => setSearch(v);
+
+  const clearFiltersNow = () => {
+    setSearch('');
+    setDebouncedSearch('');
   };
 
   const refreshAll = () => { loadTop(); loadTable(); toast.success('اطلاعات به‌روزرسانی شد'); };
