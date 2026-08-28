@@ -1,6 +1,6 @@
 ## [Unreleased]
 
-## [2.10.0-ip-audit.31] — 2026-08-26
+## [2.10.0-ip-audit.32] — 2026-08-28
 
 ### Security
 
