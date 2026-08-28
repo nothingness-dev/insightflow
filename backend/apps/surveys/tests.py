@@ -1167,12 +1167,10 @@ class EmployeeSurveyListTests(APITestCase):
         self.assertEqual(item['people_count'], 2)
         self.assertEqual(item['questions_count'], 2)
         self.assertEqual(item['total_responses'], 1, 'Only fully-completing voters count.')
-        # Preserved historical list semantics: my_votes compares each person's
-        # answered count against the survey-wide active question total, which
-        # undercounts on mixed default/custom surveys (the survey-detail
-        # endpoint is the precise source). Pinned so the bulk rewrite keeps
-        # byte-identical output.
-        self.assertEqual(item['my_votes_count'], 0)
+        # Completion follows each person's OWN assignment (default set vs
+        # custom questions), matching the survey-detail endpoint: this voter
+        # finished both sections of the mixed survey, so both people count.
+        self.assertEqual(item['my_votes_count'], 2)
         self.assertEqual(item['total_people'], 2)
         self.assertEqual(item['total_questions'], 2)
         self.assertEqual(item['anonymous_participants_count'], 0)
@@ -1262,6 +1260,31 @@ class AdminSurveyListStatsTests(APITestCase):
         self.assertEqual(item['questions_count'], 1)
         self.assertEqual(item['total_responses'], 1)
         self.assertEqual(item['anonymous_participants_count'], 0)
+
+    def test_admin_list_pagination_is_ordered_without_warning(self):
+        """Count-annotations used to drop the model's default ordering, so
+        DRF paginated an unordered queryset: UnorderedObjectListWarning fired
+        and, on PostgreSQL, page slicing ran without ORDER BY so rows could
+        repeat or vanish between pages. The endpoint must stay ordered."""
+        import warnings as _warnings
+
+        from django.core.paginator import UnorderedObjectListWarning
+
+        login = self.client.post(
+            '/api/auth/login/',
+            {'username': self.admin.username, 'password': 'AdminPass@1'},
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+        with _warnings.catch_warnings():
+            _warnings.simplefilter('error', UnorderedObjectListWarning)
+            response = self.client.get('/api/admin/surveys/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data['results'] if isinstance(response.data, dict) else response.data
+        self.assertTrue(results)
+        created = [item['created_at'] for item in results]
+        self.assertEqual(created, sorted(created, reverse=True))
 
 
 class SessionAndBooleanFixTests(APITestCase):

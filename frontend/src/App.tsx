@@ -49,7 +49,7 @@ export default function App() {
   return (
     <AuthProvider>
       <MediaProtection />
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <BrowserRouter>
         <RouteLoadingBar />
         {/* Route-level guard: one broken page recovers on its own instead of
             taking the whole app shell down with it. */}

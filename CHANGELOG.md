@@ -1,5 +1,44 @@
 ## [Unreleased]
 
+### Security
+
+- Dependency audit across PyPI + npm + OSV: upgraded all vulnerable pins —
+  Django 5.2.17 (CVE-2026-15830), djangorestframework-simplejwt 5.5.1
+  (CVE-2024-22513 / GHSA-5vcc-86wm-547q), Pillow 12.3.0 (~17 CVEs in 11.x),
+  react-router-dom 7.18.2 (CVE-2026-53666/53668/53669; the v7 future flags
+  were already enabled so the jump was prepared), postcss 8.5.26 and
+  nanoid 3.3.18 (transitive). All remaining pins refreshed to latest
+  same-major releases; full OSV re-scan reports zero advisories.
+- Frontend: removed the obsolete `future` flags from `<BrowserRouter>` —
+  they are default behaviour in React Router v7.
+
+### Changed
+
+- djangorestframework 3.18.0, django-cors-headers 4.9.0, psycopg2-binary
+  2.9.12, reportlab 4.5.1, arabic-reshaper 3.0.1, python-bidi 0.6.11,
+  dj-database-url 2.3.0, django-filter 25.2, redis 5.3.1; axios ^1.20.0,
+  autoprefixer ^10.5.4. RTL PDF pipeline smoke-verified on the new stack.
+
+### Fixed
+
+- Admin survey list pagination is ordered again: aggregate annotations
+  dropped the model's `-created_at` default ordering, so DRF paginated an
+  unordered queryset (`UnorderedObjectListWarning`) and on PostgreSQL sliced
+  pages without ORDER BY — rows could repeat or vanish between pages.
+- Employee survey list `my_votes_count` now judges completion against each
+  person's OWN question assignment (default set vs custom questions),
+  matching the survey-detail endpoint instead of undercounting mixed
+  default/custom surveys. Still a fixed query count.
+- Generated the missing `surveys/0020_alter_rating_comment` migration for the
+  `Rating.comment` 1000-character validator shipped in 2.10.29, restoring
+  `makemigrations --check` (CI migration gate) to green.
+
+### Added
+
+- Regression tests: admin survey list must paginate ordered and warning-free;
+  employee list counts completion per person's own assignment on mixed
+  default/custom surveys.
+
 ## [2.10.29] — 2026-08-26
 
 ### Fixed
