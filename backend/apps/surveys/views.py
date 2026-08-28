@@ -112,7 +112,15 @@ class AdminSurveyListCreateView(generics.ListCreateAPIView):
     def list(self, request, *args, **kwargs):
         # Annotated counters + one bulk completion query keep the list at a
         # fixed query count instead of ~5 queries per survey row.
-        queryset = annotate_survey_list_stats(self.filter_queryset(self.get_queryset())).select_related('created_by')
+        queryset = (
+            annotate_survey_list_stats(self.filter_queryset(self.get_queryset()))
+            .select_related('created_by')
+            # Aggregate annotations drop the model's Meta default ordering;
+            # paginating that unordered queryset triggers DRF's
+            # UnorderedObjectListWarning and, on PostgreSQL, actually slices
+            # pages without ORDER BY so rows can repeat/vanish between pages.
+            .order_by('-created_at')
+        )
         page = self.paginate_queryset(queryset)
         surveys = page if page is not None else list(queryset)
 
@@ -1285,12 +1293,14 @@ class EmployeeSurveyListView(generics.ListAPIView):
 
         data = SurveyListSerializer(surveys, many=True, context={'request': request}).data
 
+        survey_ids = [s.id for s in surveys]
         answered_by_survey = defaultdict(dict)
-        if surveys and any(s.active_questions_count > 0 for s in surveys):
+        required_by_person = {}
+        if survey_ids and any(s.active_questions_count > 0 for s in surveys):
             rows = (
                 Rating.objects
                 .filter(
-                    survey_id__in=[s.id for s in surveys],
+                    survey_id__in=survey_ids,
                     voter=request.user,
                     person__is_active=True,
                     question__is_active=True,
@@ -1301,13 +1311,47 @@ class EmployeeSurveyListView(generics.ListAPIView):
             for row in rows:
                 answered_by_survey[row['survey_id']][row['person_id']] = row['answered_count']
 
+            # Required question counts follow each person's OWN assignment
+            # (default set vs custom questions) — mirroring
+            # completed_person_ids()/required_question_pairs_for() so this
+            # list badge matches the detail endpoint even when some people
+            # use custom question sets. Two extra grouped queries keep the
+            # whole handler at a fixed query count regardless of survey count.
+            default_counts = dict(
+                SurveyQuestion.objects
+                .filter(survey_id__in=survey_ids, person__isnull=True, is_active=True)
+                .values('survey_id')
+                .annotate(total=Count('id'))
+                .values_list('survey_id', 'total')
+            )
+            custom_counts = dict(
+                SurveyQuestion.objects
+                .filter(survey_id__in=survey_ids, person__isnull=False, is_active=True)
+                .values('person_id')
+                .annotate(total=Count('id'))
+                .values_list('person_id', 'total')
+            )
+            for person_id, sid, uses_default, custom_total in (
+                SurveyPerson.objects
+                .filter(survey_id__in=survey_ids, is_active=True)
+                .annotate(
+                    custom_total=Count(
+                        'custom_questions', filter=Q(custom_questions__is_active=True),
+                    ),
+                )
+                .values_list('id', 'survey_id', 'uses_default_questions', 'custom_total')
+            ):
+                required_by_person[person_id] = (
+                    default_counts.get(sid, 0) if uses_default else custom_total
+                )
+
         for survey, item in zip(surveys, data):
-            required_answers_per_person = survey.active_questions_count
             answered_by_person = answered_by_survey.get(survey.id, {})
             completed_person_ids = {
                 person_id
                 for person_id, answered_count in answered_by_person.items()
-                if required_answers_per_person > 0 and answered_count == required_answers_per_person
+                if required_by_person.get(person_id)
+                and answered_count >= required_by_person[person_id]
             }
 
             item['my_votes_count'] = len(completed_person_ids)
